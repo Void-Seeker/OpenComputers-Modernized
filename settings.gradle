@@ -11,8 +11,8 @@ rootProject.name = 'OpenComputers'
 include 'api'
 include 'core-api'
 include 'core'
-// 1.20.1 backport: platform modules are disabled until they are ported to Forge 47.
-// include 'neoforge'
+include 'forge'
+include 'forge-api'
+// 1.20.1 backport: only the Forge platform is built.
 // include 'fabric'
-// include 'neoforge-api'
 // include 'fabric-api'

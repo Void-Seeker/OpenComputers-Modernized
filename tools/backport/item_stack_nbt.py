@@ -52,6 +52,6 @@ for d in sys.argv[1:]:
     s=p.read_text(); t,k=rewrite(s)
     if k:
       if 'new CompoundTag()' in t and 'import net.minecraft.nbt.CompoundTag;' not in t and 'import net.minecraft.nbt.*;' not in t:
-        t=re.sub(r'(\npackage [^;]+;\n)',r'\1\nimport net.minecraft.nbt.CompoundTag;\n',t,1)
+        t=re.sub(r'(?m)^(package [^;]+;\n)',r'\1\nimport net.minecraft.nbt.CompoundTag;\n',t,1)
       p.write_text(t); tot+=k; print(p,k)
 print('total',tot)

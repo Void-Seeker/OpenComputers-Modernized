@@ -700,4 +700,14 @@ public class Hologram extends BlockEntity implements Environment, SidedEnvironme
     nbt.putFloat("rotationSpeedY", rotationSpeedY);
     nbt.putFloat("rotationSpeedZ", rotationSpeedZ);
   }
+
+  /**
+   * Holograms render far outside their block. Overrides Forge's
+   * {@code IForgeBlockEntity#getRenderBoundingBox} at runtime (core compiles against vanilla).
+   */
+  @SuppressWarnings("unused")
+  public net.minecraft.world.phys.AABB getRenderBoundingBox() {
+    return new net.minecraft.world.phys.AABB(Double.NEGATIVE_INFINITY, Double.NEGATIVE_INFINITY, Double.NEGATIVE_INFINITY,
+      Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY);
+  }
 }

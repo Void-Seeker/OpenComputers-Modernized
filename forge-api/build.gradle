@@ -1,0 +1,34 @@
+plugins {
+    id 'net.neoforged.moddev.legacyforge'
+    id 'java-library'
+}
+
+base {
+    archivesName = mod_id + "-forge-api"
+}
+
+legacyForge {
+    version = "${minecraft_version}-${forge_version}"
+}
+
+configurations {
+    commonResources {
+        canBeResolved = false
+        canBeConsumed = true
+    }
+}
+
+artifacts {
+    commonResources sourceSets.main.resources.sourceDirectories.singleFile
+}
+
+dependencies {
+    compileOnly(project(':api'))
+    compileOnly(project(':core-api'))
+    compileOnly(project(':core'))
+}
+
+java {
+    withSourcesJar()
+    withJavadocJar()
+}

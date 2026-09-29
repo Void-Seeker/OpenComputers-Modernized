@@ -62,6 +62,6 @@ for d in sys.argv[1:]:
     t=t.replace('import net.minecraft.world.item.component.CustomData;','import li.cil.oc.compat.CustomData;')
     t=re.sub(r'\bnet\.minecraft\.world\.item\.component\.CustomData\b','li.cil.oc.compat.CustomData',t)
     if 'CustomData.' in t and 'import li.cil.oc.compat.CustomData;' not in t and 'li.cil.oc.compat.CustomData' not in t and 'package li.cil.oc.compat;' not in t:
-        t=re.sub(r'(\npackage [^;]+;\n)',r'\1\nimport li.cil.oc.compat.CustomData;\n',t,1)
+        t=re.sub(r'(?m)^(package [^;]+;\n)',r'\1\nimport li.cil.oc.compat.CustomData;\n',t,1)
     if t!=s: p.write_text(t); n+=k; print(p,k)
 print('total',n)

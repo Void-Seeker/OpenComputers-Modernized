@@ -1,0 +1,30 @@
+package li.cil.oc.neoforge.integration.top;
+
+import java.util.function.Function;
+import li.cil.oc.neoforge.integration.ModProxy;
+import li.cil.oc.neoforge.integration.Mods;
+import mcjty.theoneprobe.api.ITheOneProbe;
+import net.minecraftforge.fml.InterModComms;
+
+@SuppressWarnings("unused")
+public final class ModTop implements ModProxy {
+  @Override
+  public Mods.ModBase getMod() {
+    return Mods.TheOneProbe;
+  }
+
+  @Override
+  public void initialize() {
+    InterModComms.sendTo("theoneprobe", "getTheOneProbe",
+      () -> (Function<ITheOneProbe, Void>) probe -> {
+        var provider = new OCProbeProvider();
+        var entityProvider = new OCProbeEntityProvider();
+        probe.registerProbeConfigProvider(new OCProbeConfigProvider());
+        probe.registerProvider(provider);
+        probe.registerBlockDisplayOverride(new OCProbeBlockOverride());
+        probe.registerEntityProvider(entityProvider);
+        probe.registerEntityDisplayOverride(entityProvider);
+        return null;
+      });
+  }
+}

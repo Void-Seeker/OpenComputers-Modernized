@@ -1,0 +1,165 @@
+plugins {
+    id 'net.neoforged.moddev.legacyforge'
+    id 'idea'
+}
+
+// 1.20.1 backport: integrations that are not ported yet.
+def unportedIntegrations = [
+    'appeng', 'appmek', 'cbmultipart', 'computercraft', 'create', 'emi', 'enderio', 'enderstorage',
+    'jade', 'jei', 'mekanism', 'morered', 'projectred', 'refinedstorage2', 'refinedstorage_mekanism',
+    'rei', 'rftools', 'sable', 'tis3d', 'top', 'wthit',
+]
+sourceSets.main.java {
+    unportedIntegrations.each { exclude "li/cil/oc/neoforge/integration/${it}/**" }
+}
+
+sourceSets.main.resources {
+    exclude("**/*.bbmodel")
+    exclude("src/generated/**/.cache")
+}
+
+base {
+    archivesName = mod_id + "-forge-" + minecraft_version
+}
+
+legacyForge {
+    version = "${minecraft_version}-${forge_version}"
+    validateAccessTransformers = true
+
+    parchment {
+        mappingsVersion = parchment_mappings_version
+        minecraftVersion = parchment_minecraft_version
+    }
+
+    accessTransformers = project.files('src/main/resources/META-INF/accesstransformer.cfg')
+
+    runs {
+        client {
+            client()
+            gameDirectory = project.file('runs/client')
+            programArguments.addAll '--username', 'Dev', '--uuid', '380df991-f603-344c-a090-369bad2a924a'
+            systemProperty 'forge.enabledGameTestNamespaces', mod_id
+        }
+        client2 {
+            client()
+            gameDirectory = project.file('runs/client2')
+            programArguments.addAll '--username', 'Player', '--uuid', 'a01e3843-e521-3998-958a-f459800e4d11'
+            systemProperty 'forge.enabledGameTestNamespaces', mod_id
+        }
+        server {
+            server()
+            gameDirectory = project.file('runs/server')
+            programArgument '--nogui'
+            systemProperty 'forge.enabledGameTestNamespaces', mod_id
+        }
+        data {
+            // Loads every mod and registry without a world or window; used as a startup smoke test.
+            data()
+            gameDirectory = project.file('runs/data')
+            programArguments.addAll '--mod', mod_id, '--output', project.file('build/datagen').absolutePath,
+                '--existing', project.file('src/main/resources').absolutePath
+        }
+        configureEach {
+            systemProperty 'forge.logging.markers', 'REGISTRIES'
+            logLevel = org.slf4j.event.Level.DEBUG
+        }
+    }
+
+    mods {
+        "${mod_id}" {
+            sourceSet(sourceSets.main)
+        }
+    }
+}
+
+configurations {
+    runtimeClasspath.extendsFrom localRuntime
+    commonResources { canBeResolved = true; canBeConsumed = false }
+}
+
+dependencies {
+    // Project dependencies
+    compileOnly(project(':api'))
+    compileOnly(project(':core-api'))
+    compileOnly(project(':core'))
+    compileOnly(project(':forge-api'))
+
+    // OC repack libraries
+    compileOnly("li.cil.repack:OC-JNLua:${jnlua_version}")
+    implementation files(rootProject.tasks.named('relocateTypesafe'))
+    compileOnly("li.cil.repack:OC-LuaJ:${luaj_version}")
+    implementation("li.cil.repack:OC-JNLua-Natives:${jnlua_natives_version}")
+
+    // Integrations: ported one by one to their 1.20.1 versions, see integrationDeps below.
+
+    commonResources(project(path: ':core-api', configuration: 'commonResources'))
+    commonResources(project(path: ':core', configuration: 'commonResources'))
+    commonResources(project(path: ':api', configuration: 'commonResources'))
+    commonResources(project(path: ':forge-api', configuration: 'commonResources'))
+
+    additionalRuntimeClasspath("li.cil.repack:OC-JNLua-Natives:${jnlua_natives_version}")
+}
+
+def embeddedConfig = configurations.create('embedded') {
+    canBeResolved = true
+    canBeConsumed = false
+}
+dependencies {
+    embedded("li.cil.repack:OC-JNLua:${jnlua_version}")
+    embedded("li.cil.repack:OC-LuaJ:${luaj_version}")
+    embedded("li.cil.repack:OC-JNLua-Natives:${jnlua_natives_version}")
+    embedded files(rootProject.tasks.named('relocateTypesafe'))
+}
+def embeddedDir = layout.buildDirectory.dir('embedded')
+def extractEmbedded = tasks.register('extractEmbedded', Copy) {
+    dependsOn(rootProject.tasks.named('relocateTypesafe'))
+    doFirst {
+        delete embeddedDir
+    }
+    from({ embeddedConfig.collect { zipTree(it) } }) {
+        exclude 'META-INF/**'
+        exclude '.keep'
+    }
+    into embeddedDir
+}
+sourceSets.main.output.dir(['builtBy': extractEmbedded], embeddedDir)
+def sharedClassesDir = layout.buildDirectory.dir('sharedClasses')
+def mergeSharedClasses = tasks.register('mergeSharedClasses', Copy) {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    into sharedClassesDir
+    from(project(':api').sourceSets.main.output.classesDirs)
+    from(project(':core-api').sourceSets.main.output.classesDirs)
+    from(project(':core').sourceSets.main.output.classesDirs)
+    from(project(':forge-api').sourceSets.main.output.classesDirs)
+}
+sourceSets.main.output.dir(['builtBy': mergeSharedClasses], sharedClassesDir)
+
+processResources {
+    dependsOn(configurations.commonResources)
+    from(configurations.commonResources)
+    filesMatching("application.conf") {
+        filter { line ->
+            line.replace("@version@", project.findProperty("mod_version") ?: "0.0.0")
+        }
+    }
+}
+
+var generateModMetadata = tasks.register("generateModMetadata", ProcessResources) {
+    var replaceProperties = [
+            minecraft_version      : minecraft_version,
+            minecraft_version_range: minecraft_version_range,
+            forge_version          : forge_version,
+            forge_version_range    : forge_version_range,
+            loader_version_range   : loader_version_range,
+            mod_id                 : mod_id,
+            mod_name               : mod_name,
+            mod_license            : mod_license,
+            mod_version            : mod_version,
+    ]
+    inputs.properties replaceProperties
+    expand replaceProperties
+    from "src/main/templates"
+    into "build/generated/sources/modMetadata"
+}
+sourceSets.main.resources.srcDir generateModMetadata
+legacyForge.ideSyncTask generateModMetadata

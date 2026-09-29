@@ -1,0 +1,59 @@
+package li.cil.oc.neoforge.integration.vanilla;
+
+import li.cil.oc.api.machine.Arguments;
+import li.cil.oc.api.machine.Callback;
+import li.cil.oc.api.machine.Context;
+import li.cil.oc.api.network.ManagedEnvironment;
+import li.cil.oc.api.prefab.DriverSidedBlockEntity;
+import li.cil.oc.core.impl.integration.ManagedBlockEntityEnvironment;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import li.cil.oc.neoforge.compat.Capabilities;
+import net.minecraftforge.fluids.capability.IFluidHandler;
+
+@SuppressWarnings("unused")
+public final class DriverFluidTank extends DriverSidedBlockEntity {
+  @Override
+  public boolean isGeneric() {
+    return true;
+  }
+
+  @Override
+  public Class<?> getBlockEntityClass() {
+    return BlockEntity.class;
+  }
+
+  @Override
+  public boolean worksWith(final Level world, final BlockPos pos, final Direction side) {
+    return Capabilities.FluidHandler.BLOCK.getCapability(world, pos, side) != null;
+  }
+
+  @Override
+  public ManagedEnvironment createEnvironment(
+    final Level level, final BlockPos pos, final Direction side) {
+    var handler = Capabilities.FluidHandler.BLOCK.getCapability(level, pos, side);
+    if (handler == null) return null;
+    return new Environment(handler);
+  }
+
+  public static final class Environment extends ManagedBlockEntityEnvironment<IFluidHandler> {
+    public Environment(final IFluidHandler handler) {
+      super(handler, "fluid_tank");
+    }
+
+    @Callback(doc = "function():table -- Get some information about this tank.")
+    public Object[] getInfo(final Context context, final Arguments args) {
+      var info = new java.util.HashMap<String, Object>();
+      var fluidStack = getBlockEntity().getFluidInTank(0);
+      info.put("amount", fluidStack.getAmount());
+      if (!fluidStack.isEmpty()) {
+        info.put("fluid", net.minecraft.core.registries.BuiltInRegistries.FLUID.getKey(fluidStack.getFluid()).toString());
+        info.put("name", fluidStack.getFluid().getFluidType().getDescription().getString());
+      }
+      info.put("capacity", getBlockEntity().getTankCapacity(0));
+      return new Object[]{info};
+    }
+  }
+}

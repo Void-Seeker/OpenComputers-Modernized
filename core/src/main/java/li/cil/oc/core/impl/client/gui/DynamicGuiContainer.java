@@ -55,6 +55,7 @@ public abstract class DynamicGuiContainer<C extends AbstractContainerMenu> exten
 
   @Override
   public void render(@NotNull GuiGraphics guiGraphics, int mouseX, int mouseY, float dt) {
+    renderBackground(guiGraphics); // 1.20.1: screens draw their own background
     Slot slot = menu.slots.stream()
       .filter(s -> isHovering(s.x, s.y, 16, 16, mouseX, mouseY))
       .findFirst().orElse(null);
