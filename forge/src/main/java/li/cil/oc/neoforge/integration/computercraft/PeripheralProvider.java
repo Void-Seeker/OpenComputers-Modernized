@@ -1,6 +1,5 @@
 package li.cil.oc.neoforge.integration.computercraft;
 
-import dan200.computercraft.api.peripheral.PeripheralCapability;
 import li.cil.oc.core.impl.common.blockentity.Relay;
 import li.cil.oc.core.impl.integration.computercraft.RelayPeripheral;
 import li.cil.oc.neoforge.common.init.Blocks;

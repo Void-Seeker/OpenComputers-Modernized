@@ -40,6 +40,7 @@ public final class Mods {
     proxyOrNull("li.cil.oc.neoforge.integration.appeng.ModAppEng"),
     proxyOrNull("li.cil.oc.neoforge.integration.appmek.ModAppliedMekanistics"),
     proxyOrNull("li.cil.oc.neoforge.integration.refinedstorage2.ModRefinedStorage2"),
+    proxyOrNull("li.cil.oc.neoforge.integration.refinedstorage.ModRefinedStorage"), // RS 1.x on 1.20.1
     proxyOrNull("li.cil.oc.neoforge.integration.refinedstorage_mekanism.ModRefinedStorageMekanism"),
     proxyOrNull("li.cil.oc.neoforge.integration.computercraft.ModComputerCraft"),
     proxyOrNull("li.cil.oc.neoforge.integration.sable.ModSable"),

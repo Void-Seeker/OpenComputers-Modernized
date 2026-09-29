@@ -19,7 +19,6 @@ import mcp.mobius.waila.api.WailaConstants;
 import mcp.mobius.waila.api.component.ItemComponent;
 import mcp.mobius.waila.api.component.NamedItemListComponent;
 import net.minecraft.core.Direction;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
@@ -267,7 +266,7 @@ public class OCWthitClientPlugin implements IWailaClientPlugin {
 
         Item item = BuiltInRegistries.ITEM.get(new ResourceLocation(id));
         ItemStack stack = new ItemStack(item, count);
-        stack.set(DataComponents.CUSTOM_NAME, Component.literal(name));
+        stack.setHoverName(Component.literal(name));
         stacks.add(stack);
       }
 

@@ -1,6 +1,6 @@
 package li.cil.oc.neoforge.integration.enderio;
 
-import com.enderio.enderio.content.tools.YetaWrenchItem;
+import com.enderio.base.common.item.tool.YetaWrenchItem;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 

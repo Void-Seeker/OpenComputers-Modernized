@@ -5,8 +5,7 @@ plugins {
 
 // 1.20.1 backport: integrations that are not ported yet.
 def unportedIntegrations = [
-    'cbmultipart', 'computercraft', 'enderio', 'enderstorage', 'morered', 'projectred',
-    'refinedstorage2', 'refinedstorage_mekanism', 'rei', 'rftools', 'sable', 'tis3d', 'top', 'wthit',
+    'refinedstorage2', 'refinedstorage_mekanism', 'sable',
 ]
 sourceSets.main.java {
     unportedIntegrations.each { exclude "li/cil/oc/neoforge/integration/${it}/**" }
@@ -104,6 +103,28 @@ dependencies {
     modCompileOnly("mezz.jei:jei-${minecraft_version}-forge-api:${jei_version}")
     modCompileOnly("dev.emi:emi-forge:${emi_version}+${minecraft_version}:api")
     modCompileOnly("maven.modrinth:jade:${jade_version}+forge")
+    // Integrations with mods outside the pack, against their latest 1.20.1 releases.
+    modCompileOnly("cc.tweaked:cc-tweaked-${minecraft_version}-core-api:${cc_version}")
+    modCompileOnly("cc.tweaked:cc-tweaked-${minecraft_version}-common-api:${cc_version}")
+    modCompileOnly("cc.tweaked:cc-tweaked-${minecraft_version}-forge-api:${cc_version}")
+    modCompileOnly("maven.modrinth:tis3d:MC${minecraft_version}-forge-${tis3d_version}")
+    modCompileOnly("dev.architectury:architectury-forge:${architectury_version}")
+    modCompileOnly("maven.modrinth:rei:${rei_version}+forge")
+    compileOnly("me.shedaniel.cloth:basic-math:0.6.1") // REI's geometry types
+    modCompileOnly("maven.modrinth:the-one-probe:${minecraft_version}-${top_version}")
+    modCompileOnly("maven.modrinth:wthit:forge-${wthit_version}")
+    modCompileOnly("maven.modrinth:enderio:${enderio_version}")
+    compileOnly("dev.gigaherz.graph:GraphLib3:3.0.7") // bundled in EnderIO
+    modCompileOnly("io.codechicken:CodeChickenLib:${minecraft_version}-${codechickenlib_version}:universal")
+    modCompileOnly("io.codechicken:CBMultipart:${minecraft_version}-${cbmultipart_version}:universal")
+    modCompileOnly("io.codechicken:EnderStorage:${minecraft_version}-${enderstorage_version}:universal")
+    modCompileOnly("mrtjp:ProjectRed:${minecraft_version}-${pr_version}:api")
+    modCompileOnly("maven.modrinth:more-red:${morered_version}")
+    modCompileOnly("maven.modrinth:rftools-utility:${rftools_utility_version}")
+    modCompileOnly("maven.modrinth:rftools-base:${rftools_base_version}")
+    modCompileOnly("maven.modrinth:mcjtylib:${mcjtylib_version}")
+    modCompileOnly("maven.modrinth:refined-storage:${rs_version}") // RS 1.x; RS2 has no 1.20.1 release
+
     // The same mods at dev runtime only (not bundled), so runGameTestServer/runClient exercise the integrations.
     modRuntimeOnly("appeng:appliedenergistics2-forge:${ae2_version}")
     modRuntimeOnly("maven.modrinth:guideme:${guideme_version}") // required by AE2 15.4
@@ -113,6 +134,30 @@ dependencies {
     modRuntimeOnly("maven.modrinth:jade:${jade_version}+forge")
     modRuntimeOnly("mezz.jei:jei-${minecraft_version}-forge:${jei_version}")
     modRuntimeOnly("dev.emi:emi-forge:${emi_version}+${minecraft_version}")
+
+    // Every other integrated mod, for checking all integrations at once: ./gradlew :forge:runGameTestServer -PallIntegrations
+    if (project.hasProperty('allIntegrations')) {
+        modRuntimeOnly("maven.modrinth:cc-tweaked:gRtcHJd8") // 1.120.2 for 1.20.1 Forge
+        modRuntimeOnly("maven.modrinth:tis3d:MC${minecraft_version}-forge-${tis3d_version}")
+        modRuntimeOnly("maven.modrinth:markdownmanual:MC${minecraft_version}-forge-1.2.5")
+        modRuntimeOnly("dev.architectury:architectury-forge:${architectury_version}")
+        modRuntimeOnly("maven.modrinth:rei:${rei_version}+forge")
+        modRuntimeOnly("maven.modrinth:cloth-config:11.1.136+forge")
+        modRuntimeOnly("maven.modrinth:the-one-probe:${minecraft_version}-${top_version}")
+        modRuntimeOnly("maven.modrinth:wthit:forge-${wthit_version}")
+        modRuntimeOnly("maven.modrinth:badpackets:forge-0.4.3")
+        modRuntimeOnly("maven.modrinth:enderio:${enderio_version}")
+        modRuntimeOnly("io.codechicken:CodeChickenLib:${minecraft_version}-${codechickenlib_version}:universal")
+        modRuntimeOnly("io.codechicken:CBMultipart:${minecraft_version}-${cbmultipart_version}:universal")
+        modRuntimeOnly("io.codechicken:EnderStorage:${minecraft_version}-${enderstorage_version}:universal")
+        modRuntimeOnly("mrtjp:ProjectRed:${minecraft_version}-${pr_version}:core")
+        modRuntimeOnly("mrtjp:ProjectRed:${minecraft_version}-${pr_version}:transmission")
+        modRuntimeOnly("maven.modrinth:more-red:${morered_version}")
+        modRuntimeOnly("maven.modrinth:rftools-utility:${rftools_utility_version}")
+        modRuntimeOnly("maven.modrinth:rftools-base:${rftools_base_version}")
+        modRuntimeOnly("maven.modrinth:mcjtylib:${mcjtylib_version}")
+        modRuntimeOnly("maven.modrinth:refined-storage:${rs_version}")
+    }
 
     commonResources(project(path: ':core-api', configuration: 'commonResources'))
     commonResources(project(path: ':core', configuration: 'commonResources'))

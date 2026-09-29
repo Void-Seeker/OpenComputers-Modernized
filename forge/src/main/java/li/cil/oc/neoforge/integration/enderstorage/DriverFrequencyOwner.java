@@ -48,9 +48,9 @@ public final class DriverFrequencyOwner extends DriverSidedBlockEntity {
     public Object[] getFrequency(final Context context, final Arguments args) {
       Frequency frequency = getBlockEntity().getFrequency();
       return new Object[]{new int[]{
-        frequency.left().ordinal(),
-        frequency.middle().ordinal(),
-        frequency.right().ordinal()
+        frequency.getLeft().ordinal(),
+        frequency.getMiddle().ordinal(),
+        frequency.getRight().ordinal()
       }};
     }
 
@@ -76,18 +76,19 @@ public final class DriverFrequencyOwner extends DriverSidedBlockEntity {
           throw new IllegalArgumentException("invalid frequency");
         }
       }
-      getBlockEntity().setFreq(getBlockEntity().getFrequency()
-        .withLeft(EnumColour.fromWoolMeta(left))
-        .withMiddle(EnumColour.fromWoolMeta(middle))
-        .withRight(EnumColour.fromWoolMeta(right)));
+      // EnderStorage 1.20.1 frequencies are mutable; change a copy like the 1.21 "with" methods did.
+      getBlockEntity().setFreq(getBlockEntity().getFrequency().copy()
+        .setLeft(EnumColour.fromWoolMeta(left))
+        .setMiddle(EnumColour.fromWoolMeta(middle))
+        .setRight(EnumColour.fromWoolMeta(right)));
       return null;
     }
 
     @Callback(doc = "function():string -- Get the name of the owner, which is usually a player's name or 'global'.")
     public Object[] getOwner(final Context context, final Arguments args) {
       Frequency frequency = getBlockEntity().getFrequency();
-      if (frequency.ownerName().isPresent()) {
-        return new Object[]{frequency.ownerName().get().getString()};
+      if (frequency.hasOwner() && frequency.getOwnerName() != null) {
+        return new Object[]{frequency.getOwnerName().getString()};
       }
       return new Object[]{"global"};
     }

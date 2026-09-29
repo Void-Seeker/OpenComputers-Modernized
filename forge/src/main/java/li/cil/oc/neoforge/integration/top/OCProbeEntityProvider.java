@@ -37,7 +37,7 @@ public class OCProbeEntityProvider implements IProbeInfoEntityProvider, IEntityD
         if (rarity != net.minecraft.world.item.Rarity.COMMON) {
           label = label.withStyle(rarity.getStyleModifier());
         }
-        icon.set(net.minecraft.core.component.DataComponents.CUSTOM_NAME, label);
+        icon.setHoverName(label);
       }
       probeInfo.horizontal()
         .item(icon)

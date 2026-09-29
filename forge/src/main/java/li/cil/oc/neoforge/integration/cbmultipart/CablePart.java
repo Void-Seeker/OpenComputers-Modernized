@@ -109,7 +109,7 @@ public final class CablePart extends SimpleBlockPart
   }
 
   @Override
-  public net.minecraft.world.@NotNull InteractionResult useWithoutItem(Player player, @NotNull PartRayTraceResult hit) {
+  public net.minecraft.world.@NotNull InteractionResult activate(Player player, @NotNull PartRayTraceResult hit, @NotNull ItemStack heldItem, @NotNull net.minecraft.world.InteractionHand hand) {
     ItemStack held = player.getMainHandItem();
     if (Color.isDye(held)) {
       setColor(Color.dyeColor(held));
@@ -170,8 +170,9 @@ public final class CablePart extends SimpleBlockPart
   }
 
   @Override
-  public void save(@NotNull CompoundTag nbt, HolderLookup.@NotNull Provider registries) {
-    super.save(nbt, registries);
+  public void save(@NotNull CompoundTag nbt) {
+    var registries = li.cil.oc.compat.RegistryLookup.get();
+    super.save(nbt);
     if (node != null) {
       var nodeNbt = new CompoundTag();
       node.save(nodeNbt, registries);
@@ -181,8 +182,9 @@ public final class CablePart extends SimpleBlockPart
   }
 
   @Override
-  public void load(@NotNull CompoundTag nbt, HolderLookup.@NotNull Provider registries) {
-    super.load(nbt, registries);
+  public void load(@NotNull CompoundTag nbt) {
+    var registries = li.cil.oc.compat.RegistryLookup.get();
+    super.load(nbt);
     if (node != null && nbt.contains(OCSettings.namespace + "node")) {
       node.load(nbt.getCompound(OCSettings.namespace + "node"), registries);
     }

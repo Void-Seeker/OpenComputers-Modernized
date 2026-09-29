@@ -18,7 +18,7 @@ public abstract class SimpleBlockPart extends BaseMultipart implements ModelRend
   }
 
   @Override
-  public @NotNull ItemStack getCloneStack(@NotNull PartRayTraceResult hit, @NotNull Player player) {
+  public @NotNull ItemStack getCloneStack(@NotNull PartRayTraceResult hit) {
     return new ItemStack(simpleBlock());
   }
 

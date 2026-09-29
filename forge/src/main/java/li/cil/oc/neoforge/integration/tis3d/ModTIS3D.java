@@ -28,7 +28,7 @@ public final class ModTIS3D implements ModProxy {
     // registry fires during mod loading, at which point the registry exists
     // and is not yet frozen. This must be called from the mod constructor
     // (see OpenComputers), as common setup runs after the RegisterEvents.
-    OpenComputers.getModEventBus().addListener(RegisterEvent.class, event -> {
+    OpenComputers.getModEventBus().addListener((RegisterEvent event) -> {
       if (event.getRegistryKey().equals(SerialInterfaceProvider.REGISTRY)) {
         event.register(SerialInterfaceProvider.REGISTRY, helper ->
           helper.register(new ResourceLocation(ModIDs.TIS3D, "opencomputers_adapter"),

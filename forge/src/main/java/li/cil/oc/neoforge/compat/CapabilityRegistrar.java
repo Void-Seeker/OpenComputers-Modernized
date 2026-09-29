@@ -14,6 +14,7 @@ import net.minecraft.world.level.ItemLike;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.common.capabilities.ICapabilityProvider;
@@ -40,6 +41,11 @@ public final class CapabilityRegistrar {
   }
 
   @FunctionalInterface
+  public interface BlockEntityProvider<T, BE extends BlockEntity> {
+    @Nullable T getCapability(BE blockEntity, @Nullable Direction side);
+  }
+
+  @FunctionalInterface
   public interface ItemProvider<T> {
     @Nullable T getCapability(ItemStack stack, @Nullable Void context);
   }
@@ -52,6 +58,7 @@ public final class CapabilityRegistrar {
 
   // Concurrent: registration runs during parallel mod setup, while other mods may already create stacks.
   private final Map<Block, List<BlockRegistration<?>>> blockRegistrations = new ConcurrentHashMap<>();
+  private final Map<BlockEntityType<?>, List<BlockRegistration<?>>> blockEntityTypeRegistrations = new ConcurrentHashMap<>();
   private final Map<Item, List<ItemRegistration<?>>> itemRegistrations = new ConcurrentHashMap<>();
 
   private CapabilityRegistrar() {
@@ -64,6 +71,16 @@ public final class CapabilityRegistrar {
     }
   }
 
+  /**
+   * Registers a provider for all block entities of a type, like NeoForge's {@code registerBlockEntity}.
+   */
+  @SuppressWarnings("unchecked")
+  public <T, BE extends BlockEntity> void registerBlockEntity(final BlockCapability<T, @Nullable Direction> capability, final BlockEntityType<BE> type, final BlockEntityProvider<T, ? super BE> provider) {
+    final BlockRegistration<T> registration = new BlockRegistration<>(capability.capability(),
+      (level, pos, state, blockEntity, side) -> blockEntity != null && blockEntity.getType() == type ? ((BlockEntityProvider<T, BlockEntity>) provider).getCapability(blockEntity, side) : null);
+    blockEntityTypeRegistrations.computeIfAbsent(type, t -> new CopyOnWriteArrayList<>()).add(registration);
+  }
+
   public <T> void registerItem(final ItemCapability<T, @Nullable Void> capability, final ItemProvider<T> provider, final ItemLike... items) {
     final ItemRegistration<T> registration = new ItemRegistration<>(capability.capability(), provider);
     for (final ItemLike item : items) {
@@ -73,9 +90,13 @@ public final class CapabilityRegistrar {
 
   public void onAttachBlockEntity(final AttachCapabilitiesEvent<BlockEntity> event) {
     final BlockEntity blockEntity = event.getObject();
-    final List<BlockRegistration<?>> registrations = blockRegistrations.get(blockEntity.getBlockState().getBlock());
-    if (registrations != null) {
-      event.addCapability(PROVIDER_ID, new BlockEntityProvider(blockEntity, registrations));
+    final List<BlockRegistration<?>> byBlock = blockRegistrations.get(blockEntity.getBlockState().getBlock());
+    final List<BlockRegistration<?>> byType = blockEntityTypeRegistrations.get(blockEntity.getType());
+    if (byBlock != null || byType != null) {
+      final List<BlockRegistration<?>> registrations = new java.util.ArrayList<>();
+      if (byBlock != null) registrations.addAll(byBlock);
+      if (byType != null) registrations.addAll(byType);
+      event.addCapability(PROVIDER_ID, new BlockEntityCapabilityProvider(blockEntity, registrations));
     }
   }
 
@@ -86,7 +107,7 @@ public final class CapabilityRegistrar {
     }
   }
 
-  private record BlockEntityProvider(BlockEntity blockEntity, List<BlockRegistration<?>> registrations) implements ICapabilityProvider {
+  private record BlockEntityCapabilityProvider(BlockEntity blockEntity, List<BlockRegistration<?>> registrations) implements ICapabilityProvider {
     @Override
     public <T> @NotNull LazyOptional<T> getCapability(final @NotNull Capability<T> capability, final @Nullable Direction side) {
       final Level level = blockEntity.getLevel();

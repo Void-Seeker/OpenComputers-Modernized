@@ -143,7 +143,7 @@ public final class PrintPart extends SimpleBlockPart
   }
 
   @Override
-  public net.minecraft.world.@NotNull InteractionResult useWithoutItem(@NotNull Player player, @NotNull PartRayTraceResult hit) {
+  public net.minecraft.world.@NotNull InteractionResult activate(@NotNull Player player, @NotNull PartRayTraceResult hit, @NotNull ItemStack heldItem, @NotNull net.minecraft.world.InteractionHand hand) {
     if (data.hasActiveState()) {
       if (!state || !data.isButtonMode) {
         toggleState();
@@ -186,7 +186,7 @@ public final class PrintPart extends SimpleBlockPart
   }
 
   @Override
-  public @NotNull ItemStack getCloneStack(@NotNull PartRayTraceResult hit, @NotNull Player player) {
+  public @NotNull ItemStack getCloneStack(@NotNull PartRayTraceResult hit) {
     return data.createItemStack();
   }
 
@@ -234,8 +234,9 @@ public final class PrintPart extends SimpleBlockPart
   }
 
   @Override
-  public void save(@NotNull CompoundTag nbt, HolderLookup.@NotNull Provider registries) {
-    super.save(nbt, registries);
+  public void save(@NotNull CompoundTag nbt) {
+    var registries = li.cil.oc.compat.RegistryLookup.get();
+    super.save(nbt);
     ExtendedNBT.setDirection(nbt, "facing", facing);
     var dataNbt = new CompoundTag();
     data.save(dataNbt, registries);
@@ -244,8 +245,9 @@ public final class PrintPart extends SimpleBlockPart
   }
 
   @Override
-  public void load(@NotNull CompoundTag nbt, HolderLookup.@NotNull Provider registries) {
-    super.load(nbt, registries);
+  public void load(@NotNull CompoundTag nbt) {
+    var registries = li.cil.oc.compat.RegistryLookup.get();
+    super.load(nbt);
     Direction dir = ExtendedNBT.getDirection(nbt, "facing");
     if (dir != null) facing = dir;
     if (nbt.contains("data")) {

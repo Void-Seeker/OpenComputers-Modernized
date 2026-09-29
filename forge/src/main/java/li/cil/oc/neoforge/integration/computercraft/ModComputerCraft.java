@@ -1,6 +1,5 @@
 package li.cil.oc.neoforge.integration.computercraft;
 
-import dan200.computercraft.api.peripheral.PeripheralCapability;
 import li.cil.oc.core.impl.integration.computercraft.ConverterLuaObject;
 import li.cil.oc.core.impl.integration.computercraft.DriverPeripheral;
 import li.cil.oc.neoforge.integration.ModProxy;
@@ -17,7 +16,7 @@ public final class ModComputerCraft implements ModProxy {
   public void initialize() {
     DriverPeripheral.addPeripheralFinder((world, pos, side) -> {
       try {
-        return world.getCapability(PeripheralCapability.get(), pos, side);
+        return PeripheralCapability.get().getCapability(world, pos, side);
       } catch (Throwable t) {
         return null;
       }

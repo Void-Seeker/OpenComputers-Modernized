@@ -78,7 +78,7 @@ public final class OpenComputersClient {
       Tooltip.setExtendedTooltips(KeyBindings::showExtendedTooltips);
       li.cil.oc.neoforge.server.machine.Machine.setGamePausedCheck(() -> Minecraft.getInstance().isPaused());
       if (Mods.CBMultipart.isModAvailable()) {
-        // 1.20.1 TODO(integration/cbmultipart): li.cil.oc.neoforge.integration.cbmultipart.ClientMultipartInit.registerRenderers();
+        li.cil.oc.neoforge.integration.cbmultipart.ClientMultipartInit.registerRenderers();
       }
     });
   }

@@ -1,7 +1,6 @@
 package li.cil.oc.neoforge.integration.computercraft;
 
 import dan200.computercraft.api.media.IMedia;
-import dan200.computercraft.api.media.MediaCapability;
 import li.cil.oc.api.fs.Label;
 import li.cil.oc.api.network.EnvironmentHost;
 import li.cil.oc.core.common.Slot;
@@ -16,14 +15,14 @@ import net.minecraft.world.item.ItemStack;
 public final class DriverComputerCraftMedia extends Item {
   @Override
   public boolean worksWith(ItemStack stack) {
-    return stack.getCapability(MediaCapability.get()) != null;
+    // CC:Tweaked 1.20.1: media items implement IMedia (no media capability yet).
+    return stack.getItem() instanceof IMedia;
   }
 
   @Override
   public li.cil.oc.api.network.ManagedEnvironment createEnvironment(ItemStack stack, EnvironmentHost host) {
     if (host.level() instanceof ServerLevel serverLevel) {
-      var media = stack.getCapability(MediaCapability.get());
-      if (media != null) {
+      if (stack.getItem() instanceof IMedia media) {
         var mount = media.createDataMount(stack, serverLevel);
         if (mount != null) {
           var ocFs = li.cil.oc.api.FileSystem.fromComputerCraft(mount);
@@ -52,7 +51,7 @@ public final class DriverComputerCraftMedia extends Item {
   private record ComputerCraftLabel(ItemStack stack, IMedia media) implements Label {
     @Override
     public String getLabel() {
-      return media.getLabel(null, stack);
+      return media.getLabel(stack);
     }
 
     @Override

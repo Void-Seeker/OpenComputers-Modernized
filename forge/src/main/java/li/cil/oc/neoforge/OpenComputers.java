@@ -73,8 +73,8 @@ public final class OpenComputers {
       return server != null ? server.registryAccess() : null;
     });
     if (net.minecraftforge.fml.ModList.get().isLoaded(li.cil.oc.core.integration.ModIDs.TIS3D)) {
-      // 1.20.1 TODO(integration/tis3d): li.cil.oc.neoforge.integration.tis3d.ModTIS3D proxy = new li.cil.oc.neoforge.integration.tis3d.ModTIS3D();
-      // 1.20.1 TODO(integration/tis3d): proxy.initialize();
+      li.cil.oc.neoforge.integration.tis3d.ModTIS3D proxy = new li.cil.oc.neoforge.integration.tis3d.ModTIS3D();
+      proxy.initialize();
     }
     SideTracker.setDedicatedServer(net.minecraftforge.fml.loading.FMLEnvironment.dist == net.minecraftforge.api.distmarker.Dist.DEDICATED_SERVER);
     SideTracker.setCurrentServer(ServerLifecycleHooks::getCurrentServer);
@@ -158,7 +158,7 @@ public final class OpenComputers {
     li.cil.oc.neoforge.common.init.Conditions.register();
 
     if (Mods.CBMultipart.isModAvailable()) {
-      // 1.20.1 TODO(integration/cbmultipart): li.cil.oc.neoforge.integration.cbmultipart.MultipartRegistrations.init(modEventBus);
+      li.cil.oc.neoforge.integration.cbmultipart.MultipartRegistrations.init(modEventBus);
     }
 
     li.cil.oc.core.impl.common.item.RedstoneCard.setProjectRedAvailable(Mods.ProjectRedTransmission::isAvailable);
@@ -256,7 +256,7 @@ public final class OpenComputers {
         chargeableItems);
     }
     if (Mods.ComputerCraft.isModAvailable()) {
-      // 1.20.1 TODO(integration/computercraft): li.cil.oc.neoforge.integration.computercraft.PeripheralProvider.registerCapabilities(event);
+      li.cil.oc.neoforge.integration.computercraft.PeripheralProvider.registerCapabilities(event);
     }
 
     final net.minecraft.world.level.block.Block[] ourBlocks =
@@ -299,7 +299,7 @@ public final class OpenComputers {
     }
 
     if (Mods.MoreRed.isModAvailable()) {
-      // 1.20.1 TODO(integration/morered): li.cil.oc.neoforge.integration.morered.ModMoreRed.registerCapabilities(event);
+      li.cil.oc.neoforge.integration.morered.ModMoreRed.registerCapabilities(event);
     }
   }
 

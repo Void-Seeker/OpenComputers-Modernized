@@ -63,11 +63,11 @@ public class OCREIPlugin implements REIClientPlugin {
   public void registerItemComparators(ItemComparatorRegistry registry) {
     var mc = li.cil.oc.api.Items.get(Constants.BlockName.Microcontroller);
     if (mc != null && mc.item() != null) {
-      registry.register(EntryComparator.itemComponents(), mc.item());
+      registry.register(EntryComparator.itemNbt(), mc.item());
     }
     var robot = li.cil.oc.api.Items.get(Constants.BlockName.Robot);
     if (robot != null && robot.item() != null) {
-      registry.register(EntryComparator.itemComponents(), robot.item());
+      registry.register(EntryComparator.itemNbt(), robot.item());
     }
 
     var eeprom = li.cil.oc.api.Items.get(Constants.ItemName.EEPROM);

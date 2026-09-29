@@ -26,12 +26,12 @@ public final class ModMoreRed implements ModProxy, BundledRedstone.RedstoneProvi
 
   public static void registerCapabilities(CapabilityRegistrar event) {
     event.registerBlockEntity(
-      MoreRedAPI.CHANNELED_POWER_CAPABILITY,
+      li.cil.oc.neoforge.compat.BlockCapability.of(MoreRedAPI.CHANNELED_POWER_CAPABILITY),
       BlockEntities.REDSTONE.get(),
       ChanneledPower::new
     );
     event.registerBlockEntity(
-      MoreRedAPI.CHANNELED_POWER_CAPABILITY,
+      li.cil.oc.neoforge.compat.BlockCapability.of(MoreRedAPI.CHANNELED_POWER_CAPABILITY),
       BlockEntities.CASE.get(),
       ChanneledPower::new
     );

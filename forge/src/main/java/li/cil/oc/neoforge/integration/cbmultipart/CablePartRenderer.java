@@ -2,6 +2,7 @@ package li.cil.oc.neoforge.integration.cbmultipart;
 
 import li.cil.oc.compat.MathCompat;
 
+import codechicken.lib.render.CCRenderState;
 import codechicken.lib.render.buffer.BakedQuadVertexBuilder;
 import codechicken.multipart.api.part.MultiPart;
 import codechicken.multipart.api.part.render.PartRenderer;
@@ -45,11 +46,23 @@ public class CablePartRenderer implements PartRenderer<CablePart> {
   private static TextureAtlasSprite bodySprite;
   private static TextureAtlasSprite capSprite;
 
+  /**
+   * CBMultipart 1.20.1 renders parts into CodeChickenLib's render state rather than asking for quads;
+   * the quads are built as before and emitted block-relative, like its baked model renderer does.
+   */
   @Override
-  public @NotNull List<BakedQuad> getQuads(@NotNull CablePart part, @Nullable Direction side, @NotNull RandomSource rand, @NotNull ModelData data, @Nullable RenderType renderType) {
-    if (side != null) return List.of();
-    if (renderType != null && renderType != RenderType.cutout() && renderType != RenderType.translucent())
-      return List.of();
+  public void renderStatic(@NotNull CablePart part, @NotNull RenderType layer, @NotNull CCRenderState ccrs) {
+    if (layer != RenderType.cutout()) return;
+    final VertexConsumer consumer = ccrs.getConsumer();
+    final PoseStack.Pose pose = new PoseStack().last();
+    final float[] brightness = {1f, 1f, 1f, 1f};
+    for (final BakedQuad quad : buildQuads(part)) {
+      final int[] lights = {LightTexture.FULL_BRIGHT, LightTexture.FULL_BRIGHT, LightTexture.FULL_BRIGHT, LightTexture.FULL_BRIGHT};
+      consumer.putBulkData(pose, quad, brightness, 1f, 1f, 1f, lights, OverlayTexture.NO_OVERLAY, true);
+    }
+  }
+
+  private @NotNull List<BakedQuad> buildQuads(@NotNull CablePart part) {
     if (!part.hasLevel()) return List.of();
 
     ensureSprites();
@@ -182,12 +195,14 @@ public class CablePartRenderer implements PartRenderer<CablePart> {
                                 float brightness,
                                 float nx, float ny, float nz) {
     var pos = m.transformPosition((float) x, (float) y, (float) z, new org.joml.Vector3f());
-    c.vertex(pos.x, pos.y, pos.z).endVertex();
-    c.setColor((int) (r * brightness), (int) (g * brightness), (int) (b * brightness), 255);
-    c.setUv(sprite.getU((float) u), sprite.getV((float) v));
-    c.setOverlay(OverlayTexture.NO_OVERLAY);
-    c.setLight(light);
-    c.setNormal(nx, ny, nz);
+    // 1.20.1: elements must be written in vertex format order and the vertex closed with endVertex().
+    c.vertex(pos.x, pos.y, pos.z)
+      .color((int) (r * brightness), (int) (g * brightness), (int) (b * brightness), 255)
+      .uv(sprite.getU((float) u), sprite.getV((float) v))
+      .overlayCoords(OverlayTexture.NO_OVERLAY)
+      .uv2(light)
+      .normal(nx, ny, nz)
+      .endVertex();
   }
 
   private static int computeConnections(Level level, BlockPos pos) {

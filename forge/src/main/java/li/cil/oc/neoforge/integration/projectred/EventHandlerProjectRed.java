@@ -1,7 +1,6 @@
 package li.cil.oc.neoforge.integration.projectred;
 
 import mrtjp.projectred.api.IScrewdriver;
-import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 
@@ -11,7 +10,7 @@ public final class EventHandlerProjectRed {
     var stack = player.getMainHandItem();
     if (stack.getItem() instanceof IScrewdriver screwdriver) {
       if (changeDurability) {
-        screwdriver.damageScrewdriver(player, InteractionHand.MAIN_HAND);
+        screwdriver.damageScrewdriver(player, stack);
       }
       return true;
     }

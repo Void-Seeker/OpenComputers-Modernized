@@ -61,8 +61,8 @@ public class OCWthitCommonPlugin implements IWailaCommonPlugin {
     registrar.featureConfig(CONFIG_BLOCK_NAME, true);
     registrar.featureConfig(CONFIG_DRONE_NAME, true);
 
-    registrar.blockData(new BlockingDataProvider<>(ItemData.TYPE), Case.class, 900);
-    registrar.blockData(new BlockingDataProvider<>(ItemData.TYPE), Microcontroller.class, 900);
+    registrar.blockData(new BlockingDataProvider<>(ItemData.class), Case.class, 900);
+    registrar.blockData(new BlockingDataProvider<>(ItemData.class), Microcontroller.class, 900);
 
     registrar.blockData((data, accessor, config) -> {
       RobotProxy proxy = (RobotProxy) accessor.getTarget();
@@ -74,7 +74,7 @@ public class OCWthitCommonPlugin implements IWailaCommonPlugin {
           if (!stack.isEmpty()) items.add(stack);
         }
       }
-      data.add(ItemData.TYPE, res -> res.add(ItemData.of(config).add(items)));
+      data.add(ItemData.class, res -> res.add(ItemData.of(config).add(items)));
     }, RobotProxy.class, 900);
 
     registrar.entityData((data, accessor, config) -> {
@@ -82,11 +82,11 @@ public class OCWthitCommonPlugin implements IWailaCommonPlugin {
       List<ItemStack> items = new ArrayList<>();
       addItems(items, agent.equipmentInventory());
       addItems(items, agent.mainInventory());
-      data.add(ItemData.TYPE, res -> res.add(ItemData.of(config).add(items)));
+      data.add(ItemData.class, res -> res.add(ItemData.of(config).add(items)));
     }, li.cil.oc.core.impl.common.entity.Drone.class, 900);
 
     registrar.blockData((data, accessor, config) -> {
-      data.blockAll(ItemData.TYPE);
+      data.blockAll(ItemData.class);
       Rack rack = (Rack) accessor.getTarget();
       Map<String, CompoundTag> merged = new LinkedHashMap<>();
       for (int i = 0; i < rack.getContainerSize(); i++) {

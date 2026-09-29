@@ -11,7 +11,7 @@ import net.minecraftforge.gametest.GameTestHolder;
 import net.minecraftforge.gametest.PrefixGameTestTemplate;
 
 /**
- * Smoke tests for the mod integrations used by the Reclamation - Hardcore Edition pack.
+ * Smoke tests for the mod integrations (run with -PallIntegrations to load every integrated mod).
  * Each test passes trivially when its mod is not installed.
  */
 @GameTestHolder(OpenComputers.ID)
@@ -24,7 +24,9 @@ public final class IntegrationSmokeTests {
 
   @GameTest(template = EMPTY)
   public static void integrationsDetected(final GameTestHelper helper) {
-    for (final Mods.ModBase mod : new Mods.ModBase[]{Mods.AppliedEnergistics2, Mods.AppliedMekanistics, Mods.Mekanism, Mods.Create, Mods.Jade}) {
+    for (final Mods.ModBase mod : new Mods.ModBase[]{Mods.AppliedEnergistics2, Mods.AppliedMekanistics, Mods.Mekanism, Mods.Create, Mods.Jade,
+      Mods.ComputerCraft, Mods.TIS3D, Mods.TheOneProbe, Mods.EnderIO, Mods.EnderStorage, Mods.CBMultipart,
+      Mods.ProjectRedTransmission, Mods.MoreRed, Mods.RFTools, Mods.RefinedStorage2}) {
       helper.assertTrue(mod.isModAvailable() == ModList.get().isLoaded(mod.id()),
         "integration availability for " + mod.id() + " does not match the mod list");
     }
@@ -41,6 +43,20 @@ public final class IntegrationSmokeTests {
     helper.setBlock(pos, Blocks.POWER_CONVERTER.get());
     helper.assertTrue(appeng.api.networking.GridHelper.getNodeHost(helper.getLevel(), helper.absolutePos(pos)) != null,
       "AE2 does not see the power converter as a grid node host");
+    helper.succeed();
+  }
+
+  @GameTest(template = EMPTY)
+  public static void computerCraftSeesRelayPeripheral(final GameTestHelper helper) {
+    if (!ModList.get().isLoaded(Mods.IDs.ComputerCraft)) {
+      helper.succeed();
+      return;
+    }
+    final BlockPos pos = new BlockPos(2, 2, 2);
+    helper.setBlock(pos, Blocks.RELAY.get());
+    helper.assertTrue(li.cil.oc.neoforge.integration.computercraft.PeripheralCapability.get()
+        .getCapability(helper.getLevel(), helper.absolutePos(pos), net.minecraft.core.Direction.UP) != null,
+      "the relay exposes no ComputerCraft peripheral");
     helper.succeed();
   }
 }
