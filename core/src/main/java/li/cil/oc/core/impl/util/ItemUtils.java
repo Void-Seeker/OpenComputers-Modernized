@@ -50,9 +50,9 @@ public final class ItemUtils {
       var craftingRecipes = recipeManager.getAllRecipesFor(net.minecraft.world.item.crafting.RecipeType.CRAFTING);
 
       for (var holder : craftingRecipes) {
-        var recipe = holder.value();
+        var recipe = holder;
         var result = recipe.getResultItem(server.registryAccess());
-        if (ItemStack.isSameItem(result, stack) && ItemStack.isSameItemSameComponents(result, stack)) {
+        if (ItemStack.isSameItem(result, stack) && ItemStack.isSameItemSameTags(result, stack)) {
           var ings = recipe.getIngredients();
           List<ItemStack> stacks = new ArrayList<>();
           boolean blacklisted = false;

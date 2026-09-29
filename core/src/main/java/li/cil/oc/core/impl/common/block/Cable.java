@@ -94,7 +94,7 @@ public class Cable extends SimpleBlock implements CustomDrops<li.cil.oc.core.imp
   }
 
   @Override
-  public @NotNull ItemStack getCloneItemStack(LevelReader level, @NotNull BlockPos pos, @NotNull BlockState state) {
+  public @NotNull ItemStack getCloneItemStack(net.minecraft.world.level.BlockGetter level, @NotNull BlockPos pos, @NotNull BlockState state) {
     BlockEntity te = level.getBlockEntity(pos);
     if (te instanceof li.cil.oc.core.impl.common.blockentity.Cable cable) {
       return cable.createItemStack();

@@ -16,6 +16,6 @@ public final class ModTIS3D {
     registered = true;
     RegistrarManager.get(ModIDs.TIS3D)
       .get(SerialInterfaceProvider.REGISTRY)
-      .register(ResourceLocation.fromNamespaceAndPath(ModIDs.TIS3D, "opencomputers_adapter"), SerialInterfaceProviderAdapter::new);
+      .register(new ResourceLocation(ModIDs.TIS3D, "opencomputers_adapter"), SerialInterfaceProviderAdapter::new);
   }
 }

@@ -105,12 +105,12 @@ public class PotionProvider extends ScalaProvider {
 
     @Override
     public void onDisable(DisableReason reason) {
-      player.removeEffect(potion);
+      player.removeEffect(potion.value());
     }
 
     @Override
     public void update() {
-      player.addEffect(new MobEffectInstance(potion, Duration, amplifier(player), true, OCSettings.get().enableNanomachinePfx));
+      player.addEffect(new MobEffectInstance(potion.value(), Duration, amplifier(player), true, OCSettings.get().enableNanomachinePfx));
     }
   }
 }

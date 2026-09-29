@@ -64,10 +64,10 @@ public class DiskDriveRenderer implements BlockEntityRenderer<BlockEntity> {
       var sprite = atlas.apply(Textures.blockDiskDriveFrontActivity);
       VertexConsumer consumer = bufferSource.getBuffer(RenderHelper.BLOCK_OVERLAY);
       var matrix = poseStack.last().pose();
-      consumer.addVertex(matrix, 0, 1, 0).setUv(sprite.getU0(), sprite.getV1());
-      consumer.addVertex(matrix, 1, 1, 0).setUv(sprite.getU1(), sprite.getV1());
-      consumer.addVertex(matrix, 1, 0, 0).setUv(sprite.getU1(), sprite.getV0());
-      consumer.addVertex(matrix, 0, 0, 0).setUv(sprite.getU0(), sprite.getV0());
+      consumer.vertex(matrix, 0, 1, 0).uv(sprite.getU0(), sprite.getV1()).endVertex();
+      consumer.vertex(matrix, 1, 1, 0).uv(sprite.getU1(), sprite.getV1()).endVertex();
+      consumer.vertex(matrix, 1, 0, 0).uv(sprite.getU1(), sprite.getV0()).endVertex();
+      consumer.vertex(matrix, 0, 0, 0).uv(sprite.getU0(), sprite.getV0()).endVertex();
     }
 
     poseStack.popPose();

@@ -1,5 +1,7 @@
 package li.cil.oc.core.impl.common.item.data;
 
+import li.cil.oc.compat.CustomData;
+
 import com.google.common.base.Strings;
 import java.io.BufferedReader;
 import java.io.InputStream;
@@ -11,7 +13,6 @@ import li.cil.oc.core.Constants;
 import li.cil.oc.core.common.item.data.NameProvider;
 import li.cil.oc.core.impl.OCSettings;
 import net.minecraft.core.HolderLookup;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
@@ -86,12 +87,12 @@ public class RobotData extends ItemData {
     components.clear();
     var componentList = nbt.getList(OCSettings.namespace + "components", Tag.TAG_COMPOUND);
     for (int i = 0; i < componentList.size(); i++) {
-      components.add(ItemStack.parseOptional(provider, componentList.getCompound(i)));
+      components.add(ItemStack.of(componentList.getCompound(i)));
     }
     containers.clear();
     var containerList = nbt.getList(OCSettings.namespace + "containers", Tag.TAG_COMPOUND);
     for (int i = 0; i < containerList.size(); i++) {
-      containers.add(ItemStack.parseOptional(provider, containerList.getCompound(i)));
+      containers.add(ItemStack.of(containerList.getCompound(i)));
     }
     if (nbt.contains(OCSettings.namespace + "lightColor")) {
       lightColor = nbt.getInt(OCSettings.namespace + "lightColor");
@@ -101,7 +102,7 @@ public class RobotData extends ItemData {
   @Override
   public void load(ItemStack stack, HolderLookup.Provider provider) {
     super.load(stack, provider);
-    var customName = stack.get(DataComponents.CUSTOM_NAME);
+    var customName = stack.hasCustomHoverName() ? stack.getHoverName() : null;
     if (customName != null) {
       name = customName.getString();
     }
@@ -110,9 +111,8 @@ public class RobotData extends ItemData {
   @Override
   public void save(ItemStack stack, HolderLookup.Provider provider) {
     super.save(stack, provider);
-    stack.set(DataComponents.RARITY, li.cil.oc.core.impl.util.Rarity.byTier(tier));
     if (!Strings.isNullOrEmpty(name)) {
-      stack.set(DataComponents.CUSTOM_NAME, Component.literal(name));
+      stack.setHoverName(Component.literal(name));
     }
   }
 
@@ -130,14 +130,14 @@ public class RobotData extends ItemData {
     ListTag compList = new ListTag();
     for (var stack : components) {
       if (stack != null && !stack.isEmpty()) {
-        compList.add(stack.save(provider, new CompoundTag()));
+        compList.add(stack.save(new CompoundTag()));
       }
     }
     nbt.put(OCSettings.namespace + "components", compList);
     ListTag contList = new ListTag();
     for (var stack : containers) {
       if (stack != null && !stack.isEmpty()) {
-        contList.add(stack.save(provider, new CompoundTag()));
+        contList.add(stack.save(new CompoundTag()));
       }
     }
     nbt.put(OCSettings.namespace + "containers", contList);
@@ -149,13 +149,13 @@ public class RobotData extends ItemData {
     var newInfo = new RobotData(stack);
     for (var cs : newInfo.components) {
       if (cs != null && !cs.isEmpty()) {
-        var customData = cs.get(DataComponents.CUSTOM_DATA);
+        var customData = CustomData.get(cs);
         if (customData != null && !customData.isEmpty()) {
           var nbt = customData.copyTag();
           if (nbt.contains(OCSettings.namespace + "data", Tag.TAG_COMPOUND)) {
             nbt.getCompound(OCSettings.namespace + "data").remove("node");
           }
-          cs.set(DataComponents.CUSTOM_DATA, net.minecraft.world.item.component.CustomData.of(nbt));
+          CustomData.set(cs, li.cil.oc.compat.CustomData.of(nbt));
         }
       }
     }

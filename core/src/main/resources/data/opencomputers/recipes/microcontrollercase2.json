@@ -1,0 +1,29 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "ABA",
+    "CDC",
+    "AEA"
+  ],
+  "key": {
+    "A": {
+      "tag": "forge:nuggets/gold"
+    },
+    "B": {
+      "item": "opencomputers:chip3"
+    },
+    "C": {
+      "item": "minecraft:redstone_block"
+    },
+    "D": {
+      "tag": "forge:chests"
+    },
+    "E": {
+      "item": "opencomputers:printedcircuitboard"
+    }
+  },
+  "result": {
+    "count": 1,
+    "item": "opencomputers:microcontrollercase2"
+  }
+}

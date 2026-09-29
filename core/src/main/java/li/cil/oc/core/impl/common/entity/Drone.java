@@ -1,5 +1,7 @@
 package li.cil.oc.core.impl.common.entity;
 
+import li.cil.oc.compat.MathCompat;
+
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.UUID;
@@ -30,8 +32,6 @@ import li.cil.oc.core.util.FluidTankHelper;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.protocol.Packet;
-import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
@@ -47,7 +47,6 @@ import net.minecraft.world.entity.Pose;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.portal.DimensionTransition;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.NotNull;
@@ -502,20 +501,20 @@ public class Drone extends Entity implements MachineHost, li.cil.oc.api.internal
   }
 
   @Override
-  protected void defineSynchedData(SynchedEntityData.Builder builder) {
-    builder.define(DATA_RUNNING, (byte) 0);
-    builder.define(DATA_TARGET_X, 0f);
-    builder.define(DATA_TARGET_Y, 0f);
-    builder.define(DATA_TARGET_Z, 0f);
-    builder.define(DATA_TARGET_ACCELERATION, 0f);
-    builder.define(DATA_SELECTED_SLOT, (byte) 0);
-    builder.define(DATA_GLOBAL_BUFFER, 0);
-    builder.define(DATA_GLOBAL_BUFFER_SIZE, 100);
-    builder.define(DATA_STATUS_TEXT, "");
-    builder.define(DATA_INVENTORY_SIZE, (byte) 0);
-    builder.define(DATA_LIGHT_COLOR, 0x66DD55);
-    builder.define(DATA_TIER, (byte) 0);
-    builder.define(DATA_NAME, "");
+  protected void defineSynchedData() {
+    entityData.define(DATA_RUNNING, (byte) 0);
+    entityData.define(DATA_TARGET_X, 0f);
+    entityData.define(DATA_TARGET_Y, 0f);
+    entityData.define(DATA_TARGET_Z, 0f);
+    entityData.define(DATA_TARGET_ACCELERATION, 0f);
+    entityData.define(DATA_SELECTED_SLOT, (byte) 0);
+    entityData.define(DATA_GLOBAL_BUFFER, 0);
+    entityData.define(DATA_GLOBAL_BUFFER_SIZE, 100);
+    entityData.define(DATA_STATUS_TEXT, "");
+    entityData.define(DATA_INVENTORY_SIZE, (byte) 0);
+    entityData.define(DATA_LIGHT_COLOR, 0x66DD55);
+    entityData.define(DATA_TIER, (byte) 0);
+    entityData.define(DATA_NAME, "");
   }
 
   @SuppressWarnings("unused")
@@ -525,7 +524,7 @@ public class Drone extends Entity implements MachineHost, li.cil.oc.api.internal
     ((Connector) control.node()).changeBuffer(info.storedEnergy - ((Connector) control.node()).localBuffer());
     wireThingsTogether();
     inventorySize(computeInventorySize());
-    setPos(position.x, position.y + getDimensions(Pose.STANDING).height() / 2, position.z);
+    setPos(position.x, position.y + getDimensions(Pose.STANDING).height / 2, position.z);
   }
 
   public void preparePowerUp() {
@@ -604,7 +603,7 @@ public class Drone extends Entity implements MachineHost, li.cil.oc.api.internal
   }
 
   public void targetAcceleration(float value) {
-    entityData.set(DATA_TARGET_ACCELERATION, Math.clamp(value, 0, maxAcceleration));
+    entityData.set(DATA_TARGET_ACCELERATION, MathCompat.clamp(value, 0, maxAcceleration));
   }
 
   public void selectedSlot(int value) {
@@ -640,9 +639,9 @@ public class Drone extends Entity implements MachineHost, li.cil.oc.api.internal
   }
 
   @Override
-  public void lerpTo(double x, double y, double z, float yaw, float pitch, int posRotationIncrements) {
+  public void lerpTo(double x, double y, double z, float yaw, float pitch, int posRotationIncrements, boolean teleport) {
     if (!isRunning() || distanceToSqr(x, y, z) > 1) {
-      super.lerpTo(x, y, z, yaw, pitch, posRotationIncrements);
+      super.lerpTo(x, y, z, yaw, pitch, posRotationIncrements, teleport);
     } else {
       targetX((float) x);
       targetY((float) y);
@@ -717,9 +716,9 @@ public class Drone extends Entity implements MachineHost, li.cil.oc.api.internal
         double vy = velocity.y + toTarget.y * acceleration;
         double vz = velocity.z + toTarget.z * acceleration;
         setDeltaMovement(
-          Math.clamp(vx, -maxVelocity, maxVelocity),
-          Math.clamp(vy, -maxVelocity, maxVelocity),
-          Math.clamp(vz, -maxVelocity, maxVelocity)
+          MathCompat.clamp(vx, -maxVelocity, maxVelocity),
+          MathCompat.clamp(vy, -maxVelocity, maxVelocity),
+          MathCompat.clamp(vz, -maxVelocity, maxVelocity)
         );
       } else {
         setDeltaMovement(0, 0, 0);
@@ -748,7 +747,7 @@ public class Drone extends Entity implements MachineHost, li.cil.oc.api.internal
     if (!level().isLoaded(blockPos)) return false;
     var box = getBoundingBox();
     if (level().getBlockCollisions(this, box).iterator().hasNext()) {
-      double height = getDimensions(Pose.STANDING).height();
+      double height = getDimensions(Pose.STANDING).height;
       for (double dy = 0.1; dy <= height + 0.5; dy += 0.1) {
         setPos(getX(), getY() + dy, getZ());
         if (level().noCollision(this, getBoundingBox())) return true;
@@ -815,13 +814,13 @@ public class Drone extends Entity implements MachineHost, li.cil.oc.api.internal
   }
 
   @Override
-  public Entity changeDimension(@NotNull DimensionTransition transition) {
+  public Entity changeDimension(@NotNull net.minecraft.server.level.ServerLevel destination) {
     targetX((targetX() - (float) getX()));
     targetY((targetY() - (float) getY()));
     targetZ((targetZ() - (float) getZ()));
     try {
       isChangingDimension = true;
-      return super.changeDimension(transition);
+      return super.changeDimension(destination);
     } finally {
       isChangingDimension = false;
       remove(net.minecraft.world.entity.Entity.RemovalReason.DISCARDED);
@@ -929,8 +928,5 @@ public class Drone extends Entity implements MachineHost, li.cil.oc.api.internal
     return level().getFluidState(BlockPos.containing(position())).is(FluidTags.LAVA);
   }
 
-  public @NotNull Packet<ClientGamePacketListener> getAddEntityPacket(net.minecraft.server.level.@NotNull ServerEntity entity) {
-    return super.getAddEntityPacket(entity);
-  }
 
 }

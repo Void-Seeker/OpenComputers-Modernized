@@ -1,5 +1,7 @@
 package li.cil.oc.core.impl.common.item.data;
 
+import li.cil.oc.compat.MathCompat;
+
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -242,7 +244,7 @@ public class PrintData extends ItemData {
     if (nbt.contains("tooltip")) tooltip = nbt.getString("tooltip");
     else tooltip = null;
     isButtonMode = nbt.getBoolean("isButtonMode");
-    redstoneLevel = Math.clamp(nbt.getInt("redstoneLevel"), 0, 15);
+    redstoneLevel = MathCompat.clamp(nbt.getInt("redstoneLevel"), 0, 15);
     if (nbt.getBoolean("emitRedstone")) redstoneLevel = 15;
     pressurePlate = nbt.getBoolean("pressurePlate");
     stateOff.clear();
@@ -256,7 +258,7 @@ public class PrintData extends ItemData {
       stateOn.add(nbtToShape(onList.getCompound(i)));
     }
     isBeaconBase = nbt.getBoolean("isBeaconBase");
-    lightLevel = Math.clamp(nbt.getByte("lightLevel") & 0xFF, 0, 15);
+    lightLevel = MathCompat.clamp(nbt.getByte("lightLevel") & 0xFF, 0, 15);
     noclipOff = nbt.getBoolean("noclipOff");
     noclipOn = nbt.getBoolean("noclipOn");
     opacityDirty = true;

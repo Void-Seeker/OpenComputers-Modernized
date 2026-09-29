@@ -43,6 +43,14 @@ public abstract class DynamicGuiContainer<C extends AbstractContainerMenu> exten
   protected void renderBg(GuiGraphics guiGraphics, float dt, int mouseX, int mouseY) {
     guiGraphics.blit(Textures.guiBackground, leftPos, topPos, 0, 0, imageWidth, imageHeight, 256, 256);
     drawSecondaryBackgroundLayer(guiGraphics);
+    // 1.20.1: AbstractContainerScreen.renderSlot is private, so slot backgrounds are drawn
+    // here, right before vanilla renders the slots themselves.
+    guiGraphics.pose().pushPose();
+    guiGraphics.pose().translate(leftPos, topPos, 0);
+    for (Slot slot : menu.slots) {
+      if (slot.isActive()) renderSlotBackground(guiGraphics, slot);
+    }
+    guiGraphics.pose().popPose();
   }
 
   @Override
@@ -56,7 +64,7 @@ public abstract class DynamicGuiContainer<C extends AbstractContainerMenu> exten
     this.renderTooltip(guiGraphics, mouseX, mouseY);
   }
 
-  protected void renderSlot(@NotNull GuiGraphics guiGraphics, @NotNull Slot slot) {
+  protected void renderSlotBackground(@NotNull GuiGraphics guiGraphics, @NotNull Slot slot) {
     if (slot instanceof ComponentSlot cs) {
       if (cs.slot().equals(li.cil.oc.core.common.Slot.None) || cs.tier() == Tier.None) {
         if (!slot.hasItem() && cs.tierIcon() != null) {
@@ -83,7 +91,6 @@ public abstract class DynamicGuiContainer<C extends AbstractContainerMenu> exten
       RenderSystem.setShaderColor(1, 1, 1, 1);
     }
     blitOffset -= 1;
-    super.renderSlot(guiGraphics, slot);
   }
 
   protected void drawSlotHighlight(GuiGraphics guiGraphics, Slot slot) {

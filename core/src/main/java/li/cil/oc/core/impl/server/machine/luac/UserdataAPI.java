@@ -59,7 +59,7 @@ public class UserdataAPI extends NativeLuaAPI {
         }
         ByteArrayInputStream bais = new ByteArrayInputStream(data);
         DataInputStream dis = new DataInputStream(bais);
-        CompoundTag nbt = NbtIo.read(dis, net.minecraft.nbt.NbtAccounter.create(0x200000L));
+        CompoundTag nbt = NbtIo.read(dis, new net.minecraft.nbt.NbtAccounter(0x200000L));
         persistable.load(nbt, owner.machine.host().level().registryAccess());
         l.pushJavaObjectRaw(persistable);
         return 1;

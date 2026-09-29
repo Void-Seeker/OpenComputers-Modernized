@@ -4,7 +4,6 @@ import com.google.common.base.Strings;
 import li.cil.oc.core.Constants;
 import li.cil.oc.core.common.item.data.NameProvider;
 import net.minecraft.core.HolderLookup;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
@@ -35,7 +34,7 @@ public class DroneData extends MicrocontrollerData {
   @Override
   public void load(ItemStack stack, HolderLookup.Provider provider) {
     super.load(stack, provider);
-    var customName = stack.get(DataComponents.CUSTOM_NAME);
+    var customName = stack.hasCustomHoverName() ? stack.getHoverName() : null;
     if (customName != null) {
       name = customName.getString();
     }
@@ -45,7 +44,7 @@ public class DroneData extends MicrocontrollerData {
   public void save(ItemStack stack, HolderLookup.Provider provider) {
     super.save(stack, provider);
     if (!Strings.isNullOrEmpty(name)) {
-      stack.set(DataComponents.CUSTOM_NAME, Component.literal(name));
+      stack.setHoverName(Component.literal(name));
     }
   }
 

@@ -17,7 +17,6 @@ import li.cil.oc.core.impl.util.DatabaseAccess;
 import li.cil.oc.core.impl.util.ExtendedArguments;
 import li.cil.oc.core.impl.util.SideTracker;
 import li.cil.oc.core.util.ResultWrapper;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtIo;
@@ -26,7 +25,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.Container;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.component.CustomData;
+import li.cil.oc.compat.CustomData;
 import org.jetbrains.annotations.Nullable;
 
 public class UpgradeDatabase extends AbstractManagedEnvironment implements li.cil.oc.api.internal.Database, DeviceInfo {
@@ -89,7 +88,7 @@ public class UpgradeDatabase extends AbstractManagedEnvironment implements li.ci
     try {
       java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
       CompoundTag serialized = new CompoundTag();
-      stack.save(SideTracker.getCurrentServer().registryAccess(), serialized);
+      stack.save(serialized);
       NbtIo.writeCompressed(serialized, baos);
       String hash = Hashing.sha256().hashBytes(baos.toByteArray()).toString();
       return ResultWrapper.result(hash);
@@ -147,7 +146,7 @@ public class UpgradeDatabase extends AbstractManagedEnvironment implements li.ci
   @Callback(doc = "function(slot:number, id:string, damage:number, nbt:string):boolean -- Sets an item into the specified database slot. The NBT tag is expected in string (SNBT) format.")
   public Object[] set(Context context, Arguments args) {
     int slot = ExtendedArguments.checkSlot(args, data, 0);
-    Item item = BuiltInRegistries.ITEM.get(ResourceLocation.parse(args.checkString(1)));
+    Item item = BuiltInRegistries.ITEM.get(new ResourceLocation(args.checkString(1)));
     int damage = args.checkInteger(2);
     String tagJson = args.optString(3, "");
     CompoundTag tag = null;
@@ -162,7 +161,7 @@ public class UpgradeDatabase extends AbstractManagedEnvironment implements li.ci
     if (stack.isDamageableItem()) {
       stack.setDamageValue(damage);
     }
-    if (tag != null) stack.set(DataComponents.CUSTOM_DATA, CustomData.of(tag));
+    if (tag != null) CustomData.set(stack, CustomData.of(tag));
     data.setItem(slot, stack);
     return ResultWrapper.result(true);
   }
@@ -173,7 +172,7 @@ public class UpgradeDatabase extends AbstractManagedEnvironment implements li.ci
       try {
         java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
         CompoundTag serialized = new CompoundTag();
-        stack.save(SideTracker.getCurrentServer().registryAccess(), serialized);
+        stack.save(serialized);
         NbtIo.writeCompressed(serialized, baos);
         String hash = Hashing.sha256().hashBytes(baos.toByteArray()).toString();
         if (hash.equals(needle)) return slot + offset;

@@ -1,0 +1,32 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "ABA",
+    "CDE",
+    "AFA"
+  ],
+  "key": {
+    "A": {
+      "tag": "forge:ingots/gold"
+    },
+    "B": {
+      "tag": "forge:dyes/red"
+    },
+    "C": {
+      "tag": "forge:dyes/green"
+    },
+    "D": {
+      "item": "opencomputers:chip2"
+    },
+    "E": {
+      "tag": "forge:glass"
+    },
+    "F": {
+      "tag": "forge:dyes/blue"
+    }
+  },
+  "result": {
+    "count": 1,
+    "item": "opencomputers:screen2"
+  }
+}

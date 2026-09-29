@@ -2,10 +2,9 @@ package li.cil.oc.core.impl.common.inventory;
 
 import li.cil.oc.core.impl.OCSettings;
 import net.minecraft.core.HolderLookup;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.component.CustomData;
+import li.cil.oc.compat.CustomData;
 
 
 public interface ItemStackInventory extends Inventory {
@@ -31,7 +30,7 @@ public interface ItemStackInventory extends Inventory {
     ItemStack c = container();
     if (c != null && !c.isEmpty()) {
       CompoundTag nbt;
-      var customData = c.get(DataComponents.CUSTOM_DATA);
+      var customData = CustomData.get(c);
       if (customData == null || customData.isEmpty()) {
         nbt = new CompoundTag();
       } else {
@@ -40,16 +39,16 @@ public interface ItemStackInventory extends Inventory {
       CompoundTag data = nbt.contains(OCSettings.namespace + "data") ? nbt.getCompound(OCSettings.namespace + "data") : new CompoundTag();
       save(data, provider);
       nbt.put(OCSettings.namespace + "data", data);
-      c.set(DataComponents.CUSTOM_DATA, CustomData.of(nbt));
+      CustomData.set(c, CustomData.of(nbt));
     }
   }
 
   private static CompoundTag dataTag(ItemStack stack) {
     CompoundTag nbt;
-    var customData = stack.get(DataComponents.CUSTOM_DATA);
+    var customData = CustomData.get(stack);
     if (customData == null || customData.isEmpty()) {
       nbt = new CompoundTag();
-      stack.set(DataComponents.CUSTOM_DATA, CustomData.of(nbt));
+      CustomData.set(stack, CustomData.of(nbt));
     } else {
       nbt = customData.copyTag();
     }

@@ -1,10 +1,9 @@
 package li.cil.oc.api.prefab;
 
 import li.cil.oc.api.network.EnvironmentHost;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.component.CustomData;
+import li.cil.oc.compat.CustomData;
 
 /**
  * If you wish to create item components such as the network card or hard drives
@@ -48,13 +47,13 @@ public abstract class DriverItem implements li.cil.oc.api.driver.DriverItem {
 
   @Override
   public CompoundTag dataTag(final ItemStack stack) {
-    CustomData customData = stack.get(DataComponents.CUSTOM_DATA);
+    CustomData customData = CustomData.get(stack);
     CompoundTag nbt;
     if (customData != null && !customData.isEmpty()) {
       nbt = customData.copyTag();
     } else {
       nbt = new CompoundTag();
-      stack.set(DataComponents.CUSTOM_DATA, CustomData.of(nbt));
+      CustomData.set(stack, CustomData.of(nbt));
     }
     // This is the suggested key under which to store item component data.
     // You are free to change this as you please.

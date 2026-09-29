@@ -8,7 +8,6 @@ import li.cil.oc.core.common.PacketType;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtAccounter;
 import net.minecraft.nbt.NbtIo;
-import net.minecraft.nbt.NbtOps;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 
@@ -42,8 +41,7 @@ public class PacketParser extends DataInputStream {
       if (haveStack) {
         var nbt = readNBT();
         if (nbt != null) {
-          var result = ItemStack.CODEC.parse(NbtOps.INSTANCE, nbt);
-          return result.result().orElse(ItemStack.EMPTY);
+          return ItemStack.of(nbt);
         }
       }
     } catch (IOException e) {
@@ -56,7 +54,7 @@ public class PacketParser extends DataInputStream {
     try {
       boolean haveNbt = readBoolean();
       if (haveNbt) {
-        return NbtIo.read(this, NbtAccounter.create(0x200000L));
+        return NbtIo.read(this, new NbtAccounter(0x200000L));
       }
     } catch (IOException e) {
       throw new RuntimeException(e);

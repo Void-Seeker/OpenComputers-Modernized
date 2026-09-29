@@ -81,36 +81,50 @@ public final class ScalaClosure {
   }
 
   public static LuaValue toLuaValue(Object value) {
-    return switch (value) {
-      case null -> LuaValue.NIL;
-      case Boolean b -> LuaValue.valueOf(b);
-      case Byte b -> LuaValue.valueOf(b);
-      case Character c -> LuaValue.valueOf(String.valueOf(c));
-      case Short s -> LuaValue.valueOf(s);
-      case Integer i -> LuaValue.valueOf(i);
-      case Long l -> LuaValue.valueOf(l);
-      case Float f -> LuaValue.valueOf(f);
-      case Double d -> LuaValue.valueOf(d);
-      case String s -> LuaValue.valueOf(s);
-      case byte[] b -> LuaValue.valueOf(b);
-      case Value v when OCSettings.get().allowUserdata -> LuaValue.userdataOf(v);
-      case Object[] a -> toLuaList(java.util.Arrays.asList(a));
-      case Map<?, ?> m -> toLuaTable(m);
-      case Iterable<?> it -> toLuaList(it);
-      case LuaCallable f -> wrapLuaFunction(f);
-      default -> {
-        if (value.getClass().isArray()) {
-          int len = java.lang.reflect.Array.getLength(value);
-          List<Object> list = new ArrayList<>(len);
-          for (int i = 0; i < len; i++) {
-            list.add(java.lang.reflect.Array.get(value, i));
-          }
-          yield toLuaList(list);
+    if (value == null) {
+      return LuaValue.NIL;
+    } else if (value instanceof Boolean b) {
+      return LuaValue.valueOf(b);
+    } else if (value instanceof Byte b) {
+      return LuaValue.valueOf(b);
+    } else if (value instanceof Character c) {
+      return LuaValue.valueOf(String.valueOf(c));
+    } else if (value instanceof Short s) {
+      return LuaValue.valueOf(s);
+    } else if (value instanceof Integer i) {
+      return LuaValue.valueOf(i);
+    } else if (value instanceof Long l) {
+      return LuaValue.valueOf(l);
+    } else if (value instanceof Float f) {
+      return LuaValue.valueOf(f);
+    } else if (value instanceof Double d) {
+      return LuaValue.valueOf(d);
+    } else if (value instanceof String s) {
+      return LuaValue.valueOf(s);
+    } else if (value instanceof byte[] b) {
+      return LuaValue.valueOf(b);
+    } else if (value instanceof Value v && (OCSettings.get().allowUserdata)) {
+      return LuaValue.userdataOf(v);
+    } else if (value instanceof Object[] a) {
+      return toLuaList(java.util.Arrays.asList(a));
+    } else if (value instanceof Map<?, ?> m) {
+      return toLuaTable(m);
+    } else if (value instanceof Iterable<?> it) {
+      return toLuaList(it);
+    } else if (value instanceof LuaCallable f) {
+      return wrapLuaFunction(f);
+    } else {
+      if (value.getClass().isArray()) {
+        int len = java.lang.reflect.Array.getLength(value);
+        List<Object> list = new ArrayList<>(len);
+        for (int i = 0; i < len; i++) {
+          list.add(java.lang.reflect.Array.get(value, i));
         }
-        LOGGER.warn("Tried to push an unsupported value of type to Lua: {}.", value.getClass().getName());
-        yield LuaValue.NIL;
+        return toLuaList(list);
       }
-    };
+      LOGGER.warn("Tried to push an unsupported value of type to Lua: {}.", value.getClass().getName());
+      return LuaValue.NIL;
+    }
   }
 
   private static LuaValue toLuaList(Iterable<?> iterable) {

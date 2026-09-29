@@ -40,7 +40,7 @@ public class ResourceContentProvider implements ContentProvider {
 
   @Override
   public Iterable<String> getContent(String path) {
-    final ResourceLocation location = ResourceLocation.parse((resourceDomain + ":" + (basePath + (path.startsWith("/") ? path.substring(1) : path))).toLowerCase(java.util.Locale.ROOT));
+    final ResourceLocation location = new ResourceLocation((resourceDomain + ":" + (basePath + (path.startsWith("/") ? path.substring(1) : path))).toLowerCase(java.util.Locale.ROOT));
     try (InputStream is = Minecraft.getInstance()
       .getResourceManager()
       .getResource(location)

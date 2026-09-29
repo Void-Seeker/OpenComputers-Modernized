@@ -1,5 +1,7 @@
 package li.cil.oc.core.impl.server.machine;
 
+import li.cil.oc.compat.MathCompat;
+
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.util.ArrayDeque;
@@ -421,29 +423,39 @@ public abstract class MachineBase extends AbstractManagedEnvironment implements 
   }
 
   private Object convertArg(Object arg) {
-    return switch (arg) {
-      case Boolean ignored -> arg;
-      case Byte ignored -> arg;
-      case Short ignored -> arg;
-      case Integer ignored -> arg;
-      case Long ignored -> arg;
-      case Character c -> (int) c;
-      case Float aFloat -> aFloat.doubleValue();
-      case Double ignored -> arg;
-      case String ignored -> arg;
-      case byte[] ignored -> arg;
-      case Tag ignored -> arg;
-      case Map<?, ?> map -> {
-        Map<Object, Object> converted = new LinkedHashMap<>();
-        for (Map.Entry<?, ?> e : map.entrySet()) {
-          Object k = convertArg(e.getKey());
-          Object v = convertArg(e.getValue());
-          if (k != null && v != null) converted.put(k, v);
-        }
-        yield converted;
+    if (arg instanceof Boolean) {
+      return arg;
+    } else if (arg instanceof Byte) {
+      return arg;
+    } else if (arg instanceof Short) {
+      return arg;
+    } else if (arg instanceof Integer) {
+      return arg;
+    } else if (arg instanceof Long) {
+      return arg;
+    } else if (arg instanceof Character c) {
+      return (int) c;
+    } else if (arg instanceof Float aFloat) {
+      return aFloat.doubleValue();
+    } else if (arg instanceof Double) {
+      return arg;
+    } else if (arg instanceof String) {
+      return arg;
+    } else if (arg instanceof byte[]) {
+      return arg;
+    } else if (arg instanceof Tag) {
+      return arg;
+    } else if (arg instanceof Map<?, ?> map) {
+      Map<Object, Object> converted = new LinkedHashMap<>();
+      for (Map.Entry<?, ?> e : map.entrySet()) {
+        Object k = convertArg(e.getKey());
+        Object v = convertArg(e.getValue());
+        if (k != null && v != null) converted.put(k, v);
       }
-      case null, default -> null;
-    };
+      return converted;
+    } else {
+      return null;
+    }
   }
 
   @Override
@@ -539,7 +551,7 @@ public abstract class MachineBase extends AbstractManagedEnvironment implements 
     int freq = args.optInteger(0, 440);
     if (freq < 20 || freq > 2000) throw new IllegalArgumentException("invalid frequency, must be in [20, 2000]");
     double dur = args.optDouble(1, 0.1);
-    int ms = Math.clamp((int) (dur * 1000), 50, 5000);
+    int ms = MathCompat.clamp((int) (dur * 1000), 50, 5000);
     context.pause(ms / 1000.0);
     beep((short) freq, (short) ms);
     return null;
@@ -831,23 +843,26 @@ public abstract class MachineBase extends AbstractManagedEnvironment implements 
               for (int j = 0; j < len; j++) {
                 String key = "arg" + j;
                 Tag tag = an.get(key);
-                switch (tag) {
-                  case ByteTag byteTag -> {
-                    byte b = byteTag.getAsByte();
-                    sa[j] = b == -1 ? null : b == 1;
-                  }
-                  case LongTag longTag -> sa[j] = longTag.getAsLong();
-                  case DoubleTag doubleTag -> sa[j] = doubleTag.getAsDouble();
-                  case StringTag stringTag -> sa[j] = stringTag.getAsString();
-                  case ByteArrayTag byteTags -> sa[j] = byteTags.getAsByteArray();
-                  case ListTag list -> {
-                    Map<String, String> d = new LinkedHashMap<>();
-                    for (int k = 0; k < list.size(); k += 2)
-                      d.put(list.getString(k), list.getString(k + 1));
-                    sa[j] = d;
-                  }
-                  case CompoundTag ignored -> sa[j] = tag;
-                  case null, default -> sa[j] = null;
+                if (tag instanceof ByteTag byteTag) {
+                  byte b = byteTag.getAsByte();
+                  sa[j] = b == -1 ? null : b == 1;
+                } else if (tag instanceof LongTag longTag) {
+                  sa[j] = longTag.getAsLong();
+                } else if (tag instanceof DoubleTag doubleTag) {
+                  sa[j] = doubleTag.getAsDouble();
+                } else if (tag instanceof StringTag stringTag) {
+                  sa[j] = stringTag.getAsString();
+                } else if (tag instanceof ByteArrayTag byteTags) {
+                  sa[j] = byteTags.getAsByteArray();
+                } else if (tag instanceof ListTag list) {
+                  Map<String, String> d = new LinkedHashMap<>();
+                  for (int k = 0; k < list.size(); k += 2)
+                    d.put(list.getString(k), list.getString(k + 1));
+                  sa[j] = d;
+                } else if (tag instanceof CompoundTag) {
+                  sa[j] = tag;
+                } else {
+                  sa[j] = null;
                 }
               }
               signals.add(new Signal(sn.getString("name"), sa));
@@ -912,22 +927,27 @@ public abstract class MachineBase extends AbstractManagedEnvironment implements 
             for (int i = 0; i < s.args.length; i++) {
               String key = "arg" + i;
               Object arg = s.args[i];
-              switch (arg) {
-                case Boolean b -> an.putByte(key, (byte) (b ? 1 : 0));
-                case Long l -> an.putLong(key, l);
-                case Double v -> an.putDouble(key, v);
-                case String string -> an.putString(key, string);
-                case byte[] bytes -> an.putByteArray(key, bytes);
-                case Map<?, ?> map -> {
-                  ListTag list = new ListTag();
-                  for (Map.Entry<?, ?> e : map.entrySet()) {
-                    list.add(net.minecraft.nbt.StringTag.valueOf(String.valueOf(e.getKey())));
-                    list.add(net.minecraft.nbt.StringTag.valueOf(String.valueOf(e.getValue())));
-                  }
-                  an.put(key, list);
+              if (arg instanceof Boolean b) {
+                an.putByte(key, (byte) (b ? 1 : 0));
+              } else if (arg instanceof Long l) {
+                an.putLong(key, l);
+              } else if (arg instanceof Double v) {
+                an.putDouble(key, v);
+              } else if (arg instanceof String string) {
+                an.putString(key, string);
+              } else if (arg instanceof byte[] bytes) {
+                an.putByteArray(key, bytes);
+              } else if (arg instanceof Map<?, ?> map) {
+                ListTag list = new ListTag();
+                for (Map.Entry<?, ?> e : map.entrySet()) {
+                  list.add(net.minecraft.nbt.StringTag.valueOf(String.valueOf(e.getKey())));
+                  list.add(net.minecraft.nbt.StringTag.valueOf(String.valueOf(e.getValue())));
                 }
-                case CompoundTag compoundTag -> an.put(key, compoundTag);
-                case null, default -> an.putByte(key, (byte) -1);
+                an.put(key, list);
+              } else if (arg instanceof CompoundTag compoundTag) {
+                an.put(key, compoundTag);
+              } else {
+                an.putByte(key, (byte) -1);
               }
             }
             sn.put("args", an);

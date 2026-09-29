@@ -5,6 +5,5 @@
  * other mod that may choose to add its documentation to it, such as addon
  * mods.
  */
-@SuppressWarnings("unused")
 package li.cil.oc.api.manual;
 

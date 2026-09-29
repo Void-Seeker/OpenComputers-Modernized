@@ -1,5 +1,7 @@
 package li.cil.oc.core.impl.integration.opencomputers;
 
+import li.cil.oc.compat.CustomData;
+
 import li.cil.oc.api.driver.DriverItem;
 import li.cil.oc.api.network.EnvironmentHost;
 import li.cil.oc.core.common.Tier;
@@ -11,13 +13,13 @@ import net.minecraft.world.item.ItemStack;
 @SuppressWarnings("unused")
 public abstract class Item implements DriverItem {
   public static CompoundTag getDataTag(ItemStack stack) {
-    var customData = stack.get(net.minecraft.core.component.DataComponents.CUSTOM_DATA);
+    var customData = CustomData.get(stack);
     CompoundTag nbt;
     if (customData != null && !customData.isEmpty()) {
       nbt = customData.copyTag();
     } else {
       nbt = new CompoundTag();
-      stack.set(net.minecraft.core.component.DataComponents.CUSTOM_DATA, net.minecraft.world.item.component.CustomData.of(nbt));
+      CustomData.set(stack, li.cil.oc.compat.CustomData.of(nbt));
     }
     if (!nbt.contains(OCSettings.namespace + "data")) {
       nbt.put(OCSettings.namespace + "data", new CompoundTag());
@@ -50,7 +52,7 @@ public abstract class Item implements DriverItem {
     if (stack == null || stack.getCount() == 0) {
       return null;
     }
-    var customData = stack.get(net.minecraft.core.component.DataComponents.CUSTOM_DATA);
+    var customData = CustomData.get(stack);
     if (customData == null || customData.isEmpty()) {
       return null;
     }

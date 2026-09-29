@@ -1,0 +1,29 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "ABA",
+    "CDC",
+    "AEA"
+  ],
+  "key": {
+    "A": {
+      "tag": "forge:ingots/iron"
+    },
+    "B": {
+      "tag": "forge:dyes/black"
+    },
+    "C": {
+      "item": "opencomputers:chip1"
+    },
+    "D": {
+      "tag": "forge:rods/wooden"
+    },
+    "E": {
+      "item": "minecraft:sticky_piston"
+    }
+  },
+  "result": {
+    "count": 1,
+    "item": "opencomputers:signupgrade"
+  }
+}

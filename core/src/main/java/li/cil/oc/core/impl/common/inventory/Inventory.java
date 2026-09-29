@@ -71,11 +71,11 @@ public interface Inventory extends SimpleInventory {
       if (tag.contains("slot")) {
         int slot = tag.getByte("slot");
         if (slot >= 0 && slot < items().length) {
-          updateItems(slot, ItemStack.parseOptional(provider, tag.getCompound("item")));
+          updateItems(slot, ItemStack.of(tag.getCompound("item")));
         }
       } else {
         if (count >= 0 && count < items().length) {
-          updateItems(count, ItemStack.parseOptional(provider, tag));
+          updateItems(count, ItemStack.of(tag));
         }
       }
       count++;
@@ -89,7 +89,7 @@ public interface Inventory extends SimpleInventory {
       if (items[i] != null && !items[i].isEmpty()) {
         CompoundTag slotNbt = new CompoundTag();
         slotNbt.putByte("slot", (byte) i);
-        slotNbt.put("item", items[i].save(provider));
+        slotNbt.put("item", items[i].save(new CompoundTag()));
         list.add(slotNbt);
       }
     }

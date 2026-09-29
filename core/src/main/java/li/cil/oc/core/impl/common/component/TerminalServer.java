@@ -28,7 +28,6 @@ import li.cil.oc.core.common.Tier;
 import li.cil.oc.core.impl.OCSettings;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.StringTag;
@@ -36,7 +35,7 @@ import net.minecraft.nbt.Tag;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.component.CustomData;
+import li.cil.oc.compat.CustomData;
 import net.minecraft.world.level.Level;
 
 public class TerminalServer implements Environment, EnvironmentHost, Analyzable, RackMountable, Lifecycle, DeviceInfo {
@@ -97,7 +96,7 @@ public class TerminalServer implements Environment, EnvironmentHost, Analyzable,
       var stack = player.getMainHandItem();
       if (stack.isEmpty()) return false;
       if (Items.get(stack) != Items.get(Constants.ItemName.Terminal)) return false;
-      var cd = stack.get(DataComponents.CUSTOM_DATA);
+      var cd = CustomData.get(stack);
       if (cd == null || cd.isEmpty()) return false;
       var tag = cd.copyTag();
       var key = tag.getString(OCSettings.namespace + "key");
@@ -259,7 +258,7 @@ public class TerminalServer implements Environment, EnvironmentHost, Analyzable,
 
     if (!level().isClientSide) {
       var key = UUID.randomUUID().toString();
-      var cd = heldItem.get(DataComponents.CUSTOM_DATA);
+      var cd = CustomData.get(heldItem);
       CompoundTag tag;
       if (cd == null || cd.isEmpty()) {
         tag = new CompoundTag();
@@ -272,12 +271,12 @@ public class TerminalServer implements Environment, EnvironmentHost, Analyzable,
       }
       var maxSize = OCSettings.get().terminalsPerServer;
       while (keys.size() >= maxSize) {
-        keys.removeFirst();
+        keys.remove(0);
       }
       keys.add(key);
       tag.putString(OCSettings.namespace + "key", key);
       tag.putString(OCSettings.namespace + "server", node != null ? node.address() : "");
-      heldItem.set(DataComponents.CUSTOM_DATA, CustomData.of(tag));
+      CustomData.set(heldItem, CustomData.of(tag));
       rack.markChanged(slot);
       player.getInventory().setChanged();
     }

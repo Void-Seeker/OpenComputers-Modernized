@@ -1,13 +1,13 @@
 package li.cil.oc.core.impl.common.recipe;
 
+import net.minecraft.resources.ResourceLocation;
 import li.cil.oc.core.impl.util.Color;
 import li.cil.oc.core.impl.util.ItemColorizer;
-import net.minecraft.core.HolderLookup;
 import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.CraftingBookCategory;
-import net.minecraft.world.item.crafting.CraftingInput;
+import net.minecraft.world.inventory.CraftingContainer;
 import net.minecraft.world.item.crafting.CustomRecipe;
 import net.minecraft.world.item.crafting.RecipeSerializer;
 import net.minecraft.world.level.Level;
@@ -23,27 +23,27 @@ public class ColorizeRecipe extends CustomRecipe {
     SERIALIZER = serializer;
   }
 
-  public ColorizeRecipe(CraftingBookCategory category, Item target, Item[] source) {
-    super(category);
+  public ColorizeRecipe(ResourceLocation id, CraftingBookCategory category, Item target, Item[] source) {
+    super(id, category);
     this.targetItem = target;
     this.sourceItems = source != null ? source : new Item[]{target};
   }
 
-  public ColorizeRecipe(Item target, Item[] source) {
-    this(CraftingBookCategory.MISC, target, source);
+  public ColorizeRecipe(ResourceLocation id, Item target, Item[] source) {
+    this(id, CraftingBookCategory.MISC, target, source);
   }
 
-  public ColorizeRecipe(Block target, Item[] source) {
-    this(target.asItem(), source);
+  public ColorizeRecipe(ResourceLocation id, Block target, Item[] source) {
+    this(id, target.asItem(), source);
   }
 
   @SuppressWarnings("unused")
-  public ColorizeRecipe(Block target) {
-    this(target, null);
+  public ColorizeRecipe(ResourceLocation id, Block target) {
+    this(id, target, null);
   }
 
   @Override
-  public boolean matches(@NotNull CraftingInput crafting, @NotNull Level world) {
+  public boolean matches(@NotNull CraftingContainer crafting, @NotNull Level world) {
     ItemStack[] stacks = getItems(crafting);
     java.util.List<ItemStack> targets = new java.util.ArrayList<>();
     java.util.List<ItemStack> other = new java.util.ArrayList<>();
@@ -68,7 +68,7 @@ public class ColorizeRecipe extends CustomRecipe {
   }
 
   @Override
-  public @NotNull ItemStack assemble(@NotNull CraftingInput crafting, HolderLookup.@NotNull Provider provider) {
+  public @NotNull ItemStack assemble(@NotNull CraftingContainer crafting, @NotNull net.minecraft.core.RegistryAccess provider) {
     ItemStack targetStack = null;
     int[] color = new int[]{0, 0, 0};
     int colorCount = 0;
@@ -159,9 +159,9 @@ public class ColorizeRecipe extends CustomRecipe {
     return SERIALIZER;
   }
 
-  private ItemStack[] getItems(CraftingInput crafting) {
+  private ItemStack[] getItems(CraftingContainer crafting) {
     java.util.List<ItemStack> list = new java.util.ArrayList<>();
-    for (int i = 0; i < crafting.size(); i++) {
+    for (int i = 0; i < crafting.getContainerSize(); i++) {
       var stack = crafting.getItem(i);
       if (!stack.isEmpty()) list.add(stack);
     }

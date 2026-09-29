@@ -11,7 +11,7 @@ public class TextureImageProvider implements ImageProvider {
   @Override
   public ImageRenderer getImage(String data) {
     try {
-      return new TextureImageRenderer(ResourceLocation.parse(data));
+      return new TextureImageRenderer(new ResourceLocation(data));
     } catch (Throwable t) {
       return new InteractiveImageRenderer() {
         @Override

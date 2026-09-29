@@ -3,11 +3,10 @@ package li.cil.oc.core.impl.common.item.data;
 import li.cil.oc.core.Constants;
 import li.cil.oc.core.impl.OCSettings;
 import net.minecraft.core.HolderLookup;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.MapItem;
-import net.minecraft.world.item.component.CustomData;
+import li.cil.oc.compat.CustomData;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
 
@@ -46,7 +45,7 @@ public class NavigationUpgradeData extends ItemData {
 
   @Override
   public void load(ItemStack stack, HolderLookup.Provider provider) {
-    var tag = stack.get(DataComponents.CUSTOM_DATA);
+    var tag = CustomData.get(stack);
     if (tag != null && !tag.isEmpty()) {
       load(tag.copyTag().getCompound(OCSettings.namespace + "data"), provider);
     }
@@ -54,23 +53,23 @@ public class NavigationUpgradeData extends ItemData {
 
   @Override
   public void save(ItemStack stack, HolderLookup.Provider provider) {
-    var tag = stack.get(DataComponents.CUSTOM_DATA);
+    var tag = CustomData.get(stack);
     var nbt = tag != null && !tag.isEmpty() ? tag.copyTag() : new CompoundTag();
     save(nbt.getCompound(OCSettings.namespace + "data"), provider);
-    stack.set(DataComponents.CUSTOM_DATA, CustomData.of(nbt));
+    CustomData.set(stack, CustomData.of(nbt));
   }
 
   @Override
   public void load(CompoundTag nbt, HolderLookup.Provider provider) {
     if (nbt.contains(OCSettings.namespace + "map")) {
-      map = ItemStack.parseOptional(provider, nbt.getCompound(OCSettings.namespace + "map"));
+      map = ItemStack.of(nbt.getCompound(OCSettings.namespace + "map"));
     }
   }
 
   @Override
   public void save(CompoundTag nbt, HolderLookup.Provider provider) {
     if (map != null && !map.isEmpty()) {
-      nbt.put(OCSettings.namespace + "map", map.save(provider, new CompoundTag()));
+      nbt.put(OCSettings.namespace + "map", map.save(new CompoundTag()));
     }
   }
 }

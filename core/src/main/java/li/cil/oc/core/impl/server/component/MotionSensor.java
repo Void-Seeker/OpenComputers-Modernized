@@ -99,11 +99,17 @@ public class MotionSensor extends AbstractManagedEnvironment implements DeviceIn
     return entity.distanceToSqr(host.xPosition() + 0.5, host.yPosition() + 0.5, host.zPosition() + 0.5) <= radius * radius;
   }
 
-  private boolean isClearPath(Vec3 target) {
+  private boolean isClearPath(Vec3 target, net.minecraft.world.entity.Entity entity) {
     Vec3 origin = new Vec3(host.xPosition(), host.yPosition(), host.zPosition());
     Vec3 path = target.subtract(origin).normalize();
     Vec3 eye = origin.add(path.x, path.y, path.z);
-    ClipContext ctx = new ClipContext(eye, target, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, CollisionContext.empty());
+    // 1.20.1: ClipContext needs a non-null entity; keep 1.21's entity-agnostic block shapes.
+    ClipContext ctx = new ClipContext(eye, target, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, entity) {
+      @Override
+      public net.minecraft.world.phys.shapes.@org.jetbrains.annotations.NotNull VoxelShape getBlockShape(net.minecraft.world.level.block.state.@org.jetbrains.annotations.NotNull BlockState state, net.minecraft.world.level.@org.jetbrains.annotations.NotNull BlockGetter level, net.minecraft.core.@org.jetbrains.annotations.NotNull BlockPos pos) {
+        return ClipContext.Block.COLLIDER.get(state, level, pos, CollisionContext.empty());
+      }
+    };
     BlockHitResult hit = host.level().clip(ctx);
     return hit.getType() == HitResult.Type.MISS;
   }
@@ -112,7 +118,7 @@ public class MotionSensor extends AbstractManagedEnvironment implements DeviceIn
     MobEffectInstance invis = entity.getEffect(MobEffects.INVISIBILITY);
     if (invis != null) return false;
     Vec3 target = new Vec3(entity.getX(), entity.getY(), entity.getZ());
-    return isClearPath(target) || isClearPath(target.add(0, entity.getEyeHeight(), 0));
+    return isClearPath(target, entity) || isClearPath(target.add(0, entity.getEyeHeight(), 0), entity);
   }
 
   private void sendSignal(LivingEntity entity) {

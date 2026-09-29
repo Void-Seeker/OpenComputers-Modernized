@@ -5,12 +5,11 @@ import java.util.function.BiFunction;
 import li.cil.oc.core.common.item.traits.ItemTier;
 import li.cil.oc.core.impl.OCSettings;
 import net.minecraft.core.HolderLookup;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
-import net.minecraft.world.item.component.CustomData;
+import li.cil.oc.compat.CustomData;
 import org.jetbrains.annotations.NotNull;
 
 public class UpgradeTank extends DelegateItem implements ItemTier {
@@ -31,13 +30,13 @@ public class UpgradeTank extends DelegateItem implements ItemTier {
   }
 
   @Override
-  public void appendHoverText(@NotNull ItemStack stack, @NotNull TooltipContext context, @NotNull List<Component> tooltip, @NotNull TooltipFlag flag) {
-    CustomData cd = stack.get(DataComponents.CUSTOM_DATA);
+  public void appendHoverText(@NotNull ItemStack stack, @org.jetbrains.annotations.Nullable net.minecraft.world.level.Level context, @NotNull List<Component> tooltip, @NotNull TooltipFlag flag) {
+    CustomData cd = CustomData.get(stack);
     if (cd != null && !cd.isEmpty()) {
       CompoundTag tag = cd.copyTag();
       if (tag.contains(OCSettings.namespace + "data")) {
         CompoundTag data = tag.getCompound(OCSettings.namespace + "data");
-        var registries = context.registries();
+        var registries = context != null ? context.registryAccess() : li.cil.oc.compat.RegistryLookup.get();
         if (registries != null) {
           String fluidInfo = fluidTooltipProvider.apply(registries, data);
           if (fluidInfo != null) {

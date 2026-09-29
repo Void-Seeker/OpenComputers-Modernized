@@ -71,7 +71,7 @@ public class ItemStackArrayValue extends AbstractValue {
       this.array = new ItemStack[tagList.size()];
       for (int i = 0; i < tagList.size(); ++i) {
         CompoundTag el = tagList.getCompound(i);
-        this.array[i] = ItemStack.parseOptional(provider, el);
+        this.array[i] = ItemStack.of(el);
       }
     } else {
       this.array = null;
@@ -86,7 +86,7 @@ public class ItemStackArrayValue extends AbstractValue {
       ListTag ListTag = new ListTag();
       for (ItemStack stack : this.array) {
         if (!stack.isEmpty()) {
-          ListTag.add(stack.save(provider, new CompoundTag()));
+          ListTag.add(stack.save(new CompoundTag()));
         } else {
           ListTag.add(nullnbt);
         }

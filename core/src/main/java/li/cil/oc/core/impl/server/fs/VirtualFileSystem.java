@@ -59,7 +59,7 @@ public abstract class VirtualFileSystem extends OutputStreamFileSystem {
     if (parts.isEmpty()) return true;
     VirtualObject parent = root.get(parts.subList(0, parts.size() - 1));
     if (parent instanceof VirtualDirectory dir) {
-      return dir.delete(parts.getLast());
+      return dir.delete(parts.get(parts.size() - 1));
     }
     return false;
   }
@@ -70,7 +70,7 @@ public abstract class VirtualFileSystem extends OutputStreamFileSystem {
     if (parts.isEmpty()) return false;
     VirtualObject parent = root.get(parts.subList(0, parts.size() - 1));
     if (parent instanceof VirtualDirectory dir) {
-      return dir.makeDirectory(parts.getLast());
+      return dir.makeDirectory(parts.get(parts.size() - 1));
     }
     return false;
   }
@@ -81,11 +81,11 @@ public abstract class VirtualFileSystem extends OutputStreamFileSystem {
     List<String> segmentsTo = segments(to);
     VirtualObject toParentOpt = root.get(segmentsTo.subList(0, segmentsTo.size() - 1));
     if (toParentOpt instanceof VirtualDirectory toParent) {
-      String toName = segmentsTo.getLast();
+      String toName = segmentsTo.get(segmentsTo.size() - 1);
       List<String> segmentsFrom = segments(from);
       VirtualObject fromParentObj = root.get(segmentsFrom.subList(0, segmentsFrom.size() - 1));
       VirtualDirectory fromParent = (VirtualDirectory) fromParentObj;
-      String fromName = segmentsFrom.getLast();
+      String fromName = segmentsFrom.get(segmentsFrom.size() - 1);
       VirtualObject obj = fromParent.children.get(fromName);
       if (toParent.get(Collections.singletonList(toName)) != null) {
         toParent.delete(toName);
@@ -128,7 +128,7 @@ public abstract class VirtualFileSystem extends OutputStreamFileSystem {
     if (parts.isEmpty()) return null;
     VirtualObject dir = root.get(parts.subList(0, parts.size() - 1));
     if (dir instanceof VirtualDirectory directory) {
-      VirtualFile file = directory.touch(parts.getLast());
+      VirtualFile file = directory.touch(parts.get(parts.size() - 1));
       if (file != null) {
         return file.openOutputHandle(this, id, path, mode);
       }
@@ -318,7 +318,7 @@ public abstract class VirtualFileSystem extends OutputStreamFileSystem {
     @Override
     public VirtualObject get(List<String> path) {
       if (path.isEmpty()) return this;
-      VirtualObject child = children.get(path.getFirst());
+      VirtualObject child = children.get(path.get(0));
       if (child != null) return child.get(path.subList(1, path.size()));
       return null;
     }

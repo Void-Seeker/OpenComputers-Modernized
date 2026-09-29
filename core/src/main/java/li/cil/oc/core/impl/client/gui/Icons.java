@@ -13,12 +13,12 @@ public final class Icons {
 
   public static void init() {
     for (String name : Slot.All) {
-      ResourceLocation rl = ResourceLocation.fromNamespaceAndPath(OCSettings.resourceDomain, "textures/icons/" + name + ".png");
+      ResourceLocation rl = new ResourceLocation(OCSettings.resourceDomain, "textures/icons/" + name + ".png");
       bySlotType.put(name, rl);
     }
-    byTier.put(Tier.None, ResourceLocation.fromNamespaceAndPath(OCSettings.resourceDomain, "textures/icons/na.png"));
+    byTier.put(Tier.None, new ResourceLocation(OCSettings.resourceDomain, "textures/icons/na.png"));
     for (int tier = Tier.One; tier <= Tier.Three; tier++) {
-      byTier.put(tier, ResourceLocation.fromNamespaceAndPath(OCSettings.resourceDomain, "textures/icons/tier" + tier + ".png"));
+      byTier.put(tier, new ResourceLocation(OCSettings.resourceDomain, "textures/icons/tier" + tier + ".png"));
     }
   }
 

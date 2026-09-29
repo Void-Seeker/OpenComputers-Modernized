@@ -1,5 +1,7 @@
 package li.cil.oc.core.impl.common.item;
 
+import li.cil.oc.compat.MathCompat;
+
 import java.util.List;
 import li.cil.oc.core.common.item.traits.ItemTier;
 import li.cil.oc.core.impl.OCSettings;
@@ -58,7 +60,7 @@ public class UpgradeBattery extends DelegateItem implements ItemTier, Chargeable
     var data = new NodeData(stack);
     double buffer = data.buffer != null ? data.buffer : 0.0;
     double max = OCSettings.get().bufferCapacitorUpgrades[tier];
-    double target = Math.clamp(buffer + amount, 0, max);
+    double target = MathCompat.clamp(buffer + amount, 0, max);
     double used = target - buffer;
     double unused = amount - used;
     if (!simulate && (used > Double.MIN_VALUE || used < -Double.MIN_VALUE)) {
@@ -82,7 +84,7 @@ public class UpgradeBattery extends DelegateItem implements ItemTier, Chargeable
   @Override
   public void setCharge(ItemStack stack, double amount) {
     var data = new NodeData(stack);
-    data.buffer = Math.clamp(amount, 0, maxCharge(stack));
+    data.buffer = MathCompat.clamp(amount, 0, maxCharge(stack));
     data.save(stack);
   }
 

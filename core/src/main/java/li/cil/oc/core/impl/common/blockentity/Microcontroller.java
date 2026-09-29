@@ -1,5 +1,7 @@
 package li.cil.oc.core.impl.common.blockentity;
 
+import li.cil.oc.compat.MathCompat;
+
 import java.util.Map;
 import li.cil.oc.api.driver.DeviceInfo;
 import li.cil.oc.api.machine.Arguments;
@@ -261,7 +263,7 @@ public class Microcontroller extends BlockEntity implements PowerAcceptor, Hub, 
     if (isClient() || OCSettings.get().ignorePower) return 0;
     var c = connector(side);
     if (c != null) {
-      double cappedAmount = Math.clamp(amount, 0, Math.min(energyThroughput(), globalDemand(side)));
+      double cappedAmount = MathCompat.clamp(amount, 0, Math.min(energyThroughput(), globalDemand(side)));
       if (doReceive) return cappedAmount - c.changeBuffer(cappedAmount);
       return cappedAmount;
     }
@@ -283,7 +285,7 @@ public class Microcontroller extends BlockEntity implements PowerAcceptor, Hub, 
   @Override
   public double globalDemand(Direction side) {
     var c = connector(side);
-    return c != null ? Math.clamp(c.globalBufferSize() - c.globalBuffer(), 0, energyThroughput()) : 0.0;
+    return c != null ? MathCompat.clamp(c.globalBufferSize() - c.globalBuffer(), 0, energyThroughput()) : 0.0;
   }
 
   @Override

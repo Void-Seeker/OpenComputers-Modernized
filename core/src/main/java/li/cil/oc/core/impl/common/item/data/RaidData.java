@@ -29,7 +29,7 @@ public class RaidData extends ItemData {
     var diskList = nbt.getList(OCSettings.namespace + "disks", Tag.TAG_COMPOUND);
     disks.clear();
     for (int i = 0; i < diskList.size(); i++) {
-      disks.add(ItemStack.parseOptional(provider, diskList.getCompound(i)));
+      disks.add(ItemStack.of(diskList.getCompound(i)));
     }
     filesystem = nbt.getCompound(OCSettings.namespace + "filesystem");
     if (nbt.contains(OCSettings.namespace + "label")) {
@@ -42,7 +42,7 @@ public class RaidData extends ItemData {
     ListTag list = new ListTag();
     for (var stack : disks) {
       if (stack != null && !stack.isEmpty()) {
-        list.add(stack.save(provider, new CompoundTag()));
+        list.add(stack.save(new CompoundTag()));
       }
     }
     nbt.put(OCSettings.namespace + "disks", list);

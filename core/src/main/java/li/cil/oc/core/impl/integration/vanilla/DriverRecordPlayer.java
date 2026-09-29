@@ -47,14 +47,8 @@ public final class DriverRecordPlayer extends DriverSidedBlockEntity {
     @Callback(doc = "function():string -- Get the title of the record currently in the jukebox.")
     public Object[] getRecord(Context context, Arguments args) {
       var record = BlockEntity.getItem(0);
-      if (!record.isEmpty() && record.has(net.minecraft.core.component.DataComponents.JUKEBOX_PLAYABLE)) {
-        var level = BlockEntity.getLevel();
-        if (level != null) {
-          var song = net.minecraft.world.item.JukeboxSong.fromStack(level.registryAccess(), record);
-          if (song.isPresent()) {
-            return ResultWrapper.result(song.get().value().description().getString());
-          }
-        }
+      if (record.getItem() instanceof net.minecraft.world.item.RecordItem recordItem) {
+        return ResultWrapper.result(recordItem.getDisplayName().getString());
       }
       return null;
     }
@@ -62,7 +56,7 @@ public final class DriverRecordPlayer extends DriverSidedBlockEntity {
     @Callback(doc = "function() -- Start playing the record currently in the jukebox.")
     public Object[] play(Context context, Arguments args) {
       var record = BlockEntity.getItem(0);
-      if (!record.isEmpty() && record.has(net.minecraft.core.component.DataComponents.JUKEBOX_PLAYABLE)) {
+      if (!record.isEmpty() && record.getItem() instanceof net.minecraft.world.item.RecordItem) {
         var pos = BlockEntity.getBlockPos();
         var level = BlockEntity.getLevel();
         if (level != null) {

@@ -50,7 +50,7 @@ public interface WorldAware {
     BlockPosition blockPos = position().offset(side);
     var entities = level().getEntitiesOfClass(type, blockPos.bounds());
     if (entities.isEmpty()) return null;
-    return entities.getFirst();
+    return entities.get(0);
   }
 
   default Object[] blockContent(Direction side) {

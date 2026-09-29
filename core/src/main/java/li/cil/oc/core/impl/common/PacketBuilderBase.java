@@ -11,7 +11,6 @@ import li.cil.oc.core.impl.OCSettings;
 import li.cil.oc.core.impl.util.Log;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtIo;
-import net.minecraft.nbt.NbtOps;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
@@ -125,10 +124,7 @@ public abstract class PacketBuilderBase<T extends OutputStream> extends DataOutp
       boolean haveStack = stack != null && !stack.isEmpty();
       writeBoolean(haveStack);
       if (haveStack) {
-        var result = ItemStack.CODEC.encodeStart(provider.createSerializationContext(NbtOps.INSTANCE), stack);
-        var tag = result.result().orElse(null);
-        CompoundTag nbt = tag instanceof CompoundTag ct ? ct : new CompoundTag();
-        writeNBT(nbt);
+        writeNBT(stack.save(new CompoundTag()));
       }
     } catch (IOException e) {
       throw new RuntimeException(e);
@@ -231,7 +227,8 @@ public abstract class PacketBuilderBase<T extends OutputStream> extends DataOutp
       double cy = t.getBlockPos().getY() + 0.5;
       double cz = t.getBlockPos().getZ() + 0.5;
       for (var player : serverLevel.players()) {
-        if (player instanceof ServerPlayer sp) {
+        if (player != null) {
+          final ServerPlayer sp = player;
           if (serverLevel.getChunkSource().hasChunk(chunkX, chunkZ)) {
             if (distanceSquaredTo(serverLevel, cx, cy, cz, sp) <= maxRangeSq) {
               sendToPlayer(sp);
@@ -252,7 +249,8 @@ public abstract class PacketBuilderBase<T extends OutputStream> extends DataOutp
       }
       double maxRangeSq = maxRange * maxRange;
       for (var player : serverLevel.players()) {
-        if (player instanceof ServerPlayer sp) {
+        if (player != null) {
+          final ServerPlayer sp = player;
           if (distanceSquaredTo(world, x, y, z, sp) <= maxRangeSq) {
             sendToPlayer(sp);
           }

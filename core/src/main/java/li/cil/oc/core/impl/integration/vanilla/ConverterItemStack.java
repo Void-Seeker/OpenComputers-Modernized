@@ -1,5 +1,7 @@
 package li.cil.oc.core.impl.integration.vanilla;
 
+import li.cil.oc.compat.CustomData;
+
 import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -9,8 +11,6 @@ import li.cil.oc.api.driver.Converter;
 import li.cil.oc.core.impl.OCSettings;
 import li.cil.oc.core.impl.util.SideTracker;
 import li.cil.oc.core.util.MapUtils;
-import net.minecraft.core.Holder;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtIo;
@@ -24,7 +24,7 @@ public final class ConverterItemStack implements Converter {
     Integer id = MapUtils.getInt(args, "id");
     String name = MapUtils.getString(args, "name");
     var item = id != null ? BuiltInRegistries.ITEM.byId(id) :
-      name != null ? BuiltInRegistries.ITEM.get(net.minecraft.resources.ResourceLocation.parse(name)) :
+      name != null ? BuiltInRegistries.ITEM.get(new net.minecraft.resources.ResourceLocation(name)) :
         null;
     if (item == null) throw new IllegalArgumentException("item id or name expected");
     Integer size = MapUtils.getInt(args, "size");
@@ -35,8 +35,8 @@ public final class ConverterItemStack implements Converter {
   @Override
   public void convert(Object value, Map<Object, Object> output) {
     if (value instanceof ItemStack stack) {
-      var customData = stack.get(DataComponents.CUSTOM_DATA);
-      boolean hasTag = customData != null && !customData.isEmpty();
+      var customData = CustomData.get(stack);
+      boolean hasTag = stack.hasTag();
       if (OCSettings.get().insertIdsInConverters) {
         output.put("id", BuiltInRegistries.ITEM.getId(stack.getItem()));
         output.put("oreNames", stack.getTags().map(t -> t.location().toString()).collect(Collectors.toList()));
@@ -50,9 +50,10 @@ public final class ConverterItemStack implements Converter {
       output.put("label", stack.getDisplayName().getString());
 
       if (hasTag) {
-        CompoundTag tag = customData.copyTag();
-        if (tag.contains("display", 10) && tag.getCompound("display").contains("Lore", 9)) {
-          var loreTag = tag.getCompound("display").getList("Lore", 8);
+        // 1.20.1: lore lives in the stack's own display tag, which CustomData hides.
+        CompoundTag displayTag = stack.getTagElement("display");
+        if (displayTag != null && displayTag.contains("Lore", 9)) {
+          var loreTag = displayTag.getList("Lore", 8);
           StringBuilder lore = new StringBuilder();
           for (int i = 0; i < loreTag.size(); i++) {
             if (i > 0) lore.append("\n");
@@ -63,8 +64,8 @@ public final class ConverterItemStack implements Converter {
       }
 
       var enchantments = new ArrayList<Map<String, Object>>();
-      for (var entry : EnchantmentHelper.getEnchantmentsForCrafting(stack).entrySet()) {
-        enchantments.add(buildEnchantmentMap(entry.getKey(), entry.getIntValue()));
+      for (var entry : EnchantmentHelper.getEnchantments(stack).entrySet()) {
+        enchantments.add(buildEnchantmentMap(entry.getKey(), entry.getValue()));
       }
       if (!enchantments.isEmpty()) {
         output.put("enchantments", enchantments);
@@ -76,7 +77,7 @@ public final class ConverterItemStack implements Converter {
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             var server = SideTracker.getCurrentServer();
             if (server != null) {
-              var fullTag = stack.save(server.registryAccess(), new CompoundTag());
+              var fullTag = stack.save(new CompoundTag());
               NbtIo.writeCompressed((CompoundTag) fullTag, baos);
             } else {
               NbtIo.writeCompressed(customData.copyTag(), baos);
@@ -89,16 +90,16 @@ public final class ConverterItemStack implements Converter {
     }
   }
 
-  private static Map<String, Object> buildEnchantmentMap(Holder<Enchantment> enchantment, int level) {
+  private static Map<String, Object> buildEnchantmentMap(Enchantment ench, int level) {
     var map = new HashMap<String, Object>();
-    var ench = enchantment.value();
-    var key = enchantment.unwrapKey().orElse(null);
-    map.put("name", key != null ? key.location().toString() : ench.description().getString());
-    map.put("label", ench.description().getString());
+    var key = net.minecraft.core.registries.BuiltInRegistries.ENCHANTMENT.getKey(ench);
+    var label = net.minecraft.network.chat.Component.translatable(ench.getDescriptionId()).getString();
+    map.put("name", key != null ? key.toString() : label);
+    map.put("label", label);
     map.put("level", level);
     if (OCSettings.get().insertIdsInConverters) {
       if (key != null) {
-        map.put("id", key.location().toString());
+        map.put("id", key.toString());
       }
     }
     return map;

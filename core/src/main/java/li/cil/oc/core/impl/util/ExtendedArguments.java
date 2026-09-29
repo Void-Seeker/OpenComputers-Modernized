@@ -1,5 +1,7 @@
 package li.cil.oc.core.impl.util;
 
+import li.cil.oc.compat.MathCompat;
+
 import li.cil.oc.api.internal.MultiTank;
 import li.cil.oc.api.machine.Arguments;
 import net.minecraft.core.Direction;
@@ -9,7 +11,7 @@ public final class ExtendedArguments {
 
   public static int optItemCount(Arguments args, int index, int defaultVal) {
     if (isUndefined(args, index) || isMissing(args, index)) return defaultVal;
-    return Math.clamp(args.checkInteger(index), 0, 64);
+    return MathCompat.clamp(args.checkInteger(index), 0, 64);
   }
 
   public static int optFluidCount(Arguments args, int index, int defaultVal) {

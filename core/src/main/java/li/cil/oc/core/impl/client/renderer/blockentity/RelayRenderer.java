@@ -39,25 +39,25 @@ public class RelayRenderer implements BlockEntityRenderer<BlockEntity> {
     VertexConsumer consumer = bufferSource.getBuffer(RenderHelper.BLOCK_OVERLAY);
     var matrix = poseStack.last().pose();
 
-    consumer.addVertex(matrix, 1, 1, 0).setUv(u1, v1);
-    consumer.addVertex(matrix, 0, 1, 0).setUv(u0, v1);
-    consumer.addVertex(matrix, 0, 0, 0).setUv(u0, v0);
-    consumer.addVertex(matrix, 1, 0, 0).setUv(u1, v0);
+    consumer.vertex(matrix, 1, 1, 0).uv(u1, v1).endVertex();
+    consumer.vertex(matrix, 0, 1, 0).uv(u0, v1).endVertex();
+    consumer.vertex(matrix, 0, 0, 0).uv(u0, v0).endVertex();
+    consumer.vertex(matrix, 1, 0, 0).uv(u1, v0).endVertex();
 
-    consumer.addVertex(matrix, 0, 1, 1).setUv(u0, v1);
-    consumer.addVertex(matrix, 1, 1, 1).setUv(u1, v1);
-    consumer.addVertex(matrix, 1, 0, 1).setUv(u1, v0);
-    consumer.addVertex(matrix, 0, 0, 1).setUv(u0, v0);
+    consumer.vertex(matrix, 0, 1, 1).uv(u0, v1).endVertex();
+    consumer.vertex(matrix, 1, 1, 1).uv(u1, v1).endVertex();
+    consumer.vertex(matrix, 1, 0, 1).uv(u1, v0).endVertex();
+    consumer.vertex(matrix, 0, 0, 1).uv(u0, v0).endVertex();
 
-    consumer.addVertex(matrix, 1, 1, 1).setUv(u1, v1);
-    consumer.addVertex(matrix, 1, 1, 0).setUv(u0, v1);
-    consumer.addVertex(matrix, 1, 0, 0).setUv(u0, v0);
-    consumer.addVertex(matrix, 1, 0, 1).setUv(u1, v0);
+    consumer.vertex(matrix, 1, 1, 1).uv(u1, v1).endVertex();
+    consumer.vertex(matrix, 1, 1, 0).uv(u0, v1).endVertex();
+    consumer.vertex(matrix, 1, 0, 0).uv(u0, v0).endVertex();
+    consumer.vertex(matrix, 1, 0, 1).uv(u1, v0).endVertex();
 
-    consumer.addVertex(matrix, 0, 1, 0).setUv(u0, v1);
-    consumer.addVertex(matrix, 0, 1, 1).setUv(u1, v1);
-    consumer.addVertex(matrix, 0, 0, 1).setUv(u1, v0);
-    consumer.addVertex(matrix, 0, 0, 0).setUv(u0, v0);
+    consumer.vertex(matrix, 0, 1, 0).uv(u0, v1).endVertex();
+    consumer.vertex(matrix, 0, 1, 1).uv(u1, v1).endVertex();
+    consumer.vertex(matrix, 0, 0, 1).uv(u1, v0).endVertex();
+    consumer.vertex(matrix, 0, 0, 0).uv(u0, v0).endVertex();
 
     poseStack.popPose();
   }

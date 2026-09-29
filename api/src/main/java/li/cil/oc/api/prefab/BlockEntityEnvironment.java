@@ -52,16 +52,24 @@ public abstract class BlockEntityEnvironment extends BlockEntity implements Envi
   }
 
   @Override
+  public void load(final @NotNull CompoundTag nbt) {
+    super.load(nbt);
+    loadAdditional(nbt, li.cil.oc.compat.RegistryLookup.get());
+  }
+
+  @Override
+  protected void saveAdditional(final @NotNull CompoundTag nbt) {
+    super.saveAdditional(nbt);
+    saveAdditional(nbt, li.cil.oc.compat.RegistryLookup.get());
+  }
+
   public void loadAdditional(final @NotNull CompoundTag nbt, final HolderLookup.@NotNull Provider registries) {
-    super.loadAdditional(nbt, registries);
     if (node != null && node.host() == this) {
       node.load(nbt.getCompound("oc:node"), registries);
     }
   }
 
-  @Override
   public void saveAdditional(final @NotNull CompoundTag nbt, final HolderLookup.@NotNull Provider registries) {
-    super.saveAdditional(nbt, registries);
     if (node != null && node.host() == this) {
       final CompoundTag nodeNbt = new CompoundTag();
       node.save(nodeNbt, registries);

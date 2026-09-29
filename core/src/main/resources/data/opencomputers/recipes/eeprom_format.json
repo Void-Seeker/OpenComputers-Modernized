@@ -1,0 +1,13 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "ingredients": [
+    {
+      "item": "opencomputers:eeprom"
+    }
+  ],
+  "result": {
+    "count": 1,
+    "item": "opencomputers:eeprom"
+  },
+  "category": "misc"
+}

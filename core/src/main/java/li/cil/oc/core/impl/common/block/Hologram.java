@@ -65,7 +65,7 @@ public class Hologram extends SimpleBlock {
   }
 
   @Override
-  protected void neighborChanged(@NotNull BlockState state, @NotNull Level level, @NotNull BlockPos pos, @NotNull Block neighborBlock, @NotNull BlockPos neighborPos, boolean movedByPiston) {
+  public void neighborChanged(@NotNull BlockState state, @NotNull Level level, @NotNull BlockPos pos, @NotNull Block neighborBlock, @NotNull BlockPos neighborPos, boolean movedByPiston) {
     super.neighborChanged(state, level, pos, neighborBlock, neighborPos, movedByPiston);
     boolean powered = state.getValue(POWERED);
     boolean newPowered = level.hasNeighborSignal(pos);

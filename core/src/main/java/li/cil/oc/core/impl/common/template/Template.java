@@ -64,7 +64,7 @@ public final class Template {
       warnings.add(Component.literal("- ").append(Component.translatable("gui.opencomputers.assembler.warning.os")));
     }
     if (!warnings.isEmpty()) {
-      warnings.addFirst(Component.translatable("gui.opencomputers.assembler.warnings"));
+      warnings.add(0, Component.translatable("gui.opencomputers.assembler.warnings"));
     }
 
     return new Object[]{valid, progress, warnings.toArray(new Component[0])};

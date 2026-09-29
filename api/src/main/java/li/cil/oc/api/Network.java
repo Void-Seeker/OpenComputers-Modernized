@@ -146,7 +146,7 @@ public final class Network {
     if (API.network == null) throw new IllegalStateException(API.ERROR_NOT_INITIALIZED);
     API.network.leaveWirelessNetwork(endpoint,
       net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.DIMENSION,
-        net.minecraft.resources.ResourceLocation.parse(dimension)));
+        new net.minecraft.resources.ResourceLocation(dimension)));
   }
 
   /**

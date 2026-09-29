@@ -1,5 +1,7 @@
 package li.cil.oc.core.impl.server.component;
 
+import li.cil.oc.compat.MathCompat;
+
 import com.google.common.io.Files;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -174,7 +176,7 @@ public class Drive extends AbstractManagedEnvironment implements DeviceInfo {
     } catch (Throwable t) {
       LOGGER.warn("Failed loading drive contents for '{}'.", node.address(), t);
     }
-    headPos = Math.clamp(nbt.getInt("headPos"), 0, sectorToHeadPos(sectorCount));
+    headPos = MathCompat.clamp(nbt.getInt("headPos"), 0, sectorToHeadPos(sectorCount));
     if (label != null) {
       label.load(nbt, provider);
     }

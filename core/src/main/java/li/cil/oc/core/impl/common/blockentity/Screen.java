@@ -1,5 +1,7 @@
 package li.cil.oc.core.impl.common.blockentity;
 
+import li.cil.oc.compat.MathCompat;
+
 import java.util.ArrayDeque;
 import java.util.HashSet;
 import java.util.Map;
@@ -452,7 +454,7 @@ public class Screen extends BlockEntity implements TextBufferHost, SidedEnvironm
 
   @Override
   public void readFromNBTForServer(CompoundTag nbt) {
-    tier = Math.clamp(nbt.getByte(OCSettings.namespace + "tier"), 0, 2);
+    tier = MathCompat.clamp(nbt.getByte(OCSettings.namespace + "tier"), 0, 2);
     color = Color.byTier[tier];
     buffer.setMaximumColorDepth(OCSettings.screenDepthsByTier[tier]);
     buffer.setMaximumResolution(OCSettings.screenResolutionsByTier[tier][0], OCSettings.screenResolutionsByTier[tier][1]);

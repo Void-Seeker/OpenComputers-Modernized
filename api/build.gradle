@@ -1,5 +1,5 @@
 plugins {
-    id 'net.neoforged.moddev'
+    id 'net.neoforged.moddev.legacyforge'
     id 'java-library'
 }
 
@@ -7,8 +7,8 @@ base {
     archivesName = mod_id + "-api"
 }
 
-neoForge {
-    neoFormVersion = "1.21.1-20240808.144430"
+legacyForge {
+    mcpVersion = minecraft_version
 }
 
 configurations {

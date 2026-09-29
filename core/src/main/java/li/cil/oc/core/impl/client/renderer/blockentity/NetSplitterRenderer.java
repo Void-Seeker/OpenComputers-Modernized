@@ -40,40 +40,40 @@ public class NetSplitterRenderer implements BlockEntityRenderer<NetSplitter> {
 
       switch (side) {
         case DOWN -> {
-          consumer.addVertex(matrix, 0, 1, 0).setUv(u0, v0);
-          consumer.addVertex(matrix, 1, 1, 0).setUv(u1, v0);
-          consumer.addVertex(matrix, 1, 1, 1).setUv(u1, v1);
-          consumer.addVertex(matrix, 0, 1, 1).setUv(u0, v1);
+          consumer.vertex(matrix, 0, 1, 0).uv(u0, v0).endVertex();
+          consumer.vertex(matrix, 1, 1, 0).uv(u1, v0).endVertex();
+          consumer.vertex(matrix, 1, 1, 1).uv(u1, v1).endVertex();
+          consumer.vertex(matrix, 0, 1, 1).uv(u0, v1).endVertex();
         }
         case UP -> {
-          consumer.addVertex(matrix, 0, 0, 0).setUv(u0, v1);
-          consumer.addVertex(matrix, 0, 0, 1).setUv(u0, v0);
-          consumer.addVertex(matrix, 1, 0, 1).setUv(u1, v0);
-          consumer.addVertex(matrix, 1, 0, 0).setUv(u1, v1);
+          consumer.vertex(matrix, 0, 0, 0).uv(u0, v1).endVertex();
+          consumer.vertex(matrix, 0, 0, 1).uv(u0, v0).endVertex();
+          consumer.vertex(matrix, 1, 0, 1).uv(u1, v0).endVertex();
+          consumer.vertex(matrix, 1, 0, 0).uv(u1, v1).endVertex();
         }
         case NORTH -> {
-          consumer.addVertex(matrix, 1, 1, 0).setUv(u0, v1);
-          consumer.addVertex(matrix, 0, 1, 0).setUv(u1, v1);
-          consumer.addVertex(matrix, 0, 0, 0).setUv(u1, v0);
-          consumer.addVertex(matrix, 1, 0, 0).setUv(u0, v0);
+          consumer.vertex(matrix, 1, 1, 0).uv(u0, v1).endVertex();
+          consumer.vertex(matrix, 0, 1, 0).uv(u1, v1).endVertex();
+          consumer.vertex(matrix, 0, 0, 0).uv(u1, v0).endVertex();
+          consumer.vertex(matrix, 1, 0, 0).uv(u0, v0).endVertex();
         }
         case SOUTH -> {
-          consumer.addVertex(matrix, 0, 1, 1).setUv(u0, v1);
-          consumer.addVertex(matrix, 1, 1, 1).setUv(u1, v1);
-          consumer.addVertex(matrix, 1, 0, 1).setUv(u1, v0);
-          consumer.addVertex(matrix, 0, 0, 1).setUv(u0, v0);
+          consumer.vertex(matrix, 0, 1, 1).uv(u0, v1).endVertex();
+          consumer.vertex(matrix, 1, 1, 1).uv(u1, v1).endVertex();
+          consumer.vertex(matrix, 1, 0, 1).uv(u1, v0).endVertex();
+          consumer.vertex(matrix, 0, 0, 1).uv(u0, v0).endVertex();
         }
         case WEST -> {
-          consumer.addVertex(matrix, 0, 1, 0).setUv(u0, v1);
-          consumer.addVertex(matrix, 0, 1, 1).setUv(u1, v1);
-          consumer.addVertex(matrix, 0, 0, 1).setUv(u1, v0);
-          consumer.addVertex(matrix, 0, 0, 0).setUv(u0, v0);
+          consumer.vertex(matrix, 0, 1, 0).uv(u0, v1).endVertex();
+          consumer.vertex(matrix, 0, 1, 1).uv(u1, v1).endVertex();
+          consumer.vertex(matrix, 0, 0, 1).uv(u1, v0).endVertex();
+          consumer.vertex(matrix, 0, 0, 0).uv(u0, v0).endVertex();
         }
         case EAST -> {
-          consumer.addVertex(matrix, 1, 1, 1).setUv(u0, v1);
-          consumer.addVertex(matrix, 1, 1, 0).setUv(u1, v1);
-          consumer.addVertex(matrix, 1, 0, 0).setUv(u1, v0);
-          consumer.addVertex(matrix, 1, 0, 1).setUv(u0, v0);
+          consumer.vertex(matrix, 1, 1, 1).uv(u0, v1).endVertex();
+          consumer.vertex(matrix, 1, 1, 0).uv(u1, v1).endVertex();
+          consumer.vertex(matrix, 1, 0, 0).uv(u1, v0).endVertex();
+          consumer.vertex(matrix, 1, 0, 1).uv(u0, v0).endVertex();
         }
       }
     }

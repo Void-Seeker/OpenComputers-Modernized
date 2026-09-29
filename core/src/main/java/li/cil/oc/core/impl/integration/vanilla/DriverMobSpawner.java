@@ -49,7 +49,7 @@ public final class DriverMobSpawner extends DriverSidedBlockEntity {
       var spawner = BlockEntity.getSpawner();
       var level = BlockEntity.getLevel();
       if (level != null) {
-        var dispEntity = spawner.getOrCreateDisplayEntity(level, BlockEntity.getBlockPos());
+        var dispEntity = spawner.getOrCreateDisplayEntity(level, level.getRandom(), BlockEntity.getBlockPos());
         if (dispEntity != null) {
           return ResultWrapper.result(net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getKey(dispEntity.getType()).toString());
         }

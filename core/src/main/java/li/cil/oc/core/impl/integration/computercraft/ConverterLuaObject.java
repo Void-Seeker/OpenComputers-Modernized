@@ -108,14 +108,19 @@ public final class ConverterLuaObject implements Converter {
     @Override
     public @NotNull String getType(final int index) {
       Object o = get(index);
-      return switch (o) {
-        case null -> "nil";
-        case String ignored -> "string";
-        case Boolean ignored -> "boolean";
-        case Number ignored -> "number";
-        case Map<?, ?> ignored -> "table";
-        default -> "userdata";
-      };
+      if (o == null) {
+        return "nil";
+      } else if (o instanceof String) {
+        return "string";
+      } else if (o instanceof Boolean) {
+        return "boolean";
+      } else if (o instanceof Number) {
+        return "number";
+      } else if (o instanceof Map<?, ?>) {
+        return "table";
+      } else {
+        return "userdata";
+      }
     }
 
     @Override

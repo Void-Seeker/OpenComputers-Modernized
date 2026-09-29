@@ -133,9 +133,25 @@ public abstract class BlockEntity extends net.minecraft.world.level.block.entity
   }
 
   @Override
+  public void load(@NotNull CompoundTag nbt) {
+    super.load(nbt);
+    var level = getLevel();
+    loadAdditional(nbt, level != null ? level.registryAccess() : li.cil.oc.compat.RegistryLookup.get());
+  }
+
+  @Override
+  protected void saveAdditional(@NotNull CompoundTag nbt) {
+    super.saveAdditional(nbt);
+    saveAdditional(nbt, getEffectiveProviderOrDefault());
+  }
+
+  private HolderLookup.Provider getEffectiveProviderOrDefault() {
+    var provider = getEffectiveProvider();
+    return provider != null ? provider : li.cil.oc.compat.RegistryLookup.get();
+  }
+
   protected void loadAdditional(@NotNull CompoundTag nbt, HolderLookup.@NotNull Provider provider) {
     loadProvider = provider;
-    super.loadAdditional(nbt, provider);
     if (isServer()) {
       readFromNBTForServer(nbt);
     } else {
@@ -143,10 +159,8 @@ public abstract class BlockEntity extends net.minecraft.world.level.block.entity
     }
   }
 
-  @Override
   public void saveAdditional(@NotNull CompoundTag nbt, HolderLookup.@NotNull Provider provider) {
     loadProvider = provider;
-    super.saveAdditional(nbt, provider);
     if (isServer()) {
       writeToNBTForServer(nbt);
     }
@@ -170,17 +184,17 @@ public abstract class BlockEntity extends net.minecraft.world.level.block.entity
         LOGGER.warn("Problem writing BlockEntity description packet", e);
       }
       if (nbt.isEmpty()) return null;
-      return ClientboundBlockEntityDataPacket.create(this, (be, registry) -> nbt);
+      return ClientboundBlockEntityDataPacket.create(this, be -> nbt);
     } finally {
       savingForClients = false;
     }
   }
 
   @Override
-  public @NotNull CompoundTag getUpdateTag(HolderLookup.@NotNull Provider provider) {
+  public @NotNull CompoundTag getUpdateTag() {
     if (getLevel() == null) return new CompoundTag();
     savingForClients = true;
-    var nbt = super.getUpdateTag(provider);
+    var nbt = super.getUpdateTag();
     try {
       writeToNBTForClient(nbt);
     } catch (Throwable ignored) {

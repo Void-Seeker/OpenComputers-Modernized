@@ -1,11 +1,12 @@
 package li.cil.oc.core.impl;
 
+import li.cil.oc.compat.CustomData;
+
 import li.cil.oc.api.internal.TextBuffer;
 import li.cil.oc.core.impl.client.gui.Screen;
 import li.cil.oc.core.impl.client.renderer.gui.BufferRenderer;
 import li.cil.oc.core.impl.common.component.TerminalServer;
 import net.minecraft.client.Minecraft;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -48,7 +49,7 @@ public class ClientTerminalHelper {
     final String lockedKey = key;
 
     var inner = new Screen(initialBuffer, true, () -> true, () -> {
-      var cd = lockedStack.get(DataComponents.CUSTOM_DATA);
+      var cd = CustomData.get(lockedStack);
       var currentKey = (cd != null && !cd.isEmpty()) ? cd.copyTag().getString(OCSettings.namespace + "key") : "";
       if (!lockedKey.equals(currentKey)) {
         Minecraft.getInstance().setScreen(null);
@@ -95,7 +96,7 @@ public class ClientTerminalHelper {
 
       @Override
       public void render(net.minecraft.client.gui.@NotNull GuiGraphics guiGraphics, int mouseX, int mouseY, float dt) {
-        renderBackground(guiGraphics, mouseX, mouseY, dt);
+        renderBackground(guiGraphics);
         inner.render(guiGraphics, mouseX, mouseY, dt);
       }
 
@@ -115,8 +116,8 @@ public class ClientTerminalHelper {
       }
 
       @Override
-      public boolean mouseScrolled(double mouseX, double mouseY, double scrollDeltaX, double scrollDeltaY) {
-        return inner.mouseScrolled(mouseX, mouseY, scrollDeltaY) || super.mouseScrolled(mouseX, mouseY, scrollDeltaX, scrollDeltaY);
+      public boolean mouseScrolled(double mouseX, double mouseY, double scrollDelta) {
+        return inner.mouseScrolled(mouseX, mouseY, scrollDelta) || super.mouseScrolled(mouseX, mouseY, scrollDelta);
       }
 
       @Override

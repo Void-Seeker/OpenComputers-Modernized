@@ -1,5 +1,7 @@
 package li.cil.oc.core.impl.server.machine.luaj;
 
+import li.cil.oc.compat.MathCompat;
+
 import com.google.common.base.Strings;
 import java.io.IOException;
 import java.util.Objects;
@@ -75,30 +77,20 @@ public class LuaJLuaArchitecture implements Architecture {
       if (msg != null) {
         return LuaValue.varargsOf(LuaValue.TRUE, LuaValue.NIL, LuaValue.valueOf(msg));
       }
-      switch (cause) {
-        case IndexOutOfBoundsException ignored -> {
-          return LuaValue.varargsOf(LuaValue.FALSE, LuaValue.valueOf("index out of bounds"));
-        }
-        case IllegalArgumentException ignored -> {
-          return LuaValue.varargsOf(LuaValue.FALSE, LuaValue.valueOf("bad argument"));
-        }
-        case NoSuchMethodException ignored -> {
-          return LuaValue.varargsOf(LuaValue.FALSE, LuaValue.valueOf("no such method"));
-        }
-        case java.io.FileNotFoundException ignored -> {
-          return LuaValue.varargsOf(LuaValue.TRUE, LuaValue.NIL, LuaValue.valueOf("file not found"));
-        }
-        case SecurityException ignored -> {
-          return LuaValue.varargsOf(LuaValue.TRUE, LuaValue.NIL, LuaValue.valueOf("access denied"));
-        }
-        case IOException ignored -> {
-          return LuaValue.varargsOf(LuaValue.TRUE, LuaValue.NIL, LuaValue.valueOf("i/o error"));
-        }
-        case UnsupportedOperationException ignored -> {
-          return LuaValue.varargsOf(LuaValue.FALSE, LuaValue.valueOf("unsupported operation"));
-        }
-        default -> {
-        }
+      if (cause instanceof IndexOutOfBoundsException) {
+        return LuaValue.varargsOf(LuaValue.FALSE, LuaValue.valueOf("index out of bounds"));
+      } else if (cause instanceof IllegalArgumentException) {
+        return LuaValue.varargsOf(LuaValue.FALSE, LuaValue.valueOf("bad argument"));
+      } else if (cause instanceof NoSuchMethodException) {
+        return LuaValue.varargsOf(LuaValue.FALSE, LuaValue.valueOf("no such method"));
+      } else if (cause instanceof java.io.FileNotFoundException) {
+        return LuaValue.varargsOf(LuaValue.TRUE, LuaValue.NIL, LuaValue.valueOf("file not found"));
+      } else if (cause instanceof SecurityException) {
+        return LuaValue.varargsOf(LuaValue.TRUE, LuaValue.NIL, LuaValue.valueOf("access denied"));
+      } else if (cause instanceof IOException) {
+        return LuaValue.varargsOf(LuaValue.TRUE, LuaValue.NIL, LuaValue.valueOf("i/o error"));
+      } else if (cause instanceof UnsupportedOperationException) {
+        return LuaValue.varargsOf(LuaValue.FALSE, LuaValue.valueOf("unsupported operation"));
       }
       LOGGER.warn("Unexpected error in Lua callback.", e);
       return LuaValue.varargsOf(LuaValue.TRUE, LuaValue.NIL, LuaValue.valueOf("unknown error"));
@@ -134,7 +126,7 @@ public class LuaJLuaArchitecture implements Architecture {
         acc += ((Memory) driver).amount(stack) * 1024;
       }
     }
-    return Math.clamp((int) acc, 0, OCSettings.get().maxTotalRam);
+    return MathCompat.clamp((int) acc, 0, OCSettings.get().maxTotalRam);
   }
 
   @Override

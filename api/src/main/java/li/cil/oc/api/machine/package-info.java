@@ -16,6 +16,5 @@
  * implemented, but merely to allow accessing some mod internals in a regulated
  * fashion, such as {@link li.cil.oc.api.internal.Robot}.
  */
-@SuppressWarnings("unused")
 package li.cil.oc.api.machine;
 

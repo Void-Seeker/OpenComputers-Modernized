@@ -20,33 +20,40 @@ import net.minecraft.nbt.Tag;
 @SuppressWarnings("unused")
 public final class ConverterNBT implements Converter {
   private static Object convert(Tag nbt) {
-    return switch (nbt) {
-      case ByteTag tag -> tag.getAsByte();
-      case ShortTag tag -> tag.getAsShort();
-      case IntTag tag -> tag.getAsInt();
-      case LongTag tag -> tag.getAsLong();
-      case FloatTag tag -> tag.getAsFloat();
-      case DoubleTag tag -> tag.getAsDouble();
-      case ByteArrayTag tag -> tag.getAsByteArray();
-      case StringTag tag -> tag.getAsString();
-      case ListTag tag -> {
-        var copy = tag.copy();
-        var list = new ArrayList<>();
-        while (!copy.isEmpty()) {
-          list.add(convert(copy.removeFirst()));
-        }
-        yield list.toArray();
+    if (nbt instanceof ByteTag tag) {
+      return tag.getAsByte();
+    } else if (nbt instanceof ShortTag tag) {
+      return tag.getAsShort();
+    } else if (nbt instanceof IntTag tag) {
+      return tag.getAsInt();
+    } else if (nbt instanceof LongTag tag) {
+      return tag.getAsLong();
+    } else if (nbt instanceof FloatTag tag) {
+      return tag.getAsFloat();
+    } else if (nbt instanceof DoubleTag tag) {
+      return tag.getAsDouble();
+    } else if (nbt instanceof ByteArrayTag tag) {
+      return tag.getAsByteArray();
+    } else if (nbt instanceof StringTag tag) {
+      return tag.getAsString();
+    } else if (nbt instanceof ListTag tag) {
+      var copy = tag.copy();
+      var list = new ArrayList<>();
+      while (!copy.isEmpty()) {
+        list.add(convert(copy.remove(0)));
       }
-      case CompoundTag tag -> {
-        var map = new HashMap<>();
-        for (String key : tag.getAllKeys()) {
-          map.put(key, convert(tag.get(key)));
-        }
-        yield map;
+      return list.toArray();
+    } else if (nbt instanceof CompoundTag tag) {
+      var map = new HashMap<>();
+      for (String key : tag.getAllKeys()) {
+        map.put(key, convert(tag.get(key)));
       }
-      case IntArrayTag tag -> tag.getAsIntArray();
-      case null, default -> null;
-    };
+      return map;
+    } else if (nbt instanceof IntArrayTag tag) {
+      return tag.getAsIntArray();
+    } else {
+      return null;
+    }
   }
 
   @Override

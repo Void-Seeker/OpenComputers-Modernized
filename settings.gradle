@@ -3,6 +3,7 @@ pluginManagement {
         gradlePluginPortal()
         mavenCentral()
         maven { url = "https://maven.fabricmc.net/" }
+        maven { url = "https://maven.neoforged.net/releases" }
     }
 }
 
@@ -10,7 +11,8 @@ rootProject.name = 'OpenComputers'
 include 'api'
 include 'core-api'
 include 'core'
-include 'neoforge'
-include 'fabric'
-include 'neoforge-api'
-include 'fabric-api'
+// 1.20.1 backport: platform modules are disabled until they are ported to Forge 47.
+// include 'neoforge'
+// include 'fabric'
+// include 'neoforge-api'
+// include 'fabric-api'

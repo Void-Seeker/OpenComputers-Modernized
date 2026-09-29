@@ -1,0 +1,26 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "ABA",
+    "BCB",
+    "ADA"
+  ],
+  "key": {
+    "A": {
+      "tag": "forge:ingots/iron"
+    },
+    "B": {
+      "item": "opencomputers:cable"
+    },
+    "C": {
+      "tag": "opencomputers:crafting_piston"
+    },
+    "D": {
+      "item": "opencomputers:printedcircuitboard"
+    }
+  },
+  "result": {
+    "count": 1,
+    "item": "opencomputers:netsplitter"
+  }
+}

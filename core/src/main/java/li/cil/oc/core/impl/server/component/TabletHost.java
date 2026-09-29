@@ -2,11 +2,10 @@ package li.cil.oc.core.impl.server.component;
 
 import li.cil.oc.core.impl.OCSettings;
 import li.cil.oc.core.impl.common.item.data.TabletData;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.component.CustomData;
+import li.cil.oc.compat.CustomData;
 import org.jetbrains.annotations.NotNull;
 
 public class TabletHost extends TabletHostBase {
@@ -88,7 +87,7 @@ public class TabletHost extends TabletHostBase {
 
   @Override
   protected @NotNull CompoundTag loadMachineTag() {
-    var tag = stack.get(DataComponents.CUSTOM_DATA);
+    var tag = CustomData.get(stack);
     if (tag != null && !tag.isEmpty()) {
       var t = tag.copyTag();
       if (t.contains(OCSettings.namespace + "data")) {
@@ -100,7 +99,7 @@ public class TabletHost extends TabletHostBase {
 
   @Override
   protected void saveMachineTag(@NotNull CompoundTag nbt) {
-    var tag = stack.get(DataComponents.CUSTOM_DATA);
+    var tag = CustomData.get(stack);
     CompoundTag t;
     if (tag != null && !tag.isEmpty()) {
       t = tag.copyTag();
@@ -108,6 +107,6 @@ public class TabletHost extends TabletHostBase {
       t = new CompoundTag();
     }
     t.put(OCSettings.namespace + "data", nbt);
-    stack.set(DataComponents.CUSTOM_DATA, CustomData.of(t));
+    CustomData.set(stack, CustomData.of(t));
   }
 }

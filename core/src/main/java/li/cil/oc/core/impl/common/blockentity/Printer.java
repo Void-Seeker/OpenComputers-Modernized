@@ -1,5 +1,7 @@
 package li.cil.oc.core.impl.common.blockentity;
 
+import li.cil.oc.compat.MathCompat;
+
 import java.util.Arrays;
 import java.util.Map;
 import java.util.function.Supplier;
@@ -202,7 +204,7 @@ public class Printer extends BlockEntity implements li.cil.oc.api.network.Enviro
   @SuppressWarnings("SameReturnValue")
   @Callback(doc = "function(value:number) -- Set what light level the printed block should have.")
   public Object[] setLightLevel(Context context, Arguments args) {
-    data.lightLevel = Math.clamp(args.checkInteger(0), 0, OCSettings.get().maxPrintLightLevel);
+    data.lightLevel = MathCompat.clamp(args.checkInteger(0), 0, OCSettings.get().maxPrintLightLevel);
     isActive = false;
     return null;
   }
@@ -216,7 +218,7 @@ public class Printer extends BlockEntity implements li.cil.oc.api.network.Enviro
   @Callback(doc = "function(value:boolean or number) -- Set whether the printed block should emit redstone when in its active state.")
   public Object[] setRedstoneEmitter(Context context, Arguments args) {
     if (args.isBoolean(0)) data.redstoneLevel = args.checkBoolean(0) ? 15 : 0;
-    else data.redstoneLevel = Math.clamp(args.checkInteger(0), 0, 15);
+    else data.redstoneLevel = MathCompat.clamp(args.checkInteger(0), 0, 15);
     isActive = false;
     return null;
   }
@@ -257,12 +259,12 @@ public class Printer extends BlockEntity implements li.cil.oc.api.network.Enviro
     if (data.stateOff.size() > OCSettings.get().maxPrintComplexity || data.stateOn.size() > OCSettings.get().maxPrintComplexity) {
       return result(null, "model too complex");
     }
-    float minX = Math.clamp(args.checkInteger(0), 0, 16) / 16f;
-    float minY = Math.clamp(args.checkInteger(1), 0, 16) / 16f;
-    float minZ = (16 - Math.clamp(args.checkInteger(2), 0, 16)) / 16f;
-    float maxX = Math.clamp(args.checkInteger(3), 0, 16) / 16f;
-    float maxY = Math.clamp(args.checkInteger(4), 0, 16) / 16f;
-    float maxZ = (16 - Math.clamp(args.checkInteger(5), 0, 16)) / 16f;
+    float minX = MathCompat.clamp(args.checkInteger(0), 0, 16) / 16f;
+    float minY = MathCompat.clamp(args.checkInteger(1), 0, 16) / 16f;
+    float minZ = (16 - MathCompat.clamp(args.checkInteger(2), 0, 16)) / 16f;
+    float maxX = MathCompat.clamp(args.checkInteger(3), 0, 16) / 16f;
+    float maxY = MathCompat.clamp(args.checkInteger(4), 0, 16) / 16f;
+    float maxZ = (16 - MathCompat.clamp(args.checkInteger(5), 0, 16)) / 16f;
     var texture = args.checkString(6).substring(0, Math.min(64, args.checkString(6).length()));
     boolean state = args.isBoolean(7) && args.checkBoolean(7);
     Integer tint = null;
@@ -298,7 +300,7 @@ public class Printer extends BlockEntity implements li.cil.oc.api.network.Enviro
   @Callback(doc = "function([count:number]):boolean -- Commit and begin printing the current configuration.")
   public Object[] commit(Context context, Arguments args) {
     if (!canPrint()) return result(null, "model invalid");
-    limit = (int) Math.clamp(args.optDouble(0, 1), 0, Integer.MAX_VALUE);
+    limit = (int) MathCompat.clamp(args.optDouble(0, 1), 0, Integer.MAX_VALUE);
     isActive = limit > 0;
     return result(true);
   }
@@ -315,7 +317,7 @@ public class Printer extends BlockEntity implements li.cil.oc.api.network.Enviro
     Supplier<Boolean> canMergeOutput = () -> {
       var presentStack = getItem(SLOT_OUTPUT);
       var outputStack = data.createItemStack();
-      return presentStack.isEmpty() || (ItemStack.isSameItemSameComponents(presentStack, outputStack));
+      return presentStack.isEmpty() || (ItemStack.isSameItemSameTags(presentStack, outputStack));
     };
 
     if (isActive && output == null && canMergeOutput.get()) {
@@ -338,7 +340,7 @@ public class Printer extends BlockEntity implements li.cil.oc.api.network.Enviro
     }
 
     if (output != null) {
-      double want = Math.clamp(requiredEnergy, 1, OCSettings.get().printerTickAmount);
+      double want = MathCompat.clamp(requiredEnergy, 1, OCSettings.get().printerTickAmount);
       double have = want + (OCSettings.get().ignorePower ? 0 : ((li.cil.oc.api.network.Connector) node).changeBuffer(-want));
       requiredEnergy -= have;
       if (requiredEnergy <= 0) {
@@ -387,7 +389,7 @@ public class Printer extends BlockEntity implements li.cil.oc.api.network.Enviro
     isActive = nbt.getBoolean(OCSettings.namespace + "active");
     limit = nbt.getInt(OCSettings.namespace + "limit");
     if (provider != null && nbt.contains(OCSettings.namespace + "output")) {
-      output = ItemStack.parseOptional(provider, nbt.getCompound(OCSettings.namespace + "output"));
+      output = ItemStack.of(nbt.getCompound(OCSettings.namespace + "output"));
     }
     totalRequiredEnergy = nbt.getDouble(OCSettings.namespace + "total");
     requiredEnergy = nbt.getDouble(OCSettings.namespace + "remaining");
@@ -405,7 +407,7 @@ public class Printer extends BlockEntity implements li.cil.oc.api.network.Enviro
     nbt.putBoolean(OCSettings.namespace + "active", isActive);
     nbt.putInt(OCSettings.namespace + "limit", limit);
     if (output != null)
-      li.cil.oc.core.impl.util.ExtendedNBT.setNewCompoundTag(nbt, OCSettings.namespace + "output", t -> output.save(getEffectiveProvider(), t));
+      li.cil.oc.core.impl.util.ExtendedNBT.setNewCompoundTag(nbt, OCSettings.namespace + "output", t -> output.save(t));
     nbt.putDouble(OCSettings.namespace + "total", totalRequiredEnergy);
     nbt.putDouble(OCSettings.namespace + "remaining", requiredEnergy);
   }

@@ -280,7 +280,8 @@ public class RobotProxy extends BlockEntity implements Computer, PowerInformatio
       li.cil.oc.core.impl.util.ClientTickScheduler.schedule(() -> disposeOrphanedRobot(oldPos));
       return;
     }
-    if (robot instanceof li.cil.oc.core.impl.common.inventory.ComponentInventory ci) {
+    if (robot != null) {
+      final li.cil.oc.core.impl.common.inventory.ComponentInventory ci = robot;
       ci.disconnectComponents();
     }
     var node = robot.node();
@@ -293,7 +294,8 @@ public class RobotProxy extends BlockEntity implements Computer, PowerInformatio
 
   private void adoptOrphanedRobot(Robot existing, BlockPos pos) {
     var fresh = robot;
-    if (fresh instanceof li.cil.oc.core.impl.common.inventory.ComponentInventory ci) {
+    if (fresh != null) {
+      final li.cil.oc.core.impl.common.inventory.ComponentInventory ci = fresh;
       ci.disconnectComponents();
     }
     var node = fresh.node();

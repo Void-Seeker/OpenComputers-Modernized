@@ -15,7 +15,7 @@ import net.minecraft.world.item.ItemStack;
 public class OreDictImageProvider implements ImageProvider {
   @Override
   public ImageRenderer getImage(String data) {
-    var tagLocation = ResourceLocation.parse(data);
+    var tagLocation = new ResourceLocation(data);
     var tagKey = TagKey.create(Registries.ITEM, tagLocation);
     var tag = BuiltInRegistries.ITEM.getTag(tagKey);
     if (tag.isPresent()) {

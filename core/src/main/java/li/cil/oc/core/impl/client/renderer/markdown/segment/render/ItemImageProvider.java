@@ -14,9 +14,9 @@ public class ItemImageProvider implements ImageProvider {
   public ImageRenderer getImage(String data) {
     int splitIndex = data.lastIndexOf('@');
     String name = splitIndex > 0 ? data.substring(0, splitIndex) : data;
-    var location = ResourceLocation.parse(name.toLowerCase(java.util.Locale.ROOT));
+    var location = new ResourceLocation(name.toLowerCase(java.util.Locale.ROOT));
     var item = BuiltInRegistries.ITEM.get(location);
-    if (item != BuiltInRegistries.ITEM.get(ResourceLocation.withDefaultNamespace("air"))) {
+    if (item != BuiltInRegistries.ITEM.get(new ResourceLocation("air"))) {
       return new ItemStackImageRenderer(new ItemStack(item, 1));
     }
     return new InteractiveImageRenderer() {

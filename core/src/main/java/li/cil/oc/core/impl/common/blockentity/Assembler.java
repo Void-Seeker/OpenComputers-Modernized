@@ -1,5 +1,7 @@
 package li.cil.oc.core.impl.common.blockentity;
 
+import li.cil.oc.compat.MathCompat;
+
 import java.util.Map;
 import li.cil.oc.api.driver.DeviceInfo;
 import li.cil.oc.api.machine.Arguments;
@@ -107,7 +109,7 @@ public class Assembler extends BlockEntity implements li.cil.oc.api.network.Envi
   @Override
   public double globalDemand(Direction side) {
     if (node instanceof li.cil.oc.api.network.Connector c && hasConnector(side)) {
-      return Math.clamp(c.globalBufferSize() - c.globalBuffer(), 0, energyThroughput());
+      return MathCompat.clamp(c.globalBufferSize() - c.globalBuffer(), 0, energyThroughput());
     }
     return 0;
   }
@@ -121,7 +123,7 @@ public class Assembler extends BlockEntity implements li.cil.oc.api.network.Envi
   public double tryChangeBuffer(Direction side, double amount, boolean doReceive) {
     if (isClient() || OCSettings.get().ignorePower) return 0;
     if (hasConnector(side) && node instanceof li.cil.oc.api.network.Connector c) {
-      double cappedAmount = Math.clamp(amount, 0, Math.min(energyThroughput(), globalDemand(side)));
+      double cappedAmount = MathCompat.clamp(amount, 0, Math.min(energyThroughput(), globalDemand(side)));
       if (doReceive) return cappedAmount - c.changeBuffer(cappedAmount);
       return cappedAmount;
     }
@@ -210,7 +212,7 @@ public class Assembler extends BlockEntity implements li.cil.oc.api.network.Envi
     super.updateEntity();
     var level = getLevel();
     if (output != null && level != null && level.getGameTime() % OCSettings.get().tickFrequency == 0) {
-      double want = Math.clamp(requiredEnergy, 1, OCSettings.get().assemblerTickAmount * OCSettings.get().tickFrequency);
+      double want = MathCompat.clamp(requiredEnergy, 1, OCSettings.get().assemblerTickAmount * OCSettings.get().tickFrequency);
       double have = want + (OCSettings.get().ignorePower ? 0 : ((li.cil.oc.api.network.Connector) node).changeBuffer(-want));
       requiredEnergy -= have;
       if (requiredEnergy <= 0) {
@@ -226,9 +228,9 @@ public class Assembler extends BlockEntity implements li.cil.oc.api.network.Envi
   public void readFromNBTForServer(CompoundTag nbt) {
     super.readFromNBTForServer(nbt);
     if (nbt.contains(OCSettings.namespace + "output")) {
-      output = ItemStack.parseOptional(getEffectiveProvider(), nbt.getCompound(OCSettings.namespace + "output"));
+      output = ItemStack.of(nbt.getCompound(OCSettings.namespace + "output"));
     } else if (nbt.contains(OCSettings.namespace + "robot")) {
-      output = ItemStack.parseOptional(getEffectiveProvider(), nbt.getCompound(OCSettings.namespace + "robot"));
+      output = ItemStack.of(nbt.getCompound(OCSettings.namespace + "robot"));
     }
     totalRequiredEnergy = nbt.getDouble(OCSettings.namespace + "total");
     requiredEnergy = nbt.getDouble(OCSettings.namespace + "remaining");
@@ -239,7 +241,7 @@ public class Assembler extends BlockEntity implements li.cil.oc.api.network.Envi
     super.writeToNBTForServer(nbt);
     if (output != null && !output.isEmpty()) {
       var saved = new CompoundTag();
-      output.save(getEffectiveProvider(), saved);
+      output.save(saved);
       nbt.put(OCSettings.namespace + "output", saved);
     }
     nbt.putDouble(OCSettings.namespace + "total", totalRequiredEnergy);

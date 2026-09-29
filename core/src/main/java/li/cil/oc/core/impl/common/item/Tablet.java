@@ -47,6 +47,11 @@ public class Tablet extends DelegateItem implements Chargeable {
   private static Consumer<Player> tabletAudioPlayer = (player) -> {
   };
 
+  @Override
+  public net.minecraft.world.item.Rarity getRarity(ItemStack stack) {
+    return li.cil.oc.core.impl.util.Rarity.byTier(new li.cil.oc.core.impl.common.item.data.TabletData(stack).tier);
+  }
+
   public static void setTerminalPacketSender(TerminalPacketSender sender) {
     terminalPacketSender = sender;
   }
@@ -109,7 +114,7 @@ public class Tablet extends DelegateItem implements Chargeable {
   @Override
   public void releaseUsing(@NotNull ItemStack stack, @NotNull Level level, @NotNull LivingEntity entity, int timeLeft) {
     if (!(entity instanceof Player player)) return;
-    int duration = getUseDuration(stack, entity) - timeLeft;
+    int duration = getUseDuration(stack) - timeLeft;
     boolean didAnalyze = duration >= TimeToAnalyze;
     if (didAnalyze) {
       if (!level.isClientSide) {
@@ -137,7 +142,7 @@ public class Tablet extends DelegateItem implements Chargeable {
   }
 
   @Override
-  public int getUseDuration(@NotNull ItemStack stack, @NotNull LivingEntity entity) {
+  public int getUseDuration(@NotNull ItemStack stack) {
     return 72000;
   }
 

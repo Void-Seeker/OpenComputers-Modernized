@@ -29,47 +29,64 @@ public final class ExtendedLuaState {
       lua.pushValue(memo.get(value));
     } else {
 
-      switch (value) {
-        case null -> lua.pushNil();
-        case Boolean b -> lua.pushBoolean(b);
-        case Byte b -> lua.pushInteger(b);
-        case Character c -> lua.pushString(String.valueOf(value));
-        case Short aShort -> lua.pushInteger(aShort);
-        case Integer integer -> lua.pushInteger(integer);
-        case Long l -> lua.pushInteger(l);
-        case Float v -> lua.pushNumber(v);
-        case Double v -> lua.pushNumber(v);
-        case String s -> lua.pushString(s);
-        case byte[] bytes -> lua.pushByteArray(bytes);
-        case float[] arr -> pushPrimitiveArray(lua, value, arr, i -> arr[i], arr.length, memo);
-        case double[] arr -> pushPrimitiveArray(lua, value, arr, i -> arr[i], arr.length, memo);
-        case int[] arr -> pushPrimitiveArray(lua, value, arr, i -> arr[i], arr.length, memo);
-        case short[] arr -> pushPrimitiveArray(lua, value, arr, i -> arr[i], arr.length, memo);
-        case long[] arr -> pushPrimitiveArray(lua, value, arr, i -> arr[i], arr.length, memo);
-        case char[] arr -> pushPrimitiveArray(lua, value, arr, i -> arr[i], arr.length, memo);
-        case boolean[] arr -> pushPrimitiveArray(lua, value, arr, i -> arr[i], arr.length, memo);
-        case Object[] arr -> {
-          java.util.List<Map.Entry<Object, Integer>> list = new java.util.ArrayList<>();
-          for (int i = 0; i < arr.length; i++) {
-            list.add(new java.util.AbstractMap.SimpleEntry<>(arr[i], i));
-          }
-          pushList(lua, value, list.iterator(), memo);
+      if (value == null) {
+        lua.pushNil();
+      } else if (value instanceof Boolean b) {
+        lua.pushBoolean(b);
+      } else if (value instanceof Byte b) {
+        lua.pushInteger(b);
+      } else if (value instanceof Character c) {
+        lua.pushString(String.valueOf(value));
+      } else if (value instanceof Short aShort) {
+        lua.pushInteger(aShort);
+      } else if (value instanceof Integer integer) {
+        lua.pushInteger(integer);
+      } else if (value instanceof Long l) {
+        lua.pushInteger(l);
+      } else if (value instanceof Float v) {
+        lua.pushNumber(v);
+      } else if (value instanceof Double v) {
+        lua.pushNumber(v);
+      } else if (value instanceof String s) {
+        lua.pushString(s);
+      } else if (value instanceof byte[] bytes) {
+        lua.pushByteArray(bytes);
+      } else if (value instanceof float[] arr) {
+        pushPrimitiveArray(lua, value, arr, i -> arr[i], arr.length, memo);
+      } else if (value instanceof double[] arr) {
+        pushPrimitiveArray(lua, value, arr, i -> arr[i], arr.length, memo);
+      } else if (value instanceof int[] arr) {
+        pushPrimitiveArray(lua, value, arr, i -> arr[i], arr.length, memo);
+      } else if (value instanceof short[] arr) {
+        pushPrimitiveArray(lua, value, arr, i -> arr[i], arr.length, memo);
+      } else if (value instanceof long[] arr) {
+        pushPrimitiveArray(lua, value, arr, i -> arr[i], arr.length, memo);
+      } else if (value instanceof char[] arr) {
+        pushPrimitiveArray(lua, value, arr, i -> arr[i], arr.length, memo);
+      } else if (value instanceof boolean[] arr) {
+        pushPrimitiveArray(lua, value, arr, i -> arr[i], arr.length, memo);
+      } else if (value instanceof Object[] arr) {
+        java.util.List<Map.Entry<Object, Integer>> list = new java.util.ArrayList<>();
+        for (int i = 0; i < arr.length; i++) {
+          list.add(new java.util.AbstractMap.SimpleEntry<>(arr[i], i));
         }
-        case Value ignored when OCSettings.get().allowUserdata -> lua.pushJavaObjectRaw(value);
-        case Map<?, ?> map -> pushTableFromJavaMap(lua, value, map, memo);
-        case li.cil.oc.core.impl.server.machine.luaj.ScalaClosure.LuaCallable f -> pushLuaCallable(lua, f, memo);
-        case Iterable<?> iterable -> {
-          java.util.List<java.util.Map.Entry<Object, Integer>> list = new java.util.ArrayList<>();
-          int idx = 0;
-          for (Object item : iterable) {
-            list.add(new java.util.AbstractMap.SimpleEntry<>(item, idx++));
-          }
-          pushList(lua, value, list.iterator(), memo);
+        pushList(lua, value, list.iterator(), memo);
+      } else if (value instanceof Value && (OCSettings.get().allowUserdata)) {
+        lua.pushJavaObjectRaw(value);
+      } else if (value instanceof Map<?, ?> map) {
+        pushTableFromJavaMap(lua, value, map, memo);
+      } else if (value instanceof li.cil.oc.core.impl.server.machine.luaj.ScalaClosure.LuaCallable f) {
+        pushLuaCallable(lua, f, memo);
+      } else if (value instanceof Iterable<?> iterable) {
+        java.util.List<java.util.Map.Entry<Object, Integer>> list = new java.util.ArrayList<>();
+        int idx = 0;
+        for (Object item : iterable) {
+          list.add(new java.util.AbstractMap.SimpleEntry<>(item, idx++));
         }
-        default -> {
-          LOGGER.warn("Tried to push an unsupported value of type to Lua: {}.", value.getClass().getName());
-          lua.pushNil();
-        }
+        pushList(lua, value, list.iterator(), memo);
+      } else {
+        LOGGER.warn("Tried to push an unsupported value of type to Lua: {}.", value.getClass().getName());
+        lua.pushNil();
       }
 
       if (!recursive) {
@@ -140,14 +157,14 @@ public final class ExtendedLuaState {
 
   public static Object toSimpleJavaObject(LuaState lua, int index) {
     return switch (lua.type(index)) {
-      case LuaType.BOOLEAN -> lua.toBoolean(index);
-      case LuaType.NUMBER -> {
+      case BOOLEAN -> lua.toBoolean(index);
+      case NUMBER -> {
         if (lua.isInteger(index)) yield lua.toInteger(index);
         yield lua.toNumber(index);
       }
-      case LuaType.STRING -> lua.toByteArray(index);
-      case LuaType.TABLE -> lua.toJavaObject(index, Map.class);
-      case LuaType.USERDATA -> lua.toJavaObjectRaw(index);
+      case STRING -> lua.toByteArray(index);
+      case TABLE -> lua.toJavaObject(index, Map.class);
+      case USERDATA -> lua.toJavaObjectRaw(index);
       default -> null;
     };
   }

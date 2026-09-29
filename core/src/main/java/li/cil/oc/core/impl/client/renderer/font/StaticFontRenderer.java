@@ -27,7 +27,7 @@ public class StaticFontRenderer extends TextureFontRenderer {
     String charsStr = "☺☻♥♦♣♠•◘○◙♂♀♪♫☼►◄↕‼¶§▬↨↑↓→←∟↔▲▼ !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~⌂ÇüéâäàåçêëèïîìÄÅÉæÆôöòûùÿÖÜ¢£¥₧ƒáíóúñÑªº¿⌐¬½¼¡«»░▒▓│┤╡╢╖╕╣║╗╝╜╛┐└┴┬├─┼╞╟╚╔╩╦╠═╬╧╨╤╥╙╘╒╓╫╪┘┌█▄▌▐▀αßΓπΣσµτΦΘΩδ∞φε∩≡±≥≤⌠⌡÷≈°∙·√ⁿ²■";
     try {
       var resourceOpt = Minecraft.getInstance().getResourceManager()
-        .getResource(ResourceLocation.fromNamespaceAndPath(OCSettings.resourceDomain, "textures/font/chars.txt"));
+        .getResource(new ResourceLocation(OCSettings.resourceDomain, "textures/font/chars.txt"));
       if (resourceOpt.isEmpty()) throw new RuntimeException("chars.txt resource not found");
       InputStream is = resourceOpt.get().open();
       BufferedReader reader = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8));

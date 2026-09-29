@@ -6,7 +6,6 @@ import li.cil.oc.core.Constants;
 import li.cil.oc.core.common.Tier;
 import li.cil.oc.core.impl.OCSettings;
 import net.minecraft.core.HolderLookup;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
@@ -32,7 +31,6 @@ public class TabletData extends ItemData {
   @Override
   public void save(ItemStack stack, HolderLookup.Provider provider) {
     super.save(stack, provider);
-    stack.set(DataComponents.RARITY, li.cil.oc.core.impl.util.Rarity.byTier(tier));
   }
 
   @Override
@@ -44,7 +42,7 @@ public class TabletData extends ItemData {
       var slotNbt = itemList.getCompound(i);
       int slot = slotNbt.getByte("slot");
       if (slot >= 0 && slot < 32) {
-        items.set(slot, ItemStack.parseOptional(provider, slotNbt.getCompound("item")));
+        items.set(slot, ItemStack.of(slotNbt.getCompound("item")));
       }
     }
     isRunning = nbt.getBoolean(OCSettings.namespace + "isRunning");
@@ -52,7 +50,7 @@ public class TabletData extends ItemData {
     maxEnergy = nbt.getDouble(OCSettings.namespace + "maxEnergy");
     tier = nbt.getInt(OCSettings.namespace + "tier");
     if (nbt.contains(OCSettings.namespace + "container")) {
-      container = ItemStack.parseOptional(provider, nbt.getCompound(OCSettings.namespace + "container"));
+      container = ItemStack.of(nbt.getCompound(OCSettings.namespace + "container"));
     }
   }
 
@@ -64,7 +62,7 @@ public class TabletData extends ItemData {
       if (opt != null) {
         var slotNbt = new CompoundTag();
         slotNbt.putByte("slot", (byte) i);
-        slotNbt.put("item", opt.save(provider, new CompoundTag()));
+        slotNbt.put("item", opt.save(new CompoundTag()));
         list.add(slotNbt);
       }
     }
@@ -74,7 +72,7 @@ public class TabletData extends ItemData {
     nbt.putDouble(OCSettings.namespace + "maxEnergy", maxEnergy);
     nbt.putInt(OCSettings.namespace + "tier", tier);
     if (container != null && !container.isEmpty()) {
-      nbt.put(OCSettings.namespace + "container", container.save(provider, new CompoundTag()));
+      nbt.put(OCSettings.namespace + "container", container.save(new CompoundTag()));
     }
   }
 }

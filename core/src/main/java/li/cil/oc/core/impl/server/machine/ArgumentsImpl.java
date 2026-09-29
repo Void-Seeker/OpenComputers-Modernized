@@ -3,7 +3,6 @@ package li.cil.oc.core.impl.server.machine;
 import java.util.Iterator;
 import java.util.Map;
 import li.cil.oc.api.machine.Arguments;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtAccounter;
@@ -12,7 +11,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.item.component.CustomData;
+import li.cil.oc.compat.CustomData;
 import org.jetbrains.annotations.NotNull;
 
 public class ArgumentsImpl implements Arguments {
@@ -178,15 +177,15 @@ public class ArgumentsImpl implements Arguments {
     Object tagObj = map.get("tag");
     try {
       if (tagObj instanceof byte[] ba) {
-        tag = NbtIo.readCompressed(new java.io.ByteArrayInputStream(ba), NbtAccounter.create(0x200000L));
+        tag = li.cil.oc.compat.NbtCompat.readCompressed(new java.io.ByteArrayInputStream(ba), new NbtAccounter(0x200000L));
       } else if (tagObj instanceof String s) {
-        tag = NbtIo.readCompressed(new java.io.ByteArrayInputStream(s.getBytes(java.nio.charset.StandardCharsets.UTF_8)), NbtAccounter.create(0x200000L));
+        tag = li.cil.oc.compat.NbtCompat.readCompressed(new java.io.ByteArrayInputStream(s.getBytes(java.nio.charset.StandardCharsets.UTF_8)), new NbtAccounter(0x200000L));
       }
     } catch (java.io.IOException ignored) {
     }
     ResourceLocation location;
     try {
-      location = ResourceLocation.parse(name);
+      location = new ResourceLocation(name);
     } catch (Exception e) {
       throw new IllegalArgumentException("invalid item stack");
     }
@@ -199,7 +198,7 @@ public class ArgumentsImpl implements Arguments {
       stack.setDamageValue(damage);
     }
     if (tag != null && !tag.isEmpty()) {
-      CustomData.set(DataComponents.CUSTOM_DATA, stack, tag);
+      CustomData.set(stack, CustomData.of(tag));
     }
     return stack;
   }

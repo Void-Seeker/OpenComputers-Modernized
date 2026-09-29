@@ -1,0 +1,32 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "ABA",
+    "CDC",
+    "EFE"
+  ],
+  "key": {
+    "A": {
+      "item": "opencomputers:chip3"
+    },
+    "B": {
+      "tag": "forge:glass"
+    },
+    "C": {
+      "item": "opencomputers:printedcircuitboard"
+    },
+    "D": {
+      "tag": "forge:gems/diamond"
+    },
+    "E": {
+      "item": "minecraft:obsidian"
+    },
+    "F": {
+      "item": "minecraft:blaze_powder"
+    }
+  },
+  "result": {
+    "count": 1,
+    "item": "opencomputers:hologram2"
+  }
+}

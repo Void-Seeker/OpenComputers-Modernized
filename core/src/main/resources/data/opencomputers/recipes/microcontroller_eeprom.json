@@ -1,0 +1,15 @@
+{
+  "type": "opencomputers:shapeless",
+  "ingredients": [
+    {
+      "item": "opencomputers:microcontroller"
+    },
+    {
+      "item": "opencomputers:eeprom"
+    }
+  ],
+  "result": {
+    "item": "opencomputers:microcontroller"
+  },
+  "category": "misc"
+}

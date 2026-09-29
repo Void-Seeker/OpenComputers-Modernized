@@ -1,0 +1,29 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "ABA",
+    "CD ",
+    "AEA"
+  ],
+  "key": {
+    "A": {
+      "tag": "forge:nuggets/iron"
+    },
+    "B": {
+      "item": "minecraft:redstone"
+    },
+    "C": {
+      "item": "opencomputers:chip1"
+    },
+    "D": {
+      "item": "opencomputers:cu"
+    },
+    "E": {
+      "item": "opencomputers:printedcircuitboard"
+    }
+  },
+  "result": {
+    "count": 1,
+    "item": "opencomputers:componentbus1"
+  }
+}

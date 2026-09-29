@@ -1,10 +1,11 @@
 package li.cil.oc.core.impl.common.item.data;
 
+import li.cil.oc.compat.CustomData;
+
 import li.cil.oc.core.Constants;
 import li.cil.oc.core.impl.OCSettings;
 import li.cil.oc.core.impl.server.component.DebugCardBase;
 import net.minecraft.core.HolderLookup;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.item.ItemStack;
 
@@ -26,7 +27,7 @@ public class DebugCardData extends ItemData {
   }
 
   public static String getAccessPlayer(ItemStack stack) {
-    var cd = stack.get(DataComponents.CUSTOM_DATA);
+    var cd = CustomData.get(stack);
     if (cd != null && !cd.isEmpty()) {
       CompoundTag tag = cd.copyTag();
       if (tag.contains(OCSettings.namespace + "data")) {

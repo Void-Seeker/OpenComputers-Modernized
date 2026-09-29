@@ -13,6 +13,5 @@
  * that can be added as component nodes to the network, so they can be used
  * from computers).
  */
-@SuppressWarnings("unused")
 package li.cil.oc.api.fs;
 

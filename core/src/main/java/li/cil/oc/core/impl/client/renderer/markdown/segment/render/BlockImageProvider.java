@@ -14,9 +14,9 @@ public class BlockImageProvider implements ImageProvider {
   public ImageRenderer getImage(String data) {
     int splitIndex = data.lastIndexOf('@');
     String name = splitIndex > 0 ? data.substring(0, splitIndex) : data;
-    var location = ResourceLocation.parse(name.toLowerCase(java.util.Locale.ROOT));
+    var location = new ResourceLocation(name.toLowerCase(java.util.Locale.ROOT));
     var block = BuiltInRegistries.BLOCK.get(location);
-    if (block != BuiltInRegistries.BLOCK.get(ResourceLocation.withDefaultNamespace("air"))) {
+    if (block != BuiltInRegistries.BLOCK.get(new ResourceLocation("air"))) {
       var stack = new ItemStack(block, 1);
       if (!stack.isEmpty()) {
         return new ItemStackImageRenderer(stack);

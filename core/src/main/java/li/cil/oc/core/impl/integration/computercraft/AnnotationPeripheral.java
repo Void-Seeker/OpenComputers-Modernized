@@ -211,25 +211,18 @@ public class AnnotationPeripheral implements IDynamicPeripheral {
 
   private static MethodResult convertResult(final Object value, final Class<?> returnType) {
     if (returnType == void.class) return MethodResult.of();
-    switch (value) {
-      case null -> {
-        return MethodResult.of();
-      }
-      case MethodResult mr -> {
-        if (mr.getCallback() != null) return mr;
-        Object[] inner = mr.getResult();
-        if (inner == null || inner.length == 0) return MethodResult.of();
-        if (inner.length == 1) return MethodResult.of(inner[0]);
-        return MethodResult.of(inner);
-      }
-      case Object[] arr -> {
-        return MethodResult.of(arr);
-      }
-      case Map<?, ?> map -> {
-        return MethodResult.of(convertMapValues(map));
-      }
-      default -> {
-      }
+    if (value == null) {
+      return MethodResult.of();
+    } else if (value instanceof MethodResult mr) {
+      if (mr.getCallback() != null) return mr;
+      Object[] inner = mr.getResult();
+      if (inner == null || inner.length == 0) return MethodResult.of();
+      if (inner.length == 1) return MethodResult.of(inner[0]);
+      return MethodResult.of(inner);
+    } else if (value instanceof Object[] arr) {
+      return MethodResult.of(arr);
+    } else if (value instanceof Map<?, ?> map) {
+      return MethodResult.of(convertMapValues(map));
     }
     return MethodResult.of(value);
   }
@@ -277,14 +270,19 @@ public class AnnotationPeripheral implements IDynamicPeripheral {
       @Override
       public @NotNull String getType(int index) {
         Object val = get(index);
-        return switch (val) {
-          case null -> "nil";
-          case Boolean b -> "boolean";
-          case Number number -> "number";
-          case String s -> "string";
-          case Map<?, ?> map -> "table";
-          default -> "object";
-        };
+        if (val == null) {
+          return "nil";
+        } else if (val instanceof Boolean b) {
+          return "boolean";
+        } else if (val instanceof Number number) {
+          return "number";
+        } else if (val instanceof String s) {
+          return "string";
+        } else if (val instanceof Map<?, ?> map) {
+          return "table";
+        } else {
+          return "object";
+        }
       }
 
       @Override

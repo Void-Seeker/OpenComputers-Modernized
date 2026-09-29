@@ -1,0 +1,29 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "AAA",
+    "BCB",
+    "DED"
+  ],
+  "key": {
+    "A": {
+      "tag": "forge:glass"
+    },
+    "B": {
+      "item": "opencomputers:chip3"
+    },
+    "C": {
+      "tag": "forge:storage_blocks/lapis"
+    },
+    "D": {
+      "tag": "forge:ingots/iron"
+    },
+    "E": {
+      "item": "opencomputers:printedcircuitboard"
+    }
+  },
+  "result": {
+    "count": 1,
+    "item": "opencomputers:solargeneratorupgrade"
+  }
+}

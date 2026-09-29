@@ -23,12 +23,11 @@ import li.cil.oc.core.impl.common.inventory.ComponentInventory;
 import li.cil.oc.core.impl.common.inventory.ServerInventory;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.component.CustomData;
+import li.cil.oc.compat.CustomData;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -259,7 +258,7 @@ public abstract class ServerBase implements ComponentInventory, MachineHost, Ser
       var c = container();
       if (!c.isEmpty()) {
         CompoundTag nbt;
-        var customData = c.get(DataComponents.CUSTOM_DATA);
+        var customData = CustomData.get(c);
         if (customData == null || customData.isEmpty()) {
           nbt = new CompoundTag();
         } else {
@@ -268,7 +267,7 @@ public abstract class ServerBase implements ComponentInventory, MachineHost, Ser
         CompoundTag data = nbt.contains(OCSettings.namespace + "data") ? nbt.getCompound(OCSettings.namespace + "data") : new CompoundTag();
         save(data, level.registryAccess());
         nbt.put(OCSettings.namespace + "data", data);
-        c.set(DataComponents.CUSTOM_DATA, CustomData.of(nbt));
+        CustomData.set(c, CustomData.of(nbt));
       }
       if (rack instanceof BlockEntity be) {
         var beLevel = be.getLevel();

@@ -1,5 +1,7 @@
 package li.cil.oc.core.impl.common.nanomachines;
 
+import li.cil.oc.compat.MathCompat;
+
 import java.nio.charset.StandardCharsets;
 import java.util.HashSet;
 import java.util.Set;
@@ -90,7 +92,7 @@ public class ControllerImpl implements Controller, WirelessEndpoint {
           switch (op) {
             case "setResponsePort" -> {
               if (cmd.length > 1 && cmd[1] instanceof Number n) {
-                responsePort = Math.clamp(n.intValue(), 0, 0xFFFF);
+                responsePort = MathCompat.clamp(n.intValue(), 0, 0xFFFF);
                 respond(sender, "port", responsePort);
               }
             }
@@ -260,7 +262,7 @@ public class ControllerImpl implements Controller, WirelessEndpoint {
     if (isClient()) return delta;
     if (delta < 0 && (OCSettings.get().ignorePower || player.getAbilities().instabuild)) return 0.0;
     double newValue = storedEnergy + delta;
-    storedEnergy = Math.clamp(newValue, 0, getLocalBufferSize());
+    storedEnergy = MathCompat.clamp(newValue, 0, getLocalBufferSize());
     return newValue - storedEnergy;
   }
 

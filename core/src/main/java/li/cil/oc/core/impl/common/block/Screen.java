@@ -1,5 +1,7 @@
 package li.cil.oc.core.impl.common.block;
 
+import li.cil.oc.compat.MathCompat;
+
 import java.util.List;
 import java.util.function.Consumer;
 import li.cil.oc.core.Constants;
@@ -152,9 +154,9 @@ public class Screen extends RedstoneAware {
   }
 
   private static Direction getHitSide(Entity entity, BlockPos pos) {
-    double hitX = Math.clamp(entity.getX() - pos.getX(), 0, 1);
-    double hitY = Math.clamp(entity.getY() - pos.getY(), 0, 1);
-    double hitZ = Math.clamp(entity.getZ() - pos.getZ(), 0, 1);
+    double hitX = MathCompat.clamp(entity.getX() - pos.getX(), 0, 1);
+    double hitY = MathCompat.clamp(entity.getY() - pos.getY(), 0, 1);
+    double hitZ = MathCompat.clamp(entity.getZ() - pos.getZ(), 0, 1);
     double absX = Math.abs(hitX - 0.5);
     double absY = Math.abs(hitY - 0.5);
     double absZ = Math.abs(hitZ - 0.5);

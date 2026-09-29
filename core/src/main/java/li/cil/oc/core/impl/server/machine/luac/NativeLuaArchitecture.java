@@ -1,5 +1,7 @@
 package li.cil.oc.core.impl.server.machine.luac;
 
+import li.cil.oc.compat.MathCompat;
+
 import com.google.common.base.Strings;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -89,47 +91,37 @@ public abstract class NativeLuaArchitecture implements Architecture {
         }
         return 3;
       }
-      switch (cause) {
-        case IndexOutOfBoundsException ignored -> {
-          lua.pushBoolean(false);
-          lua.pushString("index out of bounds");
-          return 2;
-        }
-        case IllegalArgumentException ignored -> {
-          lua.pushBoolean(false);
-          lua.pushString("bad argument");
-          return 2;
-        }
-        case NoSuchMethodException ignored -> {
-          lua.pushBoolean(false);
-          lua.pushString("no such method");
-          return 2;
-        }
-        case FileNotFoundException ignored -> {
-          lua.pushBoolean(true);
-          lua.pushNil();
-          lua.pushString("file not found");
-          return 3;
-        }
-        case SecurityException ignored -> {
-          lua.pushBoolean(true);
-          lua.pushNil();
-          lua.pushString("access denied");
-          return 3;
-        }
-        case IOException ignored -> {
-          lua.pushBoolean(true);
-          lua.pushNil();
-          lua.pushString("i/o error");
-          return 3;
-        }
-        case UnsupportedOperationException ignored -> {
-          lua.pushBoolean(false);
-          lua.pushString("unsupported operation");
-          return 2;
-        }
-        default -> {
-        }
+      if (cause instanceof IndexOutOfBoundsException) {
+        lua.pushBoolean(false);
+        lua.pushString("index out of bounds");
+        return 2;
+      } else if (cause instanceof IllegalArgumentException) {
+        lua.pushBoolean(false);
+        lua.pushString("bad argument");
+        return 2;
+      } else if (cause instanceof NoSuchMethodException) {
+        lua.pushBoolean(false);
+        lua.pushString("no such method");
+        return 2;
+      } else if (cause instanceof FileNotFoundException) {
+        lua.pushBoolean(true);
+        lua.pushNil();
+        lua.pushString("file not found");
+        return 3;
+      } else if (cause instanceof SecurityException) {
+        lua.pushBoolean(true);
+        lua.pushNil();
+        lua.pushString("access denied");
+        return 3;
+      } else if (cause instanceof IOException) {
+        lua.pushBoolean(true);
+        lua.pushNil();
+        lua.pushString("i/o error");
+        return 3;
+      } else if (cause instanceof UnsupportedOperationException) {
+        lua.pushBoolean(false);
+        lua.pushString("unsupported operation");
+        return 2;
       }
       LOGGER.warn("Unexpected error in Lua callback.", e);
       lua.pushBoolean(true);
@@ -177,7 +169,7 @@ public abstract class NativeLuaArchitecture implements Architecture {
         acc += ((Memory) driver).amount(stack) * 1024;
       }
     }
-    return Math.clamp((int) acc, 0, OCSettings.get().maxTotalRam);
+    return MathCompat.clamp((int) acc, 0, OCSettings.get().maxTotalRam);
   }
 
   @Override

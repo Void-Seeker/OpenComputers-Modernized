@@ -6,7 +6,6 @@ import li.cil.oc.core.Constants;
 import li.cil.oc.core.common.Tier;
 import li.cil.oc.core.impl.OCSettings;
 import net.minecraft.core.HolderLookup;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
@@ -36,7 +35,7 @@ public class MicrocontrollerData extends ItemData {
     var componentList = nbt.getList(OCSettings.namespace + "components", Tag.TAG_COMPOUND);
     components.clear();
     for (int i = 0; i < componentList.size(); i++) {
-      var stack = ItemStack.parseOptional(provider, componentList.getCompound(i));
+      var stack = ItemStack.of(componentList.getCompound(i));
       if (!stack.isEmpty()) {
         components.add(stack);
       }
@@ -57,7 +56,6 @@ public class MicrocontrollerData extends ItemData {
   @Override
   public void save(ItemStack stack, HolderLookup.Provider provider) {
     super.save(stack, provider);
-    stack.set(DataComponents.RARITY, li.cil.oc.core.impl.util.Rarity.byTier(tier));
   }
 
   @Override
@@ -66,7 +64,7 @@ public class MicrocontrollerData extends ItemData {
     ListTag list = new ListTag();
     for (var stack : components) {
       if (stack != null && !stack.isEmpty()) {
-        list.add(stack.save(provider, new CompoundTag()));
+        list.add(stack.save(new CompoundTag()));
       }
     }
     nbt.put(OCSettings.namespace + "components", list);

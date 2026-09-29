@@ -34,5 +34,4 @@
  * </dd>
  * </dl>
  */
-@SuppressWarnings("unused")
 package li.cil.oc.api;

@@ -1,0 +1,23 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "AAA",
+    "BCB",
+    "AAA"
+  ],
+  "key": {
+    "A": {
+      "tag": "forge:nuggets/iron"
+    },
+    "B": {
+      "item": "minecraft:redstone"
+    },
+    "C": {
+      "item": "opencomputers:transistor"
+    }
+  },
+  "result": {
+    "count": 8,
+    "item": "opencomputers:chip1"
+  }
+}

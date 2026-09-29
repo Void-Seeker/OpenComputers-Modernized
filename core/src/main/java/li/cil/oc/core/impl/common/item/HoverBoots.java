@@ -1,5 +1,7 @@
 package li.cil.oc.core.impl.common.item;
 
+import li.cil.oc.compat.MathCompat;
+
 import java.util.ArrayList;
 import java.util.List;
 import li.cil.oc.api.driver.item.Chargeable;
@@ -33,7 +35,7 @@ public class HoverBoots extends ArmorItem implements Chargeable {
   }
 
   @Override
-  public void appendHoverText(@NotNull ItemStack stack, @NotNull TooltipContext context, @NotNull List<Component> tooltip, @NotNull TooltipFlag flag) {
+  public void appendHoverText(@NotNull ItemStack stack, @org.jetbrains.annotations.Nullable net.minecraft.world.level.Level context, @NotNull List<Component> tooltip, @NotNull TooltipFlag flag) {
     super.appendHoverText(stack, context, tooltip, flag);
     List<Component> extended = getExtendedTooltip(stack);
     tooltip.addAll(extended);
@@ -57,7 +59,7 @@ public class HoverBoots extends ArmorItem implements Chargeable {
 
   public void setCharge(ItemStack stack, double amount) {
     var data = new HoverBootsData(stack);
-    data.charge = Math.clamp(amount, 0, maxCharge(stack));
+    data.charge = MathCompat.clamp(amount, 0, maxCharge(stack));
     data.save(stack);
   }
 

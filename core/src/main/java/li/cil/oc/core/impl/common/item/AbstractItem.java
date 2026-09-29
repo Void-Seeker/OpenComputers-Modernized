@@ -1,10 +1,11 @@
 package li.cil.oc.core.impl.common.item;
 
+import li.cil.oc.compat.CustomData;
+
 import java.util.List;
 import li.cil.oc.api.driver.DriverItem;
 import li.cil.oc.core.impl.OCSettings;
 import li.cil.oc.core.impl.common.CraftHandler;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Player;
@@ -34,7 +35,7 @@ public class AbstractItem extends Item {
 
   public int tierFromDriver(ItemStack stack) {
     var driver = li.cil.oc.api.API.driver.driverFor(stack);
-    if (driver instanceof DriverItem itemDriver) return itemDriver.tier(stack);
+    if (driver != null) return driver.tier(stack);
     return 0;
   }
 
@@ -44,9 +45,9 @@ public class AbstractItem extends Item {
 
   @SuppressWarnings("unused")
   @Override
-  public void appendHoverText(@NotNull ItemStack stack, @NotNull TooltipContext context, @NotNull List<Component> tooltip, @NotNull TooltipFlag flag) {
+  public void appendHoverText(@NotNull ItemStack stack, @org.jetbrains.annotations.Nullable net.minecraft.world.level.Level context, @NotNull List<Component> tooltip, @NotNull TooltipFlag flag) {
     tooltipBody(stack, tooltip);
-    var cd = stack.get(DataComponents.CUSTOM_DATA);
+    var cd = CustomData.get(stack);
     var tag = cd != null ? cd.copyTag() : new CompoundTag();
     if (tag.contains(OCSettings.namespace + "data")) {
       var data = tag.getCompound(OCSettings.namespace + "data");

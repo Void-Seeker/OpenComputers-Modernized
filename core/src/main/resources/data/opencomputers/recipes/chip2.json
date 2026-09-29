@@ -1,0 +1,23 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "AAA",
+    "BCB",
+    "AAA"
+  ],
+  "key": {
+    "A": {
+      "tag": "forge:nuggets/gold"
+    },
+    "B": {
+      "item": "minecraft:redstone"
+    },
+    "C": {
+      "item": "opencomputers:transistor"
+    }
+  },
+  "result": {
+    "count": 4,
+    "item": "opencomputers:chip2"
+  }
+}

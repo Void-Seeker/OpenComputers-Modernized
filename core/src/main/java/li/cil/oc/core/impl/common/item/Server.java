@@ -1,12 +1,13 @@
 package li.cil.oc.core.impl.common.item;
 
+import li.cil.oc.compat.CustomData;
+
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import li.cil.oc.core.common.GuiType;
 import li.cil.oc.core.common.item.traits.ItemTier;
 import li.cil.oc.core.impl.util.ContainerProviderDelegate;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResultHolder;
@@ -31,11 +32,11 @@ public class Server extends DelegateItem implements ItemTier {
   }
 
   @Override
-  public void appendHoverText(@NotNull ItemStack stack, @NotNull TooltipContext context, @NotNull List<Component> tooltip, @NotNull TooltipFlag flag) {
+  public void appendHoverText(@NotNull ItemStack stack, @org.jetbrains.annotations.Nullable net.minecraft.world.level.Level context, @NotNull List<Component> tooltip, @NotNull TooltipFlag flag) {
     super.appendHoverText(stack, context, tooltip, flag);
     var header = li.cil.oc.core.impl.util.Tooltip.extended("server.Components");
     if (!header.isEmpty()) {
-      var customData = stack.get(DataComponents.CUSTOM_DATA);
+      var customData = CustomData.get(stack);
       if (customData != null && !customData.isEmpty()) {
         var tag = customData.copyTag();
         if (tag.contains("oc:data")) {
@@ -49,9 +50,7 @@ public class Server extends DelegateItem implements ItemTier {
               var itemTag = items.getCompound(i);
               if (itemTag.contains("item")) {
                 var stackTag = itemTag.getCompound("item");
-                var registries = context.registries();
-                if (registries == null) continue;
-                var itemStack = ItemStack.parse(registries, stackTag).orElse(ItemStack.EMPTY);
+                var itemStack = ItemStack.of(stackTag);
                 if (!itemStack.isEmpty()) {
                   var name = itemStack.getHoverName().getString();
                   counts.merge(name, 1, Integer::sum);

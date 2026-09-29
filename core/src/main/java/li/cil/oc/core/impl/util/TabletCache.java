@@ -1,5 +1,7 @@
 package li.cil.oc.core.impl.util;
 
+import li.cil.oc.compat.CustomData;
+
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.ImmutableMap;
@@ -36,7 +38,7 @@ public abstract class TabletCache {
   private static final String ID_TAG = OCSettings.namespace + "tablet";
 
   public static String getOrCreateId(ItemStack stack) {
-    var tag = stack.get(net.minecraft.core.component.DataComponents.CUSTOM_DATA);
+    var tag = CustomData.get(stack);
     CompoundTag data;
     if (tag != null && !tag.isEmpty()) {
       data = tag.copyTag();
@@ -45,7 +47,7 @@ public abstract class TabletCache {
     }
     if (!data.contains(ID_TAG)) {
       data.putString(ID_TAG, UUID.randomUUID().toString());
-      stack.set(net.minecraft.core.component.DataComponents.CUSTOM_DATA, net.minecraft.world.item.component.CustomData.of(data));
+      CustomData.set(stack, li.cil.oc.compat.CustomData.of(data));
     }
     return data.getString(ID_TAG);
   }
@@ -142,7 +144,7 @@ public abstract class TabletCache {
   }
 
   private static String getId(ItemStack stack) {
-    var tag = stack.get(net.minecraft.core.component.DataComponents.CUSTOM_DATA);
+    var tag = CustomData.get(stack);
     if (tag != null && !tag.isEmpty()) {
       var data = tag.copyTag();
       if (data.contains(ID_TAG)) {

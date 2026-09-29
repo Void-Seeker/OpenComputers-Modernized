@@ -19,18 +19,18 @@ public final class DriverUpgradePiston extends Item implements HostAware {
   public li.cil.oc.api.network.ManagedEnvironment createEnvironment(ItemStack stack, EnvironmentHost host) {
     if (host.level() != null && host.level().isClientSide()) return null;
     boolean sticky = isOneOf(stack, li.cil.oc.api.Items.get(Constants.ItemName.StickyPistonUpgrade));
-    return switch (host) {
-      case li.cil.oc.api.internal.Drone drone ->
-        sticky ? new li.cil.oc.core.impl.server.component.UpgradeStickyPiston.Drone(drone)
+    if (host instanceof li.cil.oc.api.internal.Drone drone) {
+      return sticky ? new li.cil.oc.core.impl.server.component.UpgradeStickyPiston.Drone(drone)
           : new li.cil.oc.core.impl.server.component.UpgradePiston.Drone(drone);
-      case li.cil.oc.api.internal.Tablet tablet ->
-        sticky ? new li.cil.oc.core.impl.server.component.UpgradeStickyPiston.Tablet(tablet)
+    } else if (host instanceof li.cil.oc.api.internal.Tablet tablet) {
+      return sticky ? new li.cil.oc.core.impl.server.component.UpgradeStickyPiston.Tablet(tablet)
           : new li.cil.oc.core.impl.server.component.UpgradePiston.Tablet(tablet);
-      case li.cil.oc.api.internal.Rotatable rotatable ->
-        sticky ? new li.cil.oc.core.impl.server.component.UpgradeStickyPiston.Rotatable(rotatable)
+    } else if (host instanceof li.cil.oc.api.internal.Rotatable rotatable) {
+      return sticky ? new li.cil.oc.core.impl.server.component.UpgradeStickyPiston.Rotatable(rotatable)
           : new li.cil.oc.core.impl.server.component.UpgradePiston.Rotatable(rotatable);
-      default -> null;
-    };
+    } else {
+      return null;
+    }
   }
 
   @Override

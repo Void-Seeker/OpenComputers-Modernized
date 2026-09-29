@@ -1,5 +1,7 @@
 package li.cil.oc.core.impl.server.component;
 
+import li.cil.oc.compat.MathCompat;
+
 import java.io.IOException;
 import java.util.Map;
 import li.cil.oc.api.Network;
@@ -77,7 +79,7 @@ public abstract class WirelessNetworkCard extends NetworkCard implements Wireles
 
   @Callback(doc = "function(strength:number):number -- Set the signal strength (range) used when sending messages.")
   public Object[] setStrength(Context context, Arguments args) {
-    strength = Math.clamp(args.checkDouble(0), 0, maxWirelessRange());
+    strength = MathCompat.clamp(args.checkDouble(0), 0, maxWirelessRange());
     return ResultWrapper.result(strength);
   }
 
@@ -154,7 +156,7 @@ public abstract class WirelessNetworkCard extends NetworkCard implements Wireles
   public void load(CompoundTag nbt, HolderLookup.Provider provider) {
     super.load(nbt, provider);
     if (nbt.contains("strength")) {
-      strength = Math.clamp(nbt.getDouble("strength"), 0, maxWirelessRange());
+      strength = MathCompat.clamp(nbt.getDouble("strength"), 0, maxWirelessRange());
     }
   }
 

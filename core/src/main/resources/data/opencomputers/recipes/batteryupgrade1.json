@@ -1,0 +1,26 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "ABA",
+    "CDC",
+    "ABA"
+  ],
+  "key": {
+    "A": {
+      "tag": "forge:nuggets/iron"
+    },
+    "B": {
+      "tag": "forge:nuggets/gold"
+    },
+    "C": {
+      "item": "minecraft:iron_bars"
+    },
+    "D": {
+      "item": "opencomputers:capacitor"
+    }
+  },
+  "result": {
+    "count": 1,
+    "item": "opencomputers:batteryupgrade1"
+  }
+}

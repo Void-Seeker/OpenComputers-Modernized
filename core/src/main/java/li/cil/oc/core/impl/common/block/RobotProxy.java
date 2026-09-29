@@ -1,5 +1,7 @@
 package li.cil.oc.core.impl.common.block;
 
+import li.cil.oc.compat.CustomData;
+
 import java.util.List;
 import li.cil.oc.core.common.GuiType;
 import li.cil.oc.core.common.block.traits.StateAware;
@@ -10,7 +12,6 @@ import li.cil.oc.core.impl.common.item.data.RobotData;
 import li.cil.oc.core.impl.util.Tooltip;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.Tag;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
@@ -66,7 +67,7 @@ public abstract class RobotProxy extends RedstoneAware implements GUI, StateAwar
     }
     for (var component : data.components) {
       if (!component.isEmpty()) {
-        var tag = component.get(DataComponents.CUSTOM_DATA);
+        var tag = CustomData.get(component);
         if (tag != null && !tag.isEmpty()) {
           var nbt = tag.copyTag();
           if (nbt.contains(OCSettings.namespace + "xp", Tag.TAG_DOUBLE)) {
@@ -151,7 +152,7 @@ public abstract class RobotProxy extends RedstoneAware implements GUI, StateAwar
   }
 
   @Override
-  public @NotNull ItemStack getCloneItemStack(@NotNull LevelReader world, @NotNull BlockPos pos, @NotNull BlockState state) {
+  public @NotNull ItemStack getCloneItemStack(@NotNull net.minecraft.world.level.BlockGetter world, @NotNull BlockPos pos, @NotNull BlockState state) {
     var robot = findRobotBase(world, pos);
     if (robot != null) {
       return robot.info.copyItemStack();

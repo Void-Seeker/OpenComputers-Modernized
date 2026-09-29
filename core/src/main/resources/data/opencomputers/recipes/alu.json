@@ -1,0 +1,26 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "ABA",
+    "CDC",
+    "ACA"
+  ],
+  "key": {
+    "A": {
+      "tag": "forge:nuggets/iron"
+    },
+    "B": {
+      "item": "minecraft:redstone"
+    },
+    "C": {
+      "item": "opencomputers:transistor"
+    },
+    "D": {
+      "item": "opencomputers:chip1"
+    }
+  },
+  "result": {
+    "count": 1,
+    "item": "opencomputers:alu"
+  }
+}

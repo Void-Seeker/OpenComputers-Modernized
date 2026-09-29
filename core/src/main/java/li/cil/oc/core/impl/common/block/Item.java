@@ -21,13 +21,21 @@ public class Item extends BlockItem {
   }
 
   @Override
+  public net.minecraft.world.item.@NotNull Rarity getRarity(@NotNull ItemStack stack) {
+    if (!stack.isEmpty() && getBlock() instanceof AbstractBlock base) {
+      return base.rarity(stack);
+    }
+    return super.getRarity(stack);
+  }
+
+  @Override
   public void onCraftedBy(@NotNull ItemStack stack, @NotNull Level level, @NotNull Player player) {
     super.onCraftedBy(stack, level, player);
     CraftHandler.onItemCrafted(stack, level, player);
   }
 
   @Override
-  public void appendHoverText(@NotNull ItemStack stack, @NotNull Item.TooltipContext context, @NotNull List<Component> tooltip, @NotNull net.minecraft.world.item.TooltipFlag flag) {
+  public void appendHoverText(@NotNull ItemStack stack, @org.jetbrains.annotations.Nullable net.minecraft.world.level.Level context, @NotNull List<Component> tooltip, @NotNull net.minecraft.world.item.TooltipFlag flag) {
     super.appendHoverText(stack, context, tooltip, flag);
     Block block = getBlock();
     if (block instanceof AbstractBlock base) {

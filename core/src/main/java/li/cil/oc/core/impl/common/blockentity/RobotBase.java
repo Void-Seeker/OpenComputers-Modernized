@@ -1,6 +1,7 @@
 package li.cil.oc.core.impl.common.blockentity;
 
-import com.google.common.collect.ArrayListMultimap;
+import li.cil.oc.compat.MathCompat;
+
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
@@ -28,15 +29,12 @@ import li.cil.oc.core.impl.util.EventHandlerDelegate;
 import li.cil.oc.core.impl.util.RotationHelper;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.Holder;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.Container;
 import net.minecraft.world.entity.EquipmentSlot;
-import net.minecraft.world.entity.ai.attributes.Attribute;
-import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
@@ -550,9 +548,7 @@ public abstract class RobotBase extends BlockEntity implements li.cil.oc.core.im
         appliedToolEnchantments = true;
         var tool = getItem(0);
         if (!tool.isEmpty()) {
-          var modMap = ArrayListMultimap.<Holder<Attribute>, AttributeModifier>create();
-          tool.forEachModifier(EquipmentSlot.MAINHAND, modMap::put);
-          player().getAttributes().addTransientAttributeModifiers(modMap);
+          player().getAttributes().addTransientAttributeModifiers(tool.getAttributeModifiers(EquipmentSlot.MAINHAND));
         }
       }
       if (shouldUpdateInput) {
@@ -575,7 +571,7 @@ public abstract class RobotBase extends BlockEntity implements li.cil.oc.core.im
 
   @Override
   public void selectedSlot(int value) {
-    selectedSlot = Math.clamp(value, 0, Math.max(0, mainInventory.getContainerSize() - 1));
+    selectedSlot = MathCompat.clamp(value, 0, Math.max(0, mainInventory.getContainerSize() - 1));
     PacketSender.sendRobotSelectedSlotChange(this, selectedSlot());
   }
 
@@ -617,7 +613,7 @@ public abstract class RobotBase extends BlockEntity implements li.cil.oc.core.im
     if (nbt.contains(OCSettings.namespace + "ownerUuid"))
       ownerUUID = UUID.fromString(nbt.getString(OCSettings.namespace + "ownerUuid"));
     if (inventorySize > 0)
-      selectedSlot = Math.clamp(nbt.getInt(OCSettings.namespace + "selectedSlot"), 0, Math.max(0, mainInventory.getContainerSize() - 1));
+      selectedSlot = MathCompat.clamp(nbt.getInt(OCSettings.namespace + "selectedSlot"), 0, Math.max(0, mainInventory.getContainerSize() - 1));
     selectedTank = nbt.getInt(OCSettings.namespace + "selectedTank");
     animationTicksTotal = nbt.getInt(OCSettings.namespace + "animationTicksTotal");
     animationTicksLeft = nbt.getInt(OCSettings.namespace + "animationTicksLeft");
@@ -636,7 +632,7 @@ public abstract class RobotBase extends BlockEntity implements li.cil.oc.core.im
         var tag = invList.getCompound(i);
         int slot = tag.getByte("slot") & 0xFF;
         if (slot < inventory.length && provider != null) {
-          inventory[slot] = ItemStack.parseOptional(provider, tag.getCompound("stack"));
+          inventory[slot] = ItemStack.of(tag.getCompound("stack"));
         }
       }
     }
@@ -682,7 +678,7 @@ public abstract class RobotBase extends BlockEntity implements li.cil.oc.core.im
         if (!inventory[i].isEmpty() && provider != null) {
           var tag = new CompoundTag();
           tag.putByte("slot", (byte) i);
-          tag.put("stack", inventory[i].save(provider, new CompoundTag()));
+          tag.put("stack", inventory[i].save(new CompoundTag()));
           invList.add(tag);
         }
       }
@@ -734,7 +730,7 @@ public abstract class RobotBase extends BlockEntity implements li.cil.oc.core.im
         int slot = tag.getByte("slot") & 0xFF;
         if (slot < inventory.length) {
           if (provider != null) {
-            inventory[slot] = ItemStack.parseOptional(provider, tag.getCompound("stack"));
+            inventory[slot] = ItemStack.of(tag.getCompound("stack"));
           }
         }
       }
@@ -761,7 +757,7 @@ public abstract class RobotBase extends BlockEntity implements li.cil.oc.core.im
           if (!inventory[i].isEmpty()) {
             var tag = new CompoundTag();
             tag.putByte("slot", (byte) i);
-            tag.put("stack", inventory[i].save(provider, new CompoundTag()));
+            tag.put("stack", inventory[i].save(new CompoundTag()));
             invList.add(tag);
           }
         }

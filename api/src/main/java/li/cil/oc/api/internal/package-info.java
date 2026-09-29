@@ -13,6 +13,5 @@
  * used inside the specified environment (where the environment class may
  * be assignable to one of the interfaces in this package).
  */
-@SuppressWarnings("unused")
 package li.cil.oc.api.internal;
 

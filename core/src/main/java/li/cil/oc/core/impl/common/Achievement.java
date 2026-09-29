@@ -1,8 +1,9 @@
 package li.cil.oc.core.impl.common;
 
+import li.cil.oc.compat.CustomData;
+
 import li.cil.oc.api.detail.ItemInfo;
-import net.minecraft.advancements.AdvancementHolder;
-import net.minecraft.core.component.DataComponents;
+import net.minecraft.advancements.Advancement;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
@@ -43,7 +44,7 @@ public final class Achievement {
     if (info == null) return;
     String name = info.name();
     if ("floppy".equals(name)) {
-      var data = stack.get(DataComponents.CUSTOM_DATA);
+      var data = CustomData.get(stack);
       if (data != null && !data.isEmpty()) {
         String factory = data.copyTag().getString("oc:lootFactory");
         if ("opencomputers:openos".equals(factory)) {
@@ -54,7 +55,7 @@ public final class Achievement {
   }
 
   private static void grant(ServerPlayer player, String advancementName) {
-    AdvancementHolder adv = player.server.getAdvancements().get(ResourceLocation.fromNamespaceAndPath("opencomputers", advancementName));
+    Advancement adv = player.server.getAdvancements().getAdvancement(new ResourceLocation("opencomputers", advancementName));
     if (adv != null) {
       player.getAdvancements().award(adv, "manual");
     }

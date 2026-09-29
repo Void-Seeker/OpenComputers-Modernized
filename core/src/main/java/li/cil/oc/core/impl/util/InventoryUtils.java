@@ -18,7 +18,7 @@ public final class InventoryUtils {
     return stackA != null && !stackA.isEmpty() && stackB != null && !stackB.isEmpty() &&
       stackA.getItem() == stackB.getItem() &&
       (!stackA.isDamageableItem() || stackA.getDamageValue() == stackB.getDamageValue()) &&
-      (!checkNBT || ItemStack.isSameItemSameComponents(stackA, stackB));
+      (!checkNBT || ItemStack.isSameItemSameTags(stackA, stackB));
   }
 
   public static InventorySource inventorySourceAt(BlockPosition position) {
@@ -50,7 +50,7 @@ public final class InventoryUtils {
     if (stack.getCount() > 0 && inventory.canPlaceItem(slot, stack) && isSideValidForSlot) {
       int maxStackSize = Math.min(inventory.getMaxStackSize(), stack.getMaxStackSize());
       ItemStack existing = inventory.getItem(slot);
-      boolean shouldMerge = !existing.isEmpty() && existing.getCount() < maxStackSize && ItemStack.isSameItem(existing, stack) && ItemStack.isSameItemSameComponents(existing, stack);
+      boolean shouldMerge = !existing.isEmpty() && existing.getCount() < maxStackSize && ItemStack.isSameItem(existing, stack) && ItemStack.isSameItemSameTags(existing, stack);
       if (shouldMerge) {
         int space = maxStackSize - existing.getCount();
         int amount = Math.min(space, Math.min(stack.getCount(), limit));

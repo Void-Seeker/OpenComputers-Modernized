@@ -1,0 +1,25 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "ABC",
+    " D "
+  ],
+  "key": {
+    "A": {
+      "tag": "forge:nuggets/iron"
+    },
+    "B": {
+      "item": "opencomputers:alu"
+    },
+    "C": {
+      "item": "opencomputers:chip2"
+    },
+    "D": {
+      "item": "opencomputers:card"
+    }
+  },
+  "result": {
+    "count": 1,
+    "item": "opencomputers:datacard1"
+  }
+}

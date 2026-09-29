@@ -1,5 +1,7 @@
 package li.cil.oc.core.impl.util;
 
+import li.cil.oc.compat.MathCompat;
+
 @SuppressWarnings("unused")
 public final class Rarity {
   private static final net.minecraft.world.item.Rarity[] lookup = {
@@ -10,6 +12,6 @@ public final class Rarity {
   };
 
   public static net.minecraft.world.item.Rarity byTier(int tier) {
-    return lookup[Math.clamp(tier, 0, lookup.length - 1)];
+    return lookup[MathCompat.clamp(tier, 0, lookup.length - 1)];
   }
 }

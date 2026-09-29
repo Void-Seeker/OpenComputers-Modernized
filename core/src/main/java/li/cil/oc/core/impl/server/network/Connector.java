@@ -1,5 +1,7 @@
 package li.cil.oc.core.impl.server.network;
 
+import li.cil.oc.compat.MathCompat;
+
 import li.cil.oc.core.impl.OCSettings;
 
 import net.minecraft.core.HolderLookup;
@@ -57,7 +59,7 @@ public interface Connector extends li.cil.oc.api.network.Connector, Node {
     if (localBuffer() != old) {
       Distributor d = distributor();
       if (d != null) {
-        d.globalBuffer_$eq(Math.clamp(d.globalBuffer() - old + localBuffer(), 0, d.globalBufferSize()));
+        d.globalBuffer_$eq(MathCompat.clamp(d.globalBuffer() - old + localBuffer(), 0, d.globalBufferSize()));
       }
     }
     return remaining;

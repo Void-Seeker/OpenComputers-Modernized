@@ -12,7 +12,6 @@ import li.cil.oc.core.impl.common.PacketSender;
 import li.cil.oc.core.impl.common.blockentity.Screen;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
@@ -21,7 +20,7 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.InteractionResultHolder;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.component.CustomData;
+import li.cil.oc.compat.CustomData;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -109,14 +108,14 @@ public class Analyzer extends DelegateItem {
   public @NotNull InteractionResultHolder<ItemStack> use(@NotNull Level world, Player player, @NotNull InteractionHand hand) {
     ItemStack stack = player.getItemInHand(hand);
     if (player.isShiftKeyDown()) {
-      CustomData cd = stack.get(DataComponents.CUSTOM_DATA);
+      CustomData cd = CustomData.get(stack);
       if (cd != null && !cd.isEmpty()) {
         CompoundTag tag = cd.copyTag();
         tag.remove(OCSettings.namespace + "clipboard");
         if (tag.isEmpty()) {
-          stack.set(DataComponents.CUSTOM_DATA, CustomData.EMPTY);
+          CustomData.set(stack, CustomData.EMPTY);
         } else {
-          stack.set(DataComponents.CUSTOM_DATA, CustomData.of(tag));
+          CustomData.set(stack, CustomData.of(tag));
         }
       }
     }
@@ -140,7 +139,7 @@ public class Analyzer extends DelegateItem {
         screen.copyToAnalyzer(hitX, hitY, hitZ, player);
       } else {
         ItemStack stack = context.getItemInHand();
-        CustomData cd = stack.get(DataComponents.CUSTOM_DATA);
+        CustomData cd = CustomData.get(stack);
         if (cd != null && !cd.isEmpty()) {
           CompoundTag tag = cd.copyTag();
           if (tag.contains(OCSettings.namespace + "clipboard")) {

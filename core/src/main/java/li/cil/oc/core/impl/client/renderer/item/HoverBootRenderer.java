@@ -96,9 +96,10 @@ public class HoverBootRenderer extends HumanoidModel<LivingEntity> {
   }
 
   @Override
-  public void renderToBuffer(@NotNull PoseStack poseStack, @NotNull VertexConsumer vertexConsumer, int packedLight, int packedOverlay, int color) {
-    this.leftLeg.render(poseStack, vertexConsumer, packedLight, packedOverlay, color);
-    this.rightLeg.render(poseStack, vertexConsumer, packedLight, packedOverlay, color);
+  public void renderToBuffer(@NotNull PoseStack poseStack, @NotNull VertexConsumer vertexConsumer, int packedLight, int packedOverlay, float red, float green, float blue, float alpha) {
+    int color = li.cil.oc.compat.ModelCompat.pack(red, green, blue, alpha);
+    li.cil.oc.compat.ModelCompat.render(this.leftLeg, poseStack, vertexConsumer, packedLight, packedOverlay, color);
+    li.cil.oc.compat.ModelCompat.render(this.rightLeg, poseStack, vertexConsumer, packedLight, packedOverlay, color);
     renderLights(poseStack, vertexConsumer, packedLight, packedOverlay);
   }
 
@@ -109,15 +110,15 @@ public class HoverBootRenderer extends HumanoidModel<LivingEntity> {
     poseStack.pushPose();
     this.leftLeg.translateAndRotate(poseStack);
     poseStack.translate(0, 10f / 16f, 0);
-    this.light0.render(poseStack, vertexConsumer, LightTexture.FULL_BRIGHT, packedOverlay, lightARGB);
-    this.light1.render(poseStack, vertexConsumer, LightTexture.FULL_BRIGHT, packedOverlay, lightARGB);
+    li.cil.oc.compat.ModelCompat.render(this.light0, poseStack, vertexConsumer, LightTexture.FULL_BRIGHT, packedOverlay, lightARGB);
+    li.cil.oc.compat.ModelCompat.render(this.light1, poseStack, vertexConsumer, LightTexture.FULL_BRIGHT, packedOverlay, lightARGB);
     poseStack.popPose();
 
     poseStack.pushPose();
     this.rightLeg.translateAndRotate(poseStack);
     poseStack.translate(0, 10f / 16f, 0);
-    this.light2.render(poseStack, vertexConsumer, LightTexture.FULL_BRIGHT, packedOverlay, lightARGB);
-    this.light3.render(poseStack, vertexConsumer, LightTexture.FULL_BRIGHT, packedOverlay, lightARGB);
+    li.cil.oc.compat.ModelCompat.render(this.light2, poseStack, vertexConsumer, LightTexture.FULL_BRIGHT, packedOverlay, lightARGB);
+    li.cil.oc.compat.ModelCompat.render(this.light3, poseStack, vertexConsumer, LightTexture.FULL_BRIGHT, packedOverlay, lightARGB);
     poseStack.popPose();
   }
 

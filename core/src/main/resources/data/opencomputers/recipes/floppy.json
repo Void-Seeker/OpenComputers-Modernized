@@ -1,0 +1,26 @@
+{
+  "type": "opencomputers:shaped",
+  "pattern": [
+    "ABA",
+    "CDC",
+    "ACA"
+  ],
+  "key": {
+    "A": {
+      "tag": "forge:nuggets/iron"
+    },
+    "B": {
+      "item": "minecraft:lever"
+    },
+    "C": {
+      "item": "minecraft:paper"
+    },
+    "D": {
+      "item": "opencomputers:disk"
+    }
+  },
+  "result": {
+    "count": 1,
+    "item": "opencomputers:floppy"
+  }
+}

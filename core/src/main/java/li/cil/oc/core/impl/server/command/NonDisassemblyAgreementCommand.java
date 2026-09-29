@@ -3,12 +3,11 @@ package li.cil.oc.core.impl.server.command;
 import li.cil.oc.core.impl.OCSettings;
 import li.cil.oc.core.impl.common.command.SimpleCommand;
 import net.minecraft.commands.CommandSourceStack;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.component.CustomData;
+import li.cil.oc.compat.CustomData;
 
 public class NonDisassemblyAgreementCommand extends SimpleCommand {
   public static final NonDisassemblyAgreementCommand INSTANCE = new NonDisassemblyAgreementCommand();
@@ -28,7 +27,7 @@ public class NonDisassemblyAgreementCommand extends SimpleCommand {
     if (source.getEntity() instanceof Player player) {
       ItemStack stack = player.getMainHandItem();
       if (!stack.isEmpty()) {
-        CustomData _cd = stack.get(DataComponents.CUSTOM_DATA);
+        CustomData _cd = CustomData.get(stack);
         CompoundTag nbt = _cd != null ? _cd.copyTag() : new CompoundTag();
         boolean preventDisassembly = args.length > 0 ?
           Boolean.parseBoolean(args[0]) :
@@ -39,9 +38,9 @@ public class NonDisassemblyAgreementCommand extends SimpleCommand {
           nbt.remove(OCSettings.namespace + "undisassemblable");
         }
         if (nbt.isEmpty()) {
-          stack.set(DataComponents.CUSTOM_DATA, CustomData.EMPTY);
+          CustomData.set(stack, CustomData.EMPTY);
         } else {
-          stack.set(DataComponents.CUSTOM_DATA, CustomData.of(nbt));
+          CustomData.set(stack, CustomData.of(nbt));
         }
       }
     } else {

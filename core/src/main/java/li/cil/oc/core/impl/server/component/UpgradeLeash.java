@@ -69,7 +69,7 @@ public class UpgradeLeash extends AbstractManagedEnvironment implements WorldAwa
     AABB nearBounds = position().bounds();
     AABB farBounds = nearBounds.move(side.getStepX() * 2.0, side.getStepY() * 2.0, side.getStepZ() * 2.0);
     AABB bounds = nearBounds.minmax(farBounds);
-    Mob entity = entitiesInBounds(bounds, Mob.class).stream().filter(e -> !e.isLeashed() && e.canBeLeashed()).findFirst().orElse(null);
+    Mob entity = entitiesInBounds(bounds, Mob.class).stream().filter(e -> !e.isLeashed() && e.canBeLeashed(null) /* 1.20.1: takes the leashing player, a drone has none */).findFirst().orElse(null);
     if (entity != null) {
       entity.setLeashedTo(host, true);
       leashedEntities.add(entity.getUUID());

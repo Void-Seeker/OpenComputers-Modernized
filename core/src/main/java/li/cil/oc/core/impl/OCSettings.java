@@ -1,5 +1,7 @@
 package li.cil.oc.core.impl;
 
+import li.cil.oc.compat.MathCompat;
+
 import com.mojang.authlib.GameProfile;
 import java.io.BufferedReader;
 import java.io.File;
@@ -356,16 +358,16 @@ public class OCSettings {
     textLinearFiltering = config.getBoolean("client.textLinearFiltering");
     textAntiAlias = config.getBoolean("client.textAntiAlias");
     robotLabels = config.getBoolean("client.robotLabels");
-    soundVolume = Math.clamp((float) config.getDouble("client.soundVolume"), 0, 2);
-    fontCharScale = Math.clamp(config.getDouble("client.fontCharScale"), 0.5, 2);
+    soundVolume = MathCompat.clamp((float) config.getDouble("client.soundVolume"), 0, 2);
+    fontCharScale = MathCompat.clamp(config.getDouble("client.fontCharScale"), 0.5, 2);
     hologramFadeStartDistance = Math.max(0, config.getDouble("client.hologramFadeStartDistance"));
     hologramRenderDistance = Math.max(0, config.getDouble("client.hologramRenderDistance"));
     hologramFlickerFrequency = Math.max(0, config.getDouble("client.hologramFlickerFrequency"));
     monochromeColor = Integer.decode(config.getString("client.monochromeColor"));
     fontRenderer = config.getString("client.fontRenderer");
     beepSampleRate = config.getInt("client.beepSampleRate");
-    beepAmplitude = Math.clamp(config.getInt("client.beepVolume"), 0, Byte.MAX_VALUE);
-    beepRadius = Math.clamp((float) config.getDouble("client.beepRadius"), 1, 32);
+    beepAmplitude = MathCompat.clamp(config.getInt("client.beepVolume"), 0, Byte.MAX_VALUE);
+    beepRadius = MathCompat.clamp((float) config.getDouble("client.beepRadius"), 1, 32);
     {
       java.util.List<Double> hudPosList = config.getDoubleList("client.nanomachineHudPos");
       if (hudPosList.size() >= 2) {
@@ -434,7 +436,7 @@ public class OCSettings {
     screwCobwebs = config.getBoolean("robot.notAfraidOfSpiders");
     swingRange = config.getDouble("robot.swingRange");
     useAndPlaceRange = config.getDouble("robot.useAndPlaceRange");
-    itemDamageRate = Math.clamp(config.getDouble("robot.itemDamageRate"), 0, 1);
+    itemDamageRate = MathCompat.clamp(config.getDouble("robot.itemDamageRate"), 0, 1);
     nameFormat = config.getString("robot.nameFormat");
     uuidFormat = config.getString("robot.uuidFormat");
     {
@@ -482,7 +484,7 @@ public class OCSettings {
     // power.carpetedCapacitors
     sheepPower = Math.max(0, config.getDouble("power.carpetedCapacitors.sheepPower"));
     ocelotPower = Math.max(0, config.getDouble("power.carpetedCapacitors.ocelotPower"));
-    carpetDamageChance = Math.clamp(config.getDouble("power.carpetedCapacitors.damageChance"), 0, 1.0);
+    carpetDamageChance = MathCompat.clamp(config.getDouble("power.carpetedCapacitors.damageChance"), 0, 1.0);
 
     // power.buffer
     bufferCapacitor = Math.max(0, config.getDouble("power.buffer.capacitor"));
@@ -693,11 +695,11 @@ public class OCSettings {
     geolyzerRange = config.getInt("misc.geolyzerRange");
     geolyzerNoise = Math.max(0, (float) config.getDouble("misc.geolyzerNoise"));
     disassembleAllTheThings = config.getBoolean("misc.disassembleAllTheThings");
-    disassemblerBreakChance = Math.clamp(config.getDouble("misc.disassemblerBreakChance"), 0, 1);
+    disassemblerBreakChance = MathCompat.clamp(config.getDouble("misc.disassemblerBreakChance"), 0, 1);
     disassemblerInputBlacklist = config.getStringList("misc.disassemblerInputBlacklist");
     hideOwnPet = config.getBoolean("misc.hideOwnSpecial");
     allowItemStackInspection = config.getBoolean("misc.allowItemStackInspection");
-    presentChance = Math.clamp(config.getDouble("misc.presentChance"), 0, 1);
+    presentChance = MathCompat.clamp(config.getDouble("misc.presentChance"), 0, 1);
     assemblerBlacklist = config.getStringList("misc.assemblerBlacklist");
     threadPriority = config.getInt("misc.threadPriority");
     giveManualToNewPlayers = config.getBoolean("misc.giveManualToNewPlayers");
@@ -706,7 +708,7 @@ public class OCSettings {
     dataCardTimeout = Math.max(0, config.getDouble("misc.dataCardTimeout"));
     redstoneDelay = Math.max(0, config.getDouble("misc.redstoneDelay"));
     tradingRange = Math.max(0, config.getDouble("misc.tradingRange"));
-    mfuRange = Math.clamp(config.getInt("misc.mfuRange"), 0, 128);
+    mfuRange = MathCompat.clamp(config.getInt("misc.mfuRange"), 0, 128);
     maxClipboard = Math.max(0, config.getInt("misc.maxClipboard"));
 
     // nanomachines
@@ -728,7 +730,7 @@ public class OCSettings {
     maxPrintComplexity = config.getInt("printer.maxShapes");
     printRecycleRate = config.getDouble("printer.recycleRate");
     chameliumEdible = config.getBoolean("printer.chameliumEdible");
-    maxPrintLightLevel = Math.clamp(config.getInt("printer.maxBaseLightLevel"), 0, 15);
+    maxPrintLightLevel = MathCompat.clamp(config.getInt("printer.maxBaseLightLevel"), 0, 15);
     printCustomRedstone = Math.max(0, config.getInt("printer.customRedstoneCost"));
     printMaterialValue = Math.max(0, config.getInt("printer.materialValue"));
     printInkValue = Math.max(0, config.getInt("printer.inkValue"));

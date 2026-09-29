@@ -46,6 +46,11 @@ public class Microcontroller extends SimpleBlock implements PowerAcceptor, State
     super();
     registerDefaultState(defaultBlockState().setValue(FACING, Direction.NORTH));
   }
+  @Override
+  public net.minecraft.world.item.Rarity rarity(ItemStack stack) {
+    return li.cil.oc.core.impl.util.Rarity.byTier(new li.cil.oc.core.impl.common.item.data.MicrocontrollerData(stack).tier);
+  }
+
 
   @Override
   protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {

@@ -1,14 +1,14 @@
 plugins {
-    id 'net.neoforged.moddev'
+    id 'net.neoforged.moddev.legacyforge'
     id 'java-library'
 }
 
 base {
-    archivesName = mod_id + "-core-1.21.1"
+    archivesName = mod_id + "-core-" + minecraft_version
 }
 
-neoForge {
-    neoFormVersion = "1.21.1-20240808.144430"
+legacyForge {
+    mcpVersion = minecraft_version
 }
 
 configurations {
@@ -29,6 +29,6 @@ dependencies {
     implementation("li.cil.repack:OC-LuaJ:${luaj_version}")
     compileOnly("li.cil.repack:OC-JNLua:${jnlua_version}")
     compileOnly("cc.tweaked:cc-tweaked-${minecraft_version}-common-api:${cc_version}")
-    compileOnly("maven.modrinth:tis3d:MC1.21.1-neoforge-${tis3d_version}")
-    compileOnly("dev.architectury:architectury-neoforge:${architectury_version}")
+    compileOnly("maven.modrinth:tis3d:MC${minecraft_version}-forge-${tis3d_version}")
+    compileOnly("dev.architectury:architectury-forge:${architectury_version}")
 }

@@ -1,5 +1,7 @@
 package li.cil.oc.core.impl.util;
 
+import li.cil.oc.compat.MathCompat;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Executors;
@@ -19,7 +21,7 @@ public final class ThreadPoolFactory {
     if (custom < 1) {
       priority = Thread.MIN_PRIORITY + (Thread.NORM_PRIORITY - Thread.MIN_PRIORITY) / 2;
     } else {
-      priority = Math.clamp(custom, Thread.MIN_PRIORITY, Thread.MAX_PRIORITY);
+      priority = MathCompat.clamp(custom, Thread.MIN_PRIORITY, Thread.MAX_PRIORITY);
     }
   }
 

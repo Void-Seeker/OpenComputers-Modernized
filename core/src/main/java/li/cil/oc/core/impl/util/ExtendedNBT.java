@@ -76,7 +76,7 @@ public final class ExtendedNBT {
 
   public static CompoundTag toNbt(ItemStack value, net.minecraft.core.HolderLookup.Provider provider) {
     if (value != null && !value.isEmpty()) {
-      return (CompoundTag) value.save(provider);
+      return (CompoundTag) value.save(new CompoundTag());
     }
     return new CompoundTag();
   }
@@ -190,27 +190,34 @@ public final class ExtendedNBT {
 
   public static Map<String, Object> toTypedMap(Tag nbt) {
     Object value;
-    switch (nbt) {
-      case ByteTag tag -> value = tag.getAsByte();
-      case ShortTag tag -> value = tag.getAsShort();
-      case IntTag tag -> value = tag.getAsInt();
-      case LongTag tag -> value = tag.getAsLong();
-      case FloatTag tag -> value = tag.getAsFloat();
-      case DoubleTag tag -> value = tag.getAsDouble();
-      case ByteArrayTag tag -> value = tag.getAsByteArray();
-      case StringTag tag -> value = tag.getAsString();
-      case ListTag tag -> {
-        List<Map<String, Object>> list = new ArrayList<>();
-        for (Tag entry : tag) list.add(toTypedMap(entry));
-        value = list;
-      }
-      case CompoundTag tag -> {
-        Map<String, Object> map = new LinkedHashMap<>();
-        for (String key : tag.getAllKeys()) map.put(key, toTypedMap(tag.get(key)));
-        value = map;
-      }
-      case IntArrayTag tag -> value = tag.getAsIntArray();
-      case null, default -> throw new IllegalArgumentException();
+    if (nbt instanceof ByteTag tag) {
+      value = tag.getAsByte();
+    } else if (nbt instanceof ShortTag tag) {
+      value = tag.getAsShort();
+    } else if (nbt instanceof IntTag tag) {
+      value = tag.getAsInt();
+    } else if (nbt instanceof LongTag tag) {
+      value = tag.getAsLong();
+    } else if (nbt instanceof FloatTag tag) {
+      value = tag.getAsFloat();
+    } else if (nbt instanceof DoubleTag tag) {
+      value = tag.getAsDouble();
+    } else if (nbt instanceof ByteArrayTag tag) {
+      value = tag.getAsByteArray();
+    } else if (nbt instanceof StringTag tag) {
+      value = tag.getAsString();
+    } else if (nbt instanceof ListTag tag) {
+      List<Map<String, Object>> list = new ArrayList<>();
+      for (Tag entry : tag) list.add(toTypedMap(entry));
+      value = list;
+    } else if (nbt instanceof CompoundTag tag) {
+      Map<String, Object> map = new LinkedHashMap<>();
+      for (String key : tag.getAllKeys()) map.put(key, toTypedMap(tag.get(key)));
+      value = map;
+    } else if (nbt instanceof IntArrayTag tag) {
+      value = tag.getAsIntArray();
+    } else {
+      throw new IllegalArgumentException();
     }
     Map<String, Object> result = new LinkedHashMap<>();
     result.put("type", (int) nbt.getId());

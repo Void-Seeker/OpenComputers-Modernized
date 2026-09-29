@@ -48,12 +48,12 @@ public class NeuralNetwork implements Persistable {
     }
 
     int quota = (int) (behaviors.size() * OCSettings.get().nanomachineTriggerQuota);
-    while (triggers.size() > quota) triggers.removeLast();
+    while (triggers.size() > quota) triggers.remove(triggers.size() - 1);
     for (var t : triggers) t.isActive = false;
     while (triggers.size() < quota) triggers.add(new TriggerNeuron());
 
     int connQuota = (int) (behaviors.size() * OCSettings.get().nanomachineConnectorQuota);
-    while (connectors.size() > connQuota) connectors.removeLast();
+    while (connectors.size() > connQuota) connectors.remove(connectors.size() - 1);
     for (var c : connectors) c.inputs.clear();
     while (connectors.size() < connQuota) connectors.add(new ConnectorNeuron());
 

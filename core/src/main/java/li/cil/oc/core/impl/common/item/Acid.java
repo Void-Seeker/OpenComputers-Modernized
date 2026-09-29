@@ -19,7 +19,7 @@ public class Acid extends DelegateItem {
   }
 
   @Override
-  public int getUseDuration(@NotNull ItemStack stack, @NotNull LivingEntity entity) {
+  public int getUseDuration(@NotNull ItemStack stack) {
     return 32;
   }
 

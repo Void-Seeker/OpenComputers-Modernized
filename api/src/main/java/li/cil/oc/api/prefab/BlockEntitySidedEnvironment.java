@@ -64,8 +64,18 @@ public abstract class BlockEntitySidedEnvironment extends BlockEntity implements
   }
 
   @Override
+  public void load(final @NotNull CompoundTag nbt) {
+    super.load(nbt);
+    loadAdditional(nbt, li.cil.oc.compat.RegistryLookup.get());
+  }
+
+  @Override
+  protected void saveAdditional(final @NotNull CompoundTag nbt) {
+    super.saveAdditional(nbt);
+    saveAdditional(nbt, li.cil.oc.compat.RegistryLookup.get());
+  }
+
   public void loadAdditional(final @NotNull CompoundTag nbt, final HolderLookup.@NotNull Provider registries) {
-    super.loadAdditional(nbt, registries);
     int index = 0;
     for (Node node : nodes) {
       if (node != null && Objects.equals(node.host(), this)) {
@@ -76,7 +86,6 @@ public abstract class BlockEntitySidedEnvironment extends BlockEntity implements
   }
 
   public void saveAdditional(@NotNull CompoundTag nbt, final HolderLookup.@NotNull Provider registries) {
-    super.saveAdditional(nbt, registries);
     int index = 0;
     for (Node node : nodes) {
       if (node != null && Objects.equals(node.host(), this)) {

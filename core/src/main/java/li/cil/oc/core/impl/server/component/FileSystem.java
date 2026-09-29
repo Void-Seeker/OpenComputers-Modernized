@@ -1,5 +1,7 @@
 package li.cil.oc.core.impl.server.component;
 
+import li.cil.oc.compat.MathCompat;
+
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.HashMap;
@@ -232,7 +234,7 @@ public class FileSystem extends AbstractManagedEnvironment implements DeviceInfo
     synchronized (fileSystem) {
       context.consumeCallBudget(readCosts[speed]);
       int handle = checkHandle(args, 0);
-      int n = Math.clamp(args.checkInteger(1), 0, OCSettings.get().maxReadBuffer);
+      int n = MathCompat.clamp(args.checkInteger(1), 0, OCSettings.get().maxReadBuffer);
       checkOwner(context.node().address(), handle);
       li.cil.oc.api.fs.Handle file = fileSystem.getHandle(handle);
       if (file != null) {

@@ -37,10 +37,10 @@ public class PowerDistributorRenderer implements BlockEntityRenderer<PowerDistri
       float u0 = sprite.getU0(), u1 = sprite.getU1();
       float v0 = sprite.getV0(), v1 = sprite.getV1();
       VertexConsumer consumer = bufferSource.getBuffer(RenderType.entityTranslucent(InventoryMenu.BLOCK_ATLAS));
-      consumer.addVertex(matrix, 0, 0, 1).setColor(255, 255, 255, alpha).setUv(u0, v1).setOverlay(packedOverlay).setLight(fullBright).setNormal(0, 1, 0);
-      consumer.addVertex(matrix, 1, 0, 1).setColor(255, 255, 255, alpha).setUv(u1, v1).setOverlay(packedOverlay).setLight(fullBright).setNormal(0, 1, 0);
-      consumer.addVertex(matrix, 1, 0, 0).setColor(255, 255, 255, alpha).setUv(u1, v0).setOverlay(packedOverlay).setLight(fullBright).setNormal(0, 1, 0);
-      consumer.addVertex(matrix, 0, 0, 0).setColor(255, 255, 255, alpha).setUv(u0, v0).setOverlay(packedOverlay).setLight(fullBright).setNormal(0, 1, 0);
+      consumer.vertex(matrix, 0, 0, 1).color(255, 255, 255, alpha).uv(u0, v1).overlayCoords(packedOverlay).uv2(fullBright).normal(0, 1, 0).endVertex();
+      consumer.vertex(matrix, 1, 0, 1).color(255, 255, 255, alpha).uv(u1, v1).overlayCoords(packedOverlay).uv2(fullBright).normal(0, 1, 0).endVertex();
+      consumer.vertex(matrix, 1, 0, 0).color(255, 255, 255, alpha).uv(u1, v0).overlayCoords(packedOverlay).uv2(fullBright).normal(0, 1, 0).endVertex();
+      consumer.vertex(matrix, 0, 0, 0).color(255, 255, 255, alpha).uv(u0, v0).overlayCoords(packedOverlay).uv2(fullBright).normal(0, 1, 0).endVertex();
     }
 
     // Side faces
@@ -51,28 +51,28 @@ public class PowerDistributorRenderer implements BlockEntityRenderer<PowerDistri
       VertexConsumer consumer = bufferSource.getBuffer(RenderType.entityTranslucent(InventoryMenu.BLOCK_ATLAS));
 
       // NORTH (z = -0.0005)
-      consumer.addVertex(matrix, 1, 1, -0.0005f).setColor(255, 255, 255, alpha).setUv(u0, v1).setOverlay(packedOverlay).setLight(fullBright).setNormal(0, 1, 0);
-      consumer.addVertex(matrix, 0, 1, -0.0005f).setColor(255, 255, 255, alpha).setUv(u1, v1).setOverlay(packedOverlay).setLight(fullBright).setNormal(0, 1, 0);
-      consumer.addVertex(matrix, 0, 0, -0.0005f).setColor(255, 255, 255, alpha).setUv(u1, v0).setOverlay(packedOverlay).setLight(fullBright).setNormal(0, 1, 0);
-      consumer.addVertex(matrix, 1, 0, -0.0005f).setColor(255, 255, 255, alpha).setUv(u0, v0).setOverlay(packedOverlay).setLight(fullBright).setNormal(0, 1, 0);
+      consumer.vertex(matrix, 1, 1, -0.0005f).color(255, 255, 255, alpha).uv(u0, v1).overlayCoords(packedOverlay).uv2(fullBright).normal(0, 1, 0).endVertex();
+      consumer.vertex(matrix, 0, 1, -0.0005f).color(255, 255, 255, alpha).uv(u1, v1).overlayCoords(packedOverlay).uv2(fullBright).normal(0, 1, 0).endVertex();
+      consumer.vertex(matrix, 0, 0, -0.0005f).color(255, 255, 255, alpha).uv(u1, v0).overlayCoords(packedOverlay).uv2(fullBright).normal(0, 1, 0).endVertex();
+      consumer.vertex(matrix, 1, 0, -0.0005f).color(255, 255, 255, alpha).uv(u0, v0).overlayCoords(packedOverlay).uv2(fullBright).normal(0, 1, 0).endVertex();
 
       // SOUTH (z = 1.0005)
-      consumer.addVertex(matrix, 0, 1, 1.0005f).setColor(255, 255, 255, alpha).setUv(u0, v1).setOverlay(packedOverlay).setLight(fullBright).setNormal(0, 1, 0);
-      consumer.addVertex(matrix, 1, 1, 1.0005f).setColor(255, 255, 255, alpha).setUv(u1, v1).setOverlay(packedOverlay).setLight(fullBright).setNormal(0, 1, 0);
-      consumer.addVertex(matrix, 1, 0, 1.0005f).setColor(255, 255, 255, alpha).setUv(u1, v0).setOverlay(packedOverlay).setLight(fullBright).setNormal(0, 1, 0);
-      consumer.addVertex(matrix, 0, 0, 1.0005f).setColor(255, 255, 255, alpha).setUv(u0, v0).setOverlay(packedOverlay).setLight(fullBright).setNormal(0, 1, 0);
+      consumer.vertex(matrix, 0, 1, 1.0005f).color(255, 255, 255, alpha).uv(u0, v1).overlayCoords(packedOverlay).uv2(fullBright).normal(0, 1, 0).endVertex();
+      consumer.vertex(matrix, 1, 1, 1.0005f).color(255, 255, 255, alpha).uv(u1, v1).overlayCoords(packedOverlay).uv2(fullBright).normal(0, 1, 0).endVertex();
+      consumer.vertex(matrix, 1, 0, 1.0005f).color(255, 255, 255, alpha).uv(u1, v0).overlayCoords(packedOverlay).uv2(fullBright).normal(0, 1, 0).endVertex();
+      consumer.vertex(matrix, 0, 0, 1.0005f).color(255, 255, 255, alpha).uv(u0, v0).overlayCoords(packedOverlay).uv2(fullBright).normal(0, 1, 0).endVertex();
 
       // EAST (x = 1.0005)
-      consumer.addVertex(matrix, 1.0005f, 1, 1).setColor(255, 255, 255, alpha).setUv(u0, v1).setOverlay(packedOverlay).setLight(fullBright).setNormal(0, 1, 0);
-      consumer.addVertex(matrix, 1.0005f, 1, 0).setColor(255, 255, 255, alpha).setUv(u1, v1).setOverlay(packedOverlay).setLight(fullBright).setNormal(0, 1, 0);
-      consumer.addVertex(matrix, 1.0005f, 0, 0).setColor(255, 255, 255, alpha).setUv(u1, v0).setOverlay(packedOverlay).setLight(fullBright).setNormal(0, 1, 0);
-      consumer.addVertex(matrix, 1.0005f, 0, 1).setColor(255, 255, 255, alpha).setUv(u0, v0).setOverlay(packedOverlay).setLight(fullBright).setNormal(0, 1, 0);
+      consumer.vertex(matrix, 1.0005f, 1, 1).color(255, 255, 255, alpha).uv(u0, v1).overlayCoords(packedOverlay).uv2(fullBright).normal(0, 1, 0).endVertex();
+      consumer.vertex(matrix, 1.0005f, 1, 0).color(255, 255, 255, alpha).uv(u1, v1).overlayCoords(packedOverlay).uv2(fullBright).normal(0, 1, 0).endVertex();
+      consumer.vertex(matrix, 1.0005f, 0, 0).color(255, 255, 255, alpha).uv(u1, v0).overlayCoords(packedOverlay).uv2(fullBright).normal(0, 1, 0).endVertex();
+      consumer.vertex(matrix, 1.0005f, 0, 1).color(255, 255, 255, alpha).uv(u0, v0).overlayCoords(packedOverlay).uv2(fullBright).normal(0, 1, 0).endVertex();
 
       // WEST (x = -0.0005)
-      consumer.addVertex(matrix, -0.0005f, 1, 0).setColor(255, 255, 255, alpha).setUv(u0, v1).setOverlay(packedOverlay).setLight(fullBright).setNormal(0, 1, 0);
-      consumer.addVertex(matrix, -0.0005f, 1, 1).setColor(255, 255, 255, alpha).setUv(u1, v1).setOverlay(packedOverlay).setLight(fullBright).setNormal(0, 1, 0);
-      consumer.addVertex(matrix, -0.0005f, 0, 1).setColor(255, 255, 255, alpha).setUv(u1, v0).setOverlay(packedOverlay).setLight(fullBright).setNormal(0, 1, 0);
-      consumer.addVertex(matrix, -0.0005f, 0, 0).setColor(255, 255, 255, alpha).setUv(u0, v0).setOverlay(packedOverlay).setLight(fullBright).setNormal(0, 1, 0);
+      consumer.vertex(matrix, -0.0005f, 1, 0).color(255, 255, 255, alpha).uv(u0, v1).overlayCoords(packedOverlay).uv2(fullBright).normal(0, 1, 0).endVertex();
+      consumer.vertex(matrix, -0.0005f, 1, 1).color(255, 255, 255, alpha).uv(u1, v1).overlayCoords(packedOverlay).uv2(fullBright).normal(0, 1, 0).endVertex();
+      consumer.vertex(matrix, -0.0005f, 0, 1).color(255, 255, 255, alpha).uv(u1, v0).overlayCoords(packedOverlay).uv2(fullBright).normal(0, 1, 0).endVertex();
+      consumer.vertex(matrix, -0.0005f, 0, 0).color(255, 255, 255, alpha).uv(u0, v0).overlayCoords(packedOverlay).uv2(fullBright).normal(0, 1, 0).endVertex();
     }
 
     poseStack.popPose();

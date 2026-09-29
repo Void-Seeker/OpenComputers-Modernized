@@ -28,7 +28,7 @@ public final class DyeColorProvider implements IDyeColorProvider {
     if (stack.isEmpty()) return null;
     Holder<Item> itemHolder = BuiltInRegistries.ITEM.wrapAsHolder(stack.getItem());
     for (DyeColor dye : DyeColor.values()) {
-      TagKey<Item> tag = TagKey.create(Registries.ITEM, ResourceLocation.fromNamespaceAndPath("c", "dyes/" + dye.getName()));
+      TagKey<Item> tag = TagKey.create(Registries.ITEM, new ResourceLocation("forge", "dyes/" + dye.getName()));
       if (itemHolder.is(tag)) {
         return DYE_NAMES[15 - dye.getId()];
       }

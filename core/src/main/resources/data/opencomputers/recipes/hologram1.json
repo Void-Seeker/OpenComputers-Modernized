@@ -1,0 +1,32 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "ABA",
+    "CDC",
+    "EFE"
+  ],
+  "key": {
+    "A": {
+      "item": "opencomputers:chip2"
+    },
+    "B": {
+      "tag": "forge:glass_panes"
+    },
+    "C": {
+      "item": "opencomputers:printedcircuitboard"
+    },
+    "D": {
+      "item": "opencomputers:chipdiamond"
+    },
+    "E": {
+      "item": "minecraft:obsidian"
+    },
+    "F": {
+      "item": "minecraft:glowstone_dust"
+    }
+  },
+  "result": {
+    "count": 1,
+    "item": "opencomputers:hologram1"
+  }
+}

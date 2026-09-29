@@ -20,7 +20,7 @@ public class ChameliumBlockItem extends BlockItem {
   }
 
   @Override
-  public void appendHoverText(@NotNull ItemStack stack, @NotNull TooltipContext context, @NotNull List<Component> tooltip, @NotNull TooltipFlag flag) {
+  public void appendHoverText(@NotNull ItemStack stack, @org.jetbrains.annotations.Nullable net.minecraft.world.level.Level context, @NotNull List<Component> tooltip, @NotNull TooltipFlag flag) {
     super.appendHoverText(stack, context, tooltip, flag);
     var block = getBlock();
     if (block instanceof AbstractBlock base) {

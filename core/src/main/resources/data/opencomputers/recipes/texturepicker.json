@@ -1,0 +1,41 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "ABC",
+    "DEF",
+    "GHI"
+  ],
+  "key": {
+    "A": {
+      "tag": "forge:dyes/black"
+    },
+    "B": {
+      "tag": "forge:dyes/red"
+    },
+    "C": {
+      "tag": "forge:dyes/green"
+    },
+    "D": {
+      "tag": "forge:dyes/blue"
+    },
+    "E": {
+      "item": "opencomputers:analyzer"
+    },
+    "F": {
+      "tag": "forge:dyes/purple"
+    },
+    "G": {
+      "tag": "forge:dyes/yellow"
+    },
+    "H": {
+      "tag": "forge:dyes/magenta"
+    },
+    "I": {
+      "tag": "forge:dyes/white"
+    }
+  },
+  "result": {
+    "count": 1,
+    "item": "opencomputers:texturepicker"
+  }
+}

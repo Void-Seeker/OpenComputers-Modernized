@@ -1,5 +1,7 @@
 package li.cil.oc.core.impl.server.network;
 
+import li.cil.oc.compat.MathCompat;
+
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -529,7 +531,7 @@ public class Network implements li.cil.oc.api.detail.NetworkAPI, Distributor {
       connectors.clear();
       globalBuffer = 0;
       globalBufferSize = 0;
-      data.putAll(subGraphs.getFirst());
+      data.putAll(subGraphs.get(0));
       for (Vertex v : data.values()) {
         if (v.data instanceof Connector) {
           addConnector((Connector) v.data);
@@ -597,7 +599,7 @@ public class Network implements li.cil.oc.api.detail.NetworkAPI, Distributor {
     }
     synchronized (this) {
       double oldBuffer = globalBuffer;
-      globalBuffer = Math.clamp(globalBuffer + delta, 0, globalBufferSize);
+      globalBuffer = MathCompat.clamp(globalBuffer + delta, 0, globalBufferSize);
       if (globalBuffer == oldBuffer) {
         return delta;
       }
@@ -1251,26 +1253,32 @@ public class Network implements li.cil.oc.api.detail.NetworkAPI, Distributor {
     private int getPacketSize() {
       int s = this.data.length * 2;
       for (Object arg : this.data) {
-        switch (arg) {
-          case null -> s += 1;
-          case Boolean ignored -> s += 1;
-          case Byte ignored -> s += 2;
-          case Short ignored -> s += 2;
-          case Integer ignored -> s += 4;
-          case Long ignored -> s += 8;
-          case Float ignored -> s += 4;
-          case Double ignored -> s += 8;
-          case String string -> {
-            if (string.length() > MAX_STRING_LENGTH)
-              throw new IllegalArgumentException("string data too large");
-            s += Math.max(string.length(), 1);
-          }
-          case byte[] bytes -> {
-            if (bytes.length > MAX_BYTE_ARRAY_LENGTH)
-              throw new IllegalArgumentException("byte array data too large");
-            s += Math.max(bytes.length, 1);
-          }
-          default -> throw new IllegalArgumentException("unsupported data type");
+        if (arg == null) {
+          s += 1;
+        } else if (arg instanceof Boolean) {
+          s += 1;
+        } else if (arg instanceof Byte) {
+          s += 2;
+        } else if (arg instanceof Short) {
+          s += 2;
+        } else if (arg instanceof Integer) {
+          s += 4;
+        } else if (arg instanceof Long) {
+          s += 8;
+        } else if (arg instanceof Float) {
+          s += 4;
+        } else if (arg instanceof Double) {
+          s += 8;
+        } else if (arg instanceof String string) {
+          if (string.length() > MAX_STRING_LENGTH)
+            throw new IllegalArgumentException("string data too large");
+          s += Math.max(string.length(), 1);
+        } else if (arg instanceof byte[] bytes) {
+          if (bytes.length > MAX_BYTE_ARRAY_LENGTH)
+            throw new IllegalArgumentException("byte array data too large");
+          s += Math.max(bytes.length, 1);
+        } else {
+          throw new IllegalArgumentException("unsupported data type");
         }
       }
       return s;
@@ -1298,19 +1306,27 @@ public class Network implements li.cil.oc.api.detail.NetworkAPI, Distributor {
       for (int i = 0; i < data.length; i++) {
         String key = "data" + i;
         Object value = data[i];
-        switch (value) {
-          case null -> {
-          }
-          case Boolean b -> nbt.putBoolean(key, b);
-          case Byte b -> nbt.putShort(key, b);
-          case Short aShort -> nbt.putShort(key, aShort);
-          case Integer integer -> nbt.putInt(key, integer);
-          case Long l -> nbt.putLong(key, l);
-          case Float v -> nbt.putFloat(key, v);
-          case Double v -> nbt.putDouble(key, v);
-          case String s -> nbt.putString(key, s);
-          case byte[] bytes -> nbt.putByteArray(key, bytes);
-          default -> LOGGER.warn("Unexpected type while saving network packet: {}", value.getClass().getName());
+        if (value == null) {
+        } else if (value instanceof Boolean b) {
+          nbt.putBoolean(key, b);
+        } else if (value instanceof Byte b) {
+          nbt.putShort(key, b);
+        } else if (value instanceof Short aShort) {
+          nbt.putShort(key, aShort);
+        } else if (value instanceof Integer integer) {
+          nbt.putInt(key, integer);
+        } else if (value instanceof Long l) {
+          nbt.putLong(key, l);
+        } else if (value instanceof Float v) {
+          nbt.putFloat(key, v);
+        } else if (value instanceof Double v) {
+          nbt.putDouble(key, v);
+        } else if (value instanceof String s) {
+          nbt.putString(key, s);
+        } else if (value instanceof byte[] bytes) {
+          nbt.putByteArray(key, bytes);
+        } else {
+          LOGGER.warn("Unexpected type while saving network packet: {}", value.getClass().getName());
         }
       }
     }

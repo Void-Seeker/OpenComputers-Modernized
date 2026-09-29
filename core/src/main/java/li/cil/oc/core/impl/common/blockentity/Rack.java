@@ -1,5 +1,7 @@
 package li.cil.oc.core.impl.common.blockentity;
 
+import li.cil.oc.compat.MathCompat;
+
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.Optional;
@@ -325,7 +327,7 @@ public class Rack extends HubBlockEntity implements PowerAcceptor, PowerBalancer
   @Override
   public double globalDemand(Direction side) {
     var c = connector(side);
-    return c.map(connector -> Math.clamp(connector.globalBufferSize() - connector.globalBuffer(), 0, energyThroughput())).orElse(0.0);
+    return c.map(connector -> MathCompat.clamp(connector.globalBufferSize() - connector.globalBuffer(), 0, energyThroughput())).orElse(0.0);
   }
 
   private double _globalBuffer = 0;
@@ -773,7 +775,7 @@ public class Rack extends HubBlockEntity implements PowerAcceptor, PowerBalancer
       var globalY = (int) (hitY * 16);
       int l = 2, h = 14;
       var slot = (15 - globalY - l) * getContainerSize() / (h - l);
-      return Optional.of(Math.clamp(getContainerSize() - 1, 0, slot));
+      return Optional.of(MathCompat.clamp(getContainerSize() - 1, 0, slot));
     }
     return Optional.empty();
   }

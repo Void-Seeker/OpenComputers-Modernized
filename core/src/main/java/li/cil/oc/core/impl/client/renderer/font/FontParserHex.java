@@ -25,7 +25,7 @@ public final class FontParserHex {
   public void initialize() {
     glyphs.clear();
 
-    ResourceLocation loc = ResourceLocation.fromNamespaceAndPath(OCSettings.resourceDomain, "font.hex");
+    ResourceLocation loc = new ResourceLocation(OCSettings.resourceDomain, "font.hex");
     try {
       var resourceOpt = Minecraft.getInstance().getResourceManager().getResource(loc);
       if (resourceOpt.isEmpty()) {

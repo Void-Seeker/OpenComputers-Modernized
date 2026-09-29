@@ -2,10 +2,8 @@ package li.cil.oc.core.impl.common.block;
 
 import li.cil.oc.core.impl.util.ItemColorizer;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.component.DyedItemColor;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.LevelReader;
 import net.minecraft.world.level.block.Block;
@@ -39,10 +37,6 @@ public class ChameliumBlock extends SimpleBlock {
   }
 
   public static DyeColor readDyeColor(ItemStack stack) {
-    DyedItemColor dyed = stack.get(DataComponents.DYED_COLOR);
-    if (dyed != null) {
-      return dyeColorFromRgb(dyed.rgb());
-    }
     int legacyColor = ItemColorizer.getColor(stack);
     if (legacyColor >= 0) {
       return dyeColorFromRgb(legacyColor);
@@ -72,10 +66,10 @@ public class ChameliumBlock extends SimpleBlock {
   }
 
   @Override
-  public @NotNull ItemStack getCloneItemStack(@NotNull LevelReader level, @NotNull BlockPos pos, @NotNull BlockState state) {
+  public @NotNull ItemStack getCloneItemStack(@NotNull net.minecraft.world.level.BlockGetter level, @NotNull BlockPos pos, @NotNull BlockState state) {
     ItemStack stack = super.getCloneItemStack(level, pos, state);
     DyeColor dye = state.getValue(COLOR);
-    stack.set(DataComponents.DYED_COLOR, new DyedItemColor(dye.getTextColor(), false));
+    ItemColorizer.setColor(stack, dye.getTextColor());
     return stack;
   }
 }

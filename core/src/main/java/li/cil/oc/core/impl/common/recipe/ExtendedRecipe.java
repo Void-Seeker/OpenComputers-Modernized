@@ -17,11 +17,10 @@ import li.cil.oc.core.impl.util.Color;
 import li.cil.oc.core.impl.util.ExtendedNBT;
 import li.cil.oc.core.impl.util.SideTracker;
 import net.minecraft.core.NonNullList;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.world.inventory.CraftingContainer;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.component.CustomData;
-import net.minecraft.world.item.crafting.CraftingInput;
+import li.cil.oc.compat.CustomData;
 import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.level.block.Blocks;
 import org.jetbrains.annotations.Nullable;
@@ -49,7 +48,7 @@ public final class ExtendedRecipe {
   @FunctionalInterface
   public interface PrintHandler {
     @Nullable
-    ItemStack handlePrintCraft(ItemStack ignoredCraftedStack, CraftingInput ignoredInventory);
+    ItemStack handlePrintCraft(ItemStack ignoredCraftedStack, CraftingContainer ignoredInventory);
   }
 
   public static void setPrintHandler(@Nullable PrintHandler handler) {
@@ -91,13 +90,13 @@ public final class ExtendedRecipe {
           net.minecraft.nbt.StringTag.valueOf("Autocrafting of this item is disabled to avoid exploits.")
         ))
       );
-      stack.set(DataComponents.CUSTOM_DATA, CustomData.of(tag));
+      stack.setTag(tag); // 1.20.1: lore lives in the stack tag directly, CustomData would hide it.
       disabled = stack;
     }
   }
 
   @SuppressWarnings("unused")
-  public static ItemStack addNBTToResult(Recipe<?> recipe, ItemStack craftedStack, CraftingInput inventory, net.minecraft.core.HolderLookup.Provider provider) {
+  public static ItemStack addNBTToResult(Recipe<?> recipe, ItemStack craftedStack, CraftingContainer inventory, net.minecraft.core.HolderLookup.Provider provider) {
     ensureInit();
     var craftedItemName = li.cil.oc.api.Items.get(craftedStack);
 
@@ -107,7 +106,7 @@ public final class ExtendedRecipe {
         for (var stack : getItems(inventory)) {
           if (stack.getItem() == net.minecraft.world.item.Items.FILLED_MAP) {
             var nbt = driver.dataTag(craftedStack);
-            ExtendedNBT.setNewCompoundTag(nbt, OCSettings.namespace + "map", t -> t.merge((CompoundTag) stack.save(provider)));
+            ExtendedNBT.setNewCompoundTag(nbt, OCSettings.namespace + "map", t -> t.merge((CompoundTag) stack.save(new CompoundTag())));
           }
         }
       }
@@ -129,17 +128,17 @@ public final class ExtendedRecipe {
     }
 
     if (craftedItemName == floppy || contains(hdds, craftedItemName)) {
-      var craftedCustomData = craftedStack.get(DataComponents.CUSTOM_DATA);
+      var craftedCustomData = CustomData.get(craftedStack);
       if (craftedCustomData == null || craftedCustomData.isEmpty()) {
-        craftedStack.set(DataComponents.CUSTOM_DATA, CustomData.of(new CompoundTag()));
-        craftedCustomData = craftedStack.get(DataComponents.CUSTOM_DATA);
+        CustomData.set(craftedStack, CustomData.of(new CompoundTag()));
+        craftedCustomData = CustomData.get(craftedStack);
       }
       CompoundTag nbt = craftedCustomData != null ? craftedCustomData.copyTag() : new CompoundTag();
       if (craftedStack.getCount() == 1) {
         String colorKey = OCSettings.namespace + "color";
         for (var stack : getItems(inventory)) {
           var info = li.cil.oc.api.Items.get(stack);
-          var stackCustomData = stack.get(DataComponents.CUSTOM_DATA);
+          var stackCustomData = CustomData.get(stack);
           if (info != null && (info == floppy || info == li.cil.oc.api.Items.get(Constants.ItemName.LootDisk)) && stackCustomData != null && !stackCustomData.isEmpty()) {
             var oldData = stackCustomData.copyTag();
             var colorTag = oldData.get(colorKey);
@@ -149,13 +148,13 @@ public final class ExtendedRecipe {
           }
         }
         if (nbt.isEmpty()) {
-          craftedStack.set(DataComponents.CUSTOM_DATA, CustomData.EMPTY);
+          CustomData.set(craftedStack, CustomData.EMPTY);
         } else {
-          craftedStack.set(DataComponents.CUSTOM_DATA, CustomData.of(nbt));
+          CustomData.set(craftedStack, CustomData.of(nbt));
         }
       } else if (allFloppies(inventory)) {
         for (var stack : getItems(inventory)) {
-          var stackCustomData = stack.get(DataComponents.CUSTOM_DATA);
+          var stackCustomData = CustomData.get(stack);
           if (li.cil.oc.api.Items.get(stack) == floppy && stackCustomData != null && !stackCustomData.isEmpty()) {
             var oldData = stackCustomData.copyTag();
             for (var oldTagName : oldData.getAllKeys()) {
@@ -164,7 +163,7 @@ public final class ExtendedRecipe {
             }
           }
         }
-        craftedStack.set(DataComponents.CUSTOM_DATA, CustomData.of(nbt));
+        CustomData.set(craftedStack, CustomData.of(nbt));
       }
     }
 
@@ -180,13 +179,13 @@ public final class ExtendedRecipe {
 
     if (craftedItemName == eeprom && craftedStack.getCount() == 2) {
       for (var stack : getItems(inventory)) {
-        var stackCustomData = stack.get(DataComponents.CUSTOM_DATA);
+        var stackCustomData = CustomData.get(stack);
         if (li.cil.oc.api.Items.get(stack) == eeprom && stackCustomData != null && !stackCustomData.isEmpty()) {
           var copy = stackCustomData.copyTag();
           if (copy.getCompound(OCSettings.namespace + "data").getCompound("node").contains("address")) {
             copy.getCompound(OCSettings.namespace + "data").getCompound("node").remove("address");
           }
-          craftedStack.set(DataComponents.CUSTOM_DATA, CustomData.of(copy));
+          CustomData.set(craftedStack, CustomData.of(copy));
           break;
         }
       }
@@ -200,7 +199,7 @@ public final class ExtendedRecipe {
     return craftedStack;
   }
 
-  public static NonNullList<ItemStack> getRecraftRemainingItems(CraftingInput inventory, NonNullList<ItemStack> defaultRemaining) {
+  public static NonNullList<ItemStack> getRecraftRemainingItems(CraftingContainer inventory, NonNullList<ItemStack> defaultRemaining) {
     ensureInit();
     var items = getItems(inventory);
     if (items.length != 2) return defaultRemaining;
@@ -222,7 +221,7 @@ public final class ExtendedRecipe {
       if (data != null) {
         for (var comp : data.components()) {
           if (li.cil.oc.api.Items.get(comp) == eeprom && !comp.isEmpty()) {
-            for (int i = 0; i < inventory.size(); i++) {
+            for (int i = 0; i < inventory.getContainerSize(); i++) {
               if (inventory.getItem(i) == oldDevice) {
                 defaultRemaining.set(i, comp);
                 break;
@@ -249,9 +248,9 @@ public final class ExtendedRecipe {
         if (tag != null && tag.contains(OCSettings.namespace + "map")) {
           var server = SideTracker.getCurrentServer();
           if (server != null) {
-            var oldMap = ItemStack.parseOptional(server.registryAccess(), tag.getCompound(OCSettings.namespace + "map"));
+            var oldMap = ItemStack.of(tag.getCompound(OCSettings.namespace + "map"));
             if (!oldMap.isEmpty()) {
-              for (int i = 0; i < inventory.size(); i++) {
+              for (int i = 0; i < inventory.getContainerSize(); i++) {
                 if (inventory.getItem(i) == oldNavi) {
                   defaultRemaining.set(i, oldMap);
                   break;
@@ -267,9 +266,9 @@ public final class ExtendedRecipe {
     return defaultRemaining;
   }
 
-  private static ItemStack[] getItems(CraftingInput inventory) {
+  private static ItemStack[] getItems(CraftingContainer inventory) {
     List<ItemStack> list = new ArrayList<>();
-    for (int i = 0; i < inventory.size(); i++) {
+    for (int i = 0; i < inventory.getContainerSize(); i++) {
       var stack = inventory.getItem(i);
       if (!stack.isEmpty()) list.add(stack);
     }
@@ -281,14 +280,14 @@ public final class ExtendedRecipe {
     return false;
   }
 
-  private static boolean allFloppies(CraftingInput inventory) {
+  private static boolean allFloppies(CraftingContainer inventory) {
     for (var stack : getItems(inventory)) {
       if (li.cil.oc.api.Items.get(stack) != floppy) return false;
     }
     return true;
   }
 
-  private static void recraft(ItemStack craftedStack, CraftingInput inventory, ItemInfo descriptor, java.util.function.Function<ItemStack, ItemDataWrapper> dataFactory) {
+  private static void recraft(ItemStack craftedStack, CraftingContainer inventory, ItemInfo descriptor, java.util.function.Function<ItemStack, ItemDataWrapper> dataFactory) {
     if (li.cil.oc.api.Items.get(craftedStack) == descriptor) {
       ItemStack oldMcu = null;
       for (var stack : getItems(inventory)) {

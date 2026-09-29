@@ -12,7 +12,7 @@ import net.minecraft.world.level.dimension.DimensionType;
 public final class ConverterWorldProvider implements Converter {
   @Override
   public void convert(Object value, Map<Object, Object> output) {
-    if (value instanceof ResourceKey<?> key && key.registryKey().equals(Registries.DIMENSION)) {
+    if (value instanceof ResourceKey<?> key && key.isFor(Registries.DIMENSION)) {
       output.put("id", UUID.nameUUIDFromBytes(
         key.location().toString().getBytes(StandardCharsets.UTF_8)
       ).toString());

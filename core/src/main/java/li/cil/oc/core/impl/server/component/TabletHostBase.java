@@ -1,5 +1,7 @@
 package li.cil.oc.core.impl.server.component;
 
+import li.cil.oc.compat.CustomData;
+
 import java.util.ArrayList;
 import java.util.Map;
 import li.cil.oc.api.Machine;
@@ -98,7 +100,7 @@ public abstract class TabletHostBase implements ComponentInventory, MachineHost,
         var componentTag = new CompoundTag();
         _tabletComponent.save(componentTag, level().registryAccess());
         var stack = getStack();
-        var existing = stack.get(net.minecraft.core.component.DataComponents.CUSTOM_DATA);
+        var existing = CustomData.get(stack);
         CompoundTag t;
         if (existing != null && !existing.isEmpty()) {
           t = existing.copyTag();
@@ -106,7 +108,7 @@ public abstract class TabletHostBase implements ComponentInventory, MachineHost,
           t = new CompoundTag();
         }
         t.put(OCSettings.namespace + "component", componentTag);
-        stack.set(net.minecraft.core.component.DataComponents.CUSTOM_DATA, net.minecraft.world.item.component.CustomData.of(t));
+        CustomData.set(stack, li.cil.oc.compat.CustomData.of(t));
       }
     }
   }
@@ -116,7 +118,7 @@ public abstract class TabletHostBase implements ComponentInventory, MachineHost,
       if (!level().isClientSide()) {
         _tabletComponent = new Tablet(this);
         var stack = getStack();
-        var existing = stack.get(net.minecraft.core.component.DataComponents.CUSTOM_DATA);
+        var existing = CustomData.get(stack);
         if (existing != null && !existing.isEmpty()) {
           var t = existing.copyTag();
           if (t.contains(OCSettings.namespace + "component")) {

@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "ingredients": [
+    {
+      "item": "opencomputers:floppy"
+    },
+    {
+      "tag": "forge:dyes/pink"
+    }
+  ],
+  "result": {
+    "item": "opencomputers:floppy",
+    "nbt": {
+      "oc:color": 9
+    }
+  }
+}

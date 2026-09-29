@@ -1,28 +1,23 @@
 package li.cil.oc.core.impl.common.network;
 
 import li.cil.oc.core.Tags;
-import net.minecraft.network.RegistryFriendlyByteBuf;
-import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
-import org.jetbrains.annotations.NotNull;
 
-public record OCPayload(byte[] data) implements CustomPacketPayload {
-  public static final CustomPacketPayload.Type<OCPayload> TYPE =
-    new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath(Tags.MOD_ID, "packet"));
+/**
+ * The single packet type OC uses, carrying an opaque byte payload. The platform
+ * module registers it with its networking API using {@link #encode}/{@link #decode}.
+ */
+public record OCPayload(byte[] data) {
+  public static final ResourceLocation ID = new ResourceLocation(Tags.MOD_ID, "packet");
 
-  public static final StreamCodec<RegistryFriendlyByteBuf, OCPayload> STREAM_CODEC =
-    StreamCodec.of(
-      (buf, payload) -> buf.writeBytes(payload.data()),
-      buf -> {
-        byte[] data = new byte[buf.readableBytes()];
-        buf.readBytes(data);
-        return new OCPayload(data);
-      }
-    );
+  public void encode(final FriendlyByteBuf buf) {
+    buf.writeBytes(data);
+  }
 
-  @Override
-  public CustomPacketPayload.@NotNull Type<? extends CustomPacketPayload> type() {
-    return TYPE;
+  public static OCPayload decode(final FriendlyByteBuf buf) {
+    byte[] data = new byte[buf.readableBytes()];
+    buf.readBytes(data);
+    return new OCPayload(data);
   }
 }

@@ -27,7 +27,7 @@ public class WirelessNetworkHelperImpl extends WirelessNetworkHelper {
   public void remove(WirelessEndpoint endpoint, String dimension) {
     var key = net.minecraft.resources.ResourceKey.create(
       net.minecraft.core.registries.Registries.DIMENSION,
-      net.minecraft.resources.ResourceLocation.parse(dimension));
+      new net.minecraft.resources.ResourceLocation(dimension));
     WirelessNetworkManager.remove(endpoint, key);
   }
 

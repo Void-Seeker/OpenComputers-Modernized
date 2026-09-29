@@ -396,14 +396,14 @@ public class Print extends BlockEntity implements RedstoneAware, Rotatable, Name
   public void updateBounds() {
     var offList = new java.util.ArrayList<>(data.stateOff);
     var onList = new java.util.ArrayList<>(data.stateOn);
-    boundsOff = offList.isEmpty() ? ExtendedAABB.unitBounds() : offList.getFirst().bounds();
+    boundsOff = offList.isEmpty() ? ExtendedAABB.unitBounds() : offList.get(0).bounds();
     for (int i = 1; i < offList.size(); i++) {
       boundsOff = boundsOff.minmax(offList.get(i).bounds());
     }
     if (ExtendedAABB.volume(boundsOff) == 0) boundsOff = ExtendedAABB.unitBounds();
     else boundsOff = ExtendedAABB.rotateTowards(boundsOff, facing());
 
-    boundsOn = onList.isEmpty() ? ExtendedAABB.unitBounds() : onList.getFirst().bounds();
+    boundsOn = onList.isEmpty() ? ExtendedAABB.unitBounds() : onList.get(0).bounds();
     for (int i = 1; i < onList.size(); i++) {
       boundsOn = boundsOn.minmax(onList.get(i).bounds());
     }

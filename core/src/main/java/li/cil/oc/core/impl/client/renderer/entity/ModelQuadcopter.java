@@ -18,7 +18,7 @@ import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.NotNull;
 
 public class ModelQuadcopter extends Model {
-  public final ResourceLocation texture = ResourceLocation.fromNamespaceAndPath(OCSettings.resourceDomain, "textures/model/drone.png");
+  public final ResourceLocation texture = new ResourceLocation(OCSettings.resourceDomain, "textures/model/drone.png");
 
   public final ModelPart body;
   public final ModelPart wing0, wing1, wing2, wing3;
@@ -110,14 +110,14 @@ public class ModelQuadcopter extends Model {
   }
 
   public void renderLights(PoseStack poseStack, VertexConsumer vertexConsumer, int packedLight, int packedOverlay, int color) {
-    light0.render(poseStack, vertexConsumer, packedLight, packedOverlay, color);
-    light1.render(poseStack, vertexConsumer, packedLight, packedOverlay, color);
-    light2.render(poseStack, vertexConsumer, packedLight, packedOverlay, color);
-    light3.render(poseStack, vertexConsumer, packedLight, packedOverlay, color);
+    li.cil.oc.compat.ModelCompat.render(light0, poseStack, vertexConsumer, packedLight, packedOverlay, color);
+    li.cil.oc.compat.ModelCompat.render(light1, poseStack, vertexConsumer, packedLight, packedOverlay, color);
+    li.cil.oc.compat.ModelCompat.render(light2, poseStack, vertexConsumer, packedLight, packedOverlay, color);
+    li.cil.oc.compat.ModelCompat.render(light3, poseStack, vertexConsumer, packedLight, packedOverlay, color);
   }
 
   @Override
-  public void renderToBuffer(@NotNull PoseStack poseStack, @NotNull VertexConsumer vertexConsumer, int packedLight, int packedOverlay, int color) {
+  public void renderToBuffer(@NotNull PoseStack poseStack, @NotNull VertexConsumer vertexConsumer, int packedLight, int packedOverlay, float red, float green, float blue, float alpha) {
     body.render(poseStack, vertexConsumer, packedLight, packedOverlay);
     wing0.render(poseStack, vertexConsumer, packedLight, packedOverlay);
     wing1.render(poseStack, vertexConsumer, packedLight, packedOverlay);

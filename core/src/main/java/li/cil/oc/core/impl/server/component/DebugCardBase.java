@@ -30,7 +30,6 @@ import li.cil.oc.core.util.ResultWrapper;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
@@ -42,7 +41,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.Container;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.component.CustomData;
+import li.cil.oc.compat.CustomData;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.block.Block;
@@ -53,8 +52,7 @@ import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.level.storage.ServerLevelData;
 import net.minecraft.world.scores.Objective;
 import net.minecraft.world.scores.PlayerTeam;
-import net.minecraft.world.scores.ScoreAccess;
-import net.minecraft.world.scores.ScoreHolder;
+import net.minecraft.world.scores.Score;
 import net.minecraft.world.scores.Scoreboard;
 import net.minecraft.world.scores.criteria.ObjectiveCriteria;
 
@@ -429,7 +427,8 @@ public abstract class DebugCardBase extends AbstractManagedEnvironment implement
     @Callback(doc = "function():number, number, number -- Get the current spawn point coordinates.")
     public Object[] getSpawnPoint(Context context, Arguments args) {
       checkAccess();
-      var spawn = world.getLevelData().getSpawnPos();
+      var levelData = world.getLevelData();
+      var spawn = new net.minecraft.core.BlockPos(levelData.getXSpawn(), levelData.getYSpawn(), levelData.getZSpawn());
       return ResultWrapper.result(
         (double) spawn.getX(),
         (double) spawn.getY(),
@@ -453,7 +452,7 @@ public abstract class DebugCardBase extends AbstractManagedEnvironment implement
       int range = args.checkInteger(4);
       var soundLocation = ResourceLocation.tryParse(soundName);
       if (soundLocation == null) {
-        soundLocation = ResourceLocation.withDefaultNamespace(soundName);
+        soundLocation = new ResourceLocation(soundName);
       }
       var soundEvent = BuiltInRegistries.SOUND_EVENT.get(soundLocation);
       if (soundEvent != null) {
@@ -498,7 +497,7 @@ public abstract class DebugCardBase extends AbstractManagedEnvironment implement
       BlockEntity te = world.getBlockEntity(new net.minecraft.core.BlockPos(x, y, z));
       if (te != null) {
         CompoundTag nbt;
-        nbt = te.saveWithFullMetadata(world.registryAccess());
+        nbt = te.saveWithFullMetadata();
         return ResultWrapper.result(ExtendedNBT.toTypedMap(nbt));
       }
       return null;
@@ -513,7 +512,7 @@ public abstract class DebugCardBase extends AbstractManagedEnvironment implement
         Map<?, ?> table = args.checkTable(3);
         Tag converted = ExtendedNBT.typedMapToNbt(table);
         if (converted instanceof CompoundTag compoundNbt) {
-          te.loadWithComponents(compoundNbt, world.registryAccess());
+          te.load(compoundNbt);
           te.setChanged();
           world.sendBlockUpdated(new net.minecraft.core.BlockPos(x, y, z), world.getBlockState(new net.minecraft.core.BlockPos(x, y, z)), world.getBlockState(new net.minecraft.core.BlockPos(x, y, z)), 3);
           return ResultWrapper.result(true);
@@ -550,7 +549,7 @@ public abstract class DebugCardBase extends AbstractManagedEnvironment implement
       if (args.isInteger(3)) {
         state = Block.stateById(args.checkInteger(3));
       } else {
-        Block block = BuiltInRegistries.BLOCK.get(ResourceLocation.parse(args.checkString(3)));
+        Block block = BuiltInRegistries.BLOCK.get(new ResourceLocation(args.checkString(3)));
         state = block.defaultBlockState();
       }
       return ResultWrapper.result(world.setBlock(new net.minecraft.core.BlockPos(args.checkInteger(0), args.checkInteger(1), args.checkInteger(2)), state, 3));
@@ -566,7 +565,7 @@ public abstract class DebugCardBase extends AbstractManagedEnvironment implement
       if (args.isInteger(6)) {
         state = Block.stateById(args.checkInteger(6));
       } else {
-        Block block = BuiltInRegistries.BLOCK.get(ResourceLocation.parse(args.checkString(6)));
+        Block block = BuiltInRegistries.BLOCK.get(new ResourceLocation(args.checkString(6)));
         state = block.defaultBlockState();
       }
       int minX = Math.min(xMin, xMax), maxX = Math.max(xMin, xMax);
@@ -585,8 +584,8 @@ public abstract class DebugCardBase extends AbstractManagedEnvironment implement
     @Callback(doc = "function(id:string, count:number, damage:number, nbt:string, x:number, y:number, z:number, side:number):boolean - Insert an item stack into the inventory at the specified location. NBT tag is expected in JSON format.")
     public Object[] insertItem(Context context, Arguments args) {
       checkAccess();
-      Item item = BuiltInRegistries.ITEM.get(ResourceLocation.parse(args.checkString(0)));
-      if (item == BuiltInRegistries.ITEM.get(ResourceLocation.withDefaultNamespace("air"))) {
+      Item item = BuiltInRegistries.ITEM.get(new ResourceLocation(args.checkString(0)));
+      if (item == BuiltInRegistries.ITEM.get(new ResourceLocation("air"))) {
         throw new IllegalArgumentException("invalid item id");
       }
       int count = args.checkInteger(1);
@@ -606,7 +605,7 @@ public abstract class DebugCardBase extends AbstractManagedEnvironment implement
       if (inventory != null) {
         ItemStack stack = new ItemStack(item, count);
         if (damage > 0) stack.setDamageValue(damage);
-        if (tag != null) stack.set(DataComponents.CUSTOM_DATA, CustomData.of(tag));
+        if (tag != null) CustomData.set(stack, CustomData.of(tag));
         return ResultWrapper.result(InventoryUtils.insertIntoInventory(stack, inventory, null));
       }
       return ResultWrapper.result(null, "no inventory");
@@ -631,7 +630,7 @@ public abstract class DebugCardBase extends AbstractManagedEnvironment implement
     public Object[] insertFluid(Context context, Arguments args) {
       checkAccess();
       String fluidId = args.checkString(0);
-      Fluid fluid = BuiltInRegistries.FLUID.get(ResourceLocation.parse(fluidId));
+      Fluid fluid = BuiltInRegistries.FLUID.get(new ResourceLocation(fluidId));
       if (fluid == Fluids.EMPTY) {
         throw new IllegalArgumentException("invalid fluid id");
       }
@@ -784,8 +783,8 @@ public abstract class DebugCardBase extends AbstractManagedEnvironment implement
     @Callback(doc = "function(id:string, amount:number, meta:number[, nbt:string]):number -- Adds the item stack to the players inventory")
     public Object[] insertItem(Context context, Arguments args) {
       return withPlayer(p -> {
-        Item item = BuiltInRegistries.ITEM.get(ResourceLocation.parse(args.checkString(0)));
-        if (item == BuiltInRegistries.ITEM.get(ResourceLocation.withDefaultNamespace("air"))) {
+        Item item = BuiltInRegistries.ITEM.get(new ResourceLocation(args.checkString(0)));
+        if (item == BuiltInRegistries.ITEM.get(new ResourceLocation("air"))) {
           throw new IllegalArgumentException("invalid item id");
         }
         int amount = args.checkInteger(1);
@@ -801,7 +800,7 @@ public abstract class DebugCardBase extends AbstractManagedEnvironment implement
         }
         ItemStack stack = new ItemStack(item, amount);
         if (damage > 0) stack.setDamageValue(damage);
-        if (tag != null) stack.set(DataComponents.CUSTOM_DATA, CustomData.of(tag));
+        if (tag != null) CustomData.set(stack, CustomData.of(tag));
         int before = stack.getCount();
         InventoryUtils.addToPlayerInventory(stack, p);
         return ResultWrapper.result(before - stack.getCount());
@@ -891,7 +890,7 @@ public abstract class DebugCardBase extends AbstractManagedEnvironment implement
       String objName = args.checkString(0);
       String objType = args.checkString(1);
       ObjectiveCriteria criteria = ObjectiveCriteria.byName(objType).orElse(ObjectiveCriteria.DUMMY);
-      scoreboard.addObjective(objName, criteria, Component.literal(objName), ObjectiveCriteria.RenderType.INTEGER, false, null);
+      scoreboard.addObjective(objName, criteria, Component.literal(objName), ObjectiveCriteria.RenderType.INTEGER);
       return null;
     }
 
@@ -915,8 +914,8 @@ public abstract class DebugCardBase extends AbstractManagedEnvironment implement
       Objective objective = scoreboard.getObjective(args.checkString(1));
       if (objective == null) throw new RuntimeException("objective not found");
       int scoreVal = args.checkInteger(2);
-      ScoreAccess score = scoreboard.getOrCreatePlayerScore(ScoreHolder.forNameOnly(name), objective);
-      score.set(scoreVal);
+      Score score = scoreboard.getOrCreatePlayerScore(name, objective);
+      score.setScore(scoreVal);
       return null;
     }
 
@@ -926,8 +925,8 @@ public abstract class DebugCardBase extends AbstractManagedEnvironment implement
       String name = args.checkString(0);
       Objective objective = scoreboard.getObjective(args.checkString(1));
       if (objective == null) throw new RuntimeException("objective not found");
-      ScoreAccess score = scoreboard.getOrCreatePlayerScore(ScoreHolder.forNameOnly(name), objective);
-      return ResultWrapper.result((double) score.get());
+      Score score = scoreboard.getOrCreatePlayerScore(name, objective);
+      return ResultWrapper.result((double) score.getScore());
     }
 
     @SuppressWarnings("SameReturnValue")
@@ -938,7 +937,7 @@ public abstract class DebugCardBase extends AbstractManagedEnvironment implement
       Objective objective = scoreboard.getObjective(args.checkString(1));
       if (objective == null) throw new RuntimeException("objective not found");
       int scoreVal = args.checkInteger(2);
-      ScoreAccess score = scoreboard.getOrCreatePlayerScore(ScoreHolder.forNameOnly(name), objective);
+      Score score = scoreboard.getOrCreatePlayerScore(name, objective);
       score.add(scoreVal);
       return null;
     }
@@ -951,7 +950,7 @@ public abstract class DebugCardBase extends AbstractManagedEnvironment implement
       Objective objective = scoreboard.getObjective(args.checkString(1));
       if (objective == null) throw new RuntimeException("objective not found");
       int scoreVal = args.checkInteger(2);
-      ScoreAccess score = scoreboard.getOrCreatePlayerScore(ScoreHolder.forNameOnly(name), objective);
+      Score score = scoreboard.getOrCreatePlayerScore(name, objective);
       score.add(-scoreVal);
       return null;
     }

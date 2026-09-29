@@ -1,9 +1,10 @@
 package li.cil.oc.core.impl.common.item;
 
+import li.cil.oc.compat.CustomData;
+
 import java.util.List;
 import li.cil.oc.core.impl.common.item.data.NanomachineData;
 import li.cil.oc.core.impl.common.nanomachines.ControllerImpl;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResultHolder;
@@ -22,9 +23,9 @@ public class Nanomachines extends DelegateItem {
   }
 
   @Override
-  public void appendHoverText(@NotNull ItemStack stack, Item.@NotNull TooltipContext context, @NotNull List<Component> tooltip, @NotNull TooltipFlag flag) {
+  public void appendHoverText(@NotNull ItemStack stack, @org.jetbrains.annotations.Nullable net.minecraft.world.level.Level context, @NotNull List<Component> tooltip, @NotNull TooltipFlag flag) {
     super.appendHoverText(stack, context, tooltip, flag);
-    var customData = stack.get(DataComponents.CUSTOM_DATA);
+    var customData = CustomData.get(stack);
     if (customData != null && !customData.isEmpty()) {
       var data = new NanomachineData(stack);
       if (data.uuid != null && !data.uuid.isEmpty()) {
@@ -45,7 +46,7 @@ public class Nanomachines extends DelegateItem {
   }
 
   @Override
-  public int getUseDuration(@NotNull ItemStack stack, @NotNull LivingEntity entity) {
+  public int getUseDuration(@NotNull ItemStack stack) {
     return 32;
   }
 

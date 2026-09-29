@@ -1,20 +1,22 @@
 package li.cil.oc.core.impl.common.recipe;
 
-import com.mojang.serialization.Codec;
-import com.mojang.serialization.DataResult;
-import com.mojang.serialization.MapCodec;
-import com.mojang.serialization.codecs.RecordCodecBuilder;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParseException;
 import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.core.NonNullList;
-import net.minecraft.network.RegistryFriendlyByteBuf;
-import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.core.RegistryAccess;
+import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
+import net.minecraft.util.GsonHelper;
+import net.minecraft.world.inventory.CraftingContainer;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.CraftingBookCategory;
-import net.minecraft.world.item.crafting.CraftingInput;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.RecipeSerializer;
+import net.minecraft.world.item.crafting.ShapedRecipe;
 import net.minecraft.world.item.crafting.ShapelessRecipe;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
@@ -23,8 +25,8 @@ import org.jetbrains.annotations.NotNull;
 public class ExtendedShapelessOreRecipe extends ShapelessRecipe {
   private final List<BlockTagSlot> blockTagSlots;
 
-  public ExtendedShapelessOreRecipe(String group, CraftingBookCategory category, ItemStack result, NonNullList<Ingredient> ingredients) {
-    super(group, category, result, ingredients);
+  public ExtendedShapelessOreRecipe(ResourceLocation id, String group, CraftingBookCategory category, ItemStack result, NonNullList<Ingredient> ingredients) {
+    super(id, group, category, result, ingredients);
     this.blockTagSlots = new ArrayList<>();
     for (int i = 0; i < ingredients.size(); i++) {
       TagKey<Block> tag = BlockTagIngredient.markerTag(ingredients.get(i));
@@ -45,7 +47,7 @@ public class ExtendedShapelessOreRecipe extends ShapelessRecipe {
   }
 
   @Override
-  public boolean matches(@NotNull CraftingInput input, @NotNull Level level) {
+  public boolean matches(@NotNull CraftingContainer input, @NotNull Level level) {
     expandBlockTags();
     return super.matches(input, level);
   }
@@ -62,12 +64,12 @@ public class ExtendedShapelessOreRecipe extends ShapelessRecipe {
   }
 
   @Override
-  public @NotNull ItemStack assemble(@NotNull CraftingInput inventory, net.minecraft.core.HolderLookup.@NotNull Provider provider) {
-    return ExtendedRecipe.addNBTToResult(this, super.assemble(inventory, provider), inventory, provider);
+  public @NotNull ItemStack assemble(@NotNull CraftingContainer inventory, @NotNull RegistryAccess registryAccess) {
+    return ExtendedRecipe.addNBTToResult(this, super.assemble(inventory, registryAccess), inventory, registryAccess);
   }
 
   @Override
-  public @NotNull NonNullList<ItemStack> getRemainingItems(@NotNull CraftingInput inventory) {
+  public @NotNull NonNullList<ItemStack> getRemainingItems(@NotNull CraftingContainer inventory) {
     return ExtendedRecipe.getRecraftRemainingItems(inventory, super.getRemainingItems(inventory));
   }
 
@@ -79,66 +81,34 @@ public class ExtendedShapelessOreRecipe extends ShapelessRecipe {
   public static class Serializer implements RecipeSerializer<ExtendedShapelessOreRecipe> {
     public static final Serializer INSTANCE = new Serializer();
 
-    private static final MapCodec<ExtendedShapelessOreRecipe> CODEC = RecordCodecBuilder.mapCodec(
-      instance -> instance.group(
-          Codec.STRING.optionalFieldOf("group", "").forGetter(ShapelessRecipe::getGroup),
-          CraftingBookCategory.CODEC.fieldOf("category").orElse(CraftingBookCategory.MISC).forGetter(ShapelessRecipe::category),
-          ItemStack.STRICT_CODEC.fieldOf("result").forGetter(r -> r.getResultItem(null)),
-          BlockTagIngredient.CODEC
-            .listOf()
-            .fieldOf("ingredients")
-            .flatXmap(
-              items -> {
-                Ingredient[] aingredient = items.toArray(Ingredient[]::new);
-                if (aingredient.length == 0) {
-                  return DataResult.error(() -> "No ingredients for shapeless recipe");
-                } else {
-                  return aingredient.length > 9
-                    ? DataResult.error(() -> "Too many ingredients for shapeless recipe. The maximum is: %s".formatted(9))
-                    : DataResult.success(NonNullList.of(Ingredient.EMPTY, aingredient));
-                }
-              },
-              DataResult::success
-            )
-            .forGetter(ShapelessRecipe::getIngredients)
-        )
-        .apply(instance, ExtendedShapelessOreRecipe::new)
-    );
-
-    private static final StreamCodec<RegistryFriendlyByteBuf, ExtendedShapelessOreRecipe> STREAM_CODEC = StreamCodec.of(
-      Serializer::toNetwork, Serializer::fromNetwork
-    );
-
     @Override
-    public @NotNull MapCodec<ExtendedShapelessOreRecipe> codec() {
-      return CODEC;
-    }
-
-    @Override
-    public @NotNull StreamCodec<RegistryFriendlyByteBuf, ExtendedShapelessOreRecipe> streamCodec() {
-      return STREAM_CODEC;
-    }
-
-    private static ExtendedShapelessOreRecipe fromNetwork(RegistryFriendlyByteBuf buffer) {
-      String s = buffer.readUtf();
-      CraftingBookCategory craftingbookcategory = buffer.readEnum(CraftingBookCategory.class);
-      int i = buffer.readVarInt();
-      NonNullList<Ingredient> nonnulllist = NonNullList.withSize(i, Ingredient.EMPTY);
-      nonnulllist.replaceAll(p_319735_ -> Ingredient.CONTENTS_STREAM_CODEC.decode(buffer));
-      ItemStack itemstack = ItemStack.STREAM_CODEC.decode(buffer);
-      return new ExtendedShapelessOreRecipe(s, craftingbookcategory, itemstack, nonnulllist);
-    }
-
-    private static void toNetwork(RegistryFriendlyByteBuf buffer, ExtendedShapelessOreRecipe recipe) {
-      buffer.writeUtf(recipe.getGroup());
-      buffer.writeEnum(recipe.category());
-      buffer.writeVarInt(recipe.getIngredients().size());
-
-      for (Ingredient ingredient : recipe.getIngredients()) {
-        Ingredient.CONTENTS_STREAM_CODEC.encode(buffer, ingredient);
+    public @NotNull ExtendedShapelessOreRecipe fromJson(@NotNull ResourceLocation id, @NotNull JsonObject json) {
+      String group = GsonHelper.getAsString(json, "group", "");
+      CraftingBookCategory category = CraftingBookCategory.CODEC.byName(GsonHelper.getAsString(json, "category", null), CraftingBookCategory.MISC);
+      JsonArray items = GsonHelper.getAsJsonArray(json, "ingredients");
+      NonNullList<Ingredient> ingredients = NonNullList.create();
+      for (int i = 0; i < items.size(); i++) {
+        Ingredient ingredient = BlockTagIngredient.fromJson(items.get(i));
+        if (!ingredient.isEmpty()) ingredients.add(ingredient);
       }
+      if (ingredients.isEmpty()) {
+        throw new JsonParseException("No ingredients for shapeless recipe");
+      } else if (ingredients.size() > 9) {
+        throw new JsonParseException("Too many ingredients for shapeless recipe. The maximum is: 9");
+      }
+      ItemStack result = ShapedRecipe.itemStackFromJson(GsonHelper.getAsJsonObject(json, "result"));
+      return new ExtendedShapelessOreRecipe(id, group, category, result, ingredients);
+    }
 
-      ItemStack.STREAM_CODEC.encode(buffer, recipe.getResultItem(null));
+    @Override
+    public ExtendedShapelessOreRecipe fromNetwork(@NotNull ResourceLocation id, @NotNull FriendlyByteBuf buffer) {
+      ShapelessRecipe recipe = RecipeSerializer.SHAPELESS_RECIPE.fromNetwork(id, buffer);
+      return new ExtendedShapelessOreRecipe(id, recipe.getGroup(), recipe.category(), recipe.getResultItem(null), recipe.getIngredients());
+    }
+
+    @Override
+    public void toNetwork(@NotNull FriendlyByteBuf buffer, @NotNull ExtendedShapelessOreRecipe recipe) {
+      RecipeSerializer.SHAPELESS_RECIPE.toNetwork(buffer, recipe);
     }
   }
 }

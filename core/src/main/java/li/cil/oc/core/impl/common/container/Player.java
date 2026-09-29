@@ -77,7 +77,7 @@ public abstract class Player extends AbstractContainerMenu {
 
     if (toStack != null) {
       if (toStackSize < maxStackSize &&
-        ItemStack.isSameItemSameComponents(fromStack, toStack) &&
+        ItemStack.isSameItemSameTags(fromStack, toStack) &&
         itemsMoved > 0) {
         toStack.grow(from.remove(itemsMoved).getCount());
       } else return false;

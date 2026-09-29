@@ -11,7 +11,6 @@ import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
-import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
@@ -133,7 +132,7 @@ public abstract class AbstractBlock extends Block implements EntityBlock {
   }
 
   @Override
-  protected void onRemove(@NotNull BlockState state, @NotNull Level level, @NotNull BlockPos pos, @NotNull BlockState newState, boolean isMoving) {
+  public void onRemove(@NotNull BlockState state, @NotNull Level level, @NotNull BlockPos pos, @NotNull BlockState newState, boolean isMoving) {
     if (!state.is(newState.getBlock())) {
       onDropInventory(state, level, pos);
     }
@@ -141,7 +140,8 @@ public abstract class AbstractBlock extends Block implements EntityBlock {
   }
 
   @Override
-  protected @NotNull ItemInteractionResult useItemOn(@NotNull ItemStack stack, @NotNull BlockState state, Level level, @NotNull BlockPos pos, @NotNull Player player, @NotNull InteractionHand hand, @NotNull BlockHitResult hit) {
+  public @NotNull InteractionResult use(@NotNull BlockState state, @NotNull Level level, @NotNull BlockPos pos, @NotNull Player player, @NotNull InteractionHand hand, @NotNull BlockHitResult hit) {
+    ItemStack stack = player.getItemInHand(hand);
     BlockEntity te = level.getBlockEntity(pos);
     if (te instanceof Colored colored && Color.isDye(stack)) {
       if (!level.isClientSide) {
@@ -151,25 +151,13 @@ public abstract class AbstractBlock extends Block implements EntityBlock {
         }
         level.sendBlockUpdated(pos, state, state, 3);
       }
-      return ItemInteractionResult.SUCCESS;
+      return InteractionResult.SUCCESS;
     }
     Direction side = hit.getDirection();
     float hitX = (float) (hit.getLocation().x - pos.getX());
     float hitY = (float) (hit.getLocation().y - pos.getY());
     float hitZ = (float) (hit.getLocation().z - pos.getZ());
     if (onBlockActivated(level, pos, player, side, hitX, hitY, hitZ, hand)) {
-      return ItemInteractionResult.SUCCESS;
-    }
-    return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
-  }
-
-  @Override
-  protected @NotNull InteractionResult useWithoutItem(@NotNull BlockState state, @NotNull Level level, @NotNull BlockPos pos, @NotNull Player player, @NotNull BlockHitResult hit) {
-    Direction side = hit.getDirection();
-    float hitX = (float) (hit.getLocation().x - pos.getX());
-    float hitY = (float) (hit.getLocation().y - pos.getY());
-    float hitZ = (float) (hit.getLocation().z - pos.getZ());
-    if (onBlockActivated(level, pos, player, side, hitX, hitY, hitZ, InteractionHand.MAIN_HAND)) {
       return InteractionResult.SUCCESS;
     }
     return InteractionResult.PASS;

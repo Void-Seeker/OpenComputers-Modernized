@@ -11,7 +11,7 @@ public final class CommandUtils {
   public static int getOpLevel(CommandSourceStack source) {
     MinecraftServer srv = source.getServer();
     var profile = srv.getSingleplayerProfile();
-    if (srv.isSingleplayer() && srv.getWorldData().isAllowCommands() &&
+    if (srv.isSingleplayer() && srv.getWorldData().getAllowCommands() &&
       profile != null && profile.getName() != null &&
       profile.getName().equalsIgnoreCase(source.getTextName())) {
       return 4;

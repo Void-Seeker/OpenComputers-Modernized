@@ -1,5 +1,7 @@
 package li.cil.oc.core.impl.integration.opencomputers;
 
+import li.cil.oc.compat.MathCompat;
+
 import li.cil.oc.core.Constants;
 import li.cil.oc.core.common.Slot;
 import li.cil.oc.core.common.Tier;
@@ -13,7 +15,7 @@ public final class DriverMemory extends Item implements li.cil.oc.api.driver.ite
   public double amount(ItemStack stack) {
     var subItem = stack.getItem();
     if (subItem instanceof li.cil.oc.core.impl.common.item.Memory memory) {
-      return OCSettings.get().ramSizes[Math.clamp(memory.tier(), 0, OCSettings.get().ramSizes.length - 1)];
+      return OCSettings.get().ramSizes[MathCompat.clamp(memory.tier(), 0, OCSettings.get().ramSizes.length - 1)];
     }
     return 0.0;
   }
@@ -50,6 +52,6 @@ public final class DriverMemory extends Item implements li.cil.oc.api.driver.ite
 
   @Override
   public double getCallBudget(ItemStack stack) {
-    return OCSettings.get().callBudgets[Math.clamp(tier(stack), Tier.One, Tier.Three)];
+    return OCSettings.get().callBudgets[MathCompat.clamp(tier(stack), Tier.One, Tier.Three)];
   }
 }

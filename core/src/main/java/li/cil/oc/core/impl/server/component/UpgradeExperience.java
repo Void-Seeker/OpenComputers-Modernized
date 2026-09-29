@@ -13,12 +13,10 @@ import li.cil.oc.core.Constants;
 import li.cil.oc.core.impl.OCSettings;
 import li.cil.oc.core.util.ResultWrapper;
 import net.minecraft.core.HolderLookup;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.entity.ExperienceOrb;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.item.enchantment.ItemEnchantments;
 
 public class UpgradeExperience extends AbstractManagedEnvironment implements DeviceInfo {
   public static final int MaxLevel = 30;
@@ -107,11 +105,9 @@ public class UpgradeExperience extends AbstractManagedEnvironment implements Dev
     if (stack.getItem() == Items.EXPERIENCE_BOTTLE) {
       xp += 3 + host.level().random.nextInt(5) + host.level().random.nextInt(5);
     } else {
-      for (var entry : stack.getOrDefault(DataComponents.ENCHANTMENTS, ItemEnchantments.EMPTY).entrySet()) {
-        xp += entry.getKey().value().getMinCost(entry.getIntValue());
-      }
-      for (var entry : stack.getOrDefault(DataComponents.STORED_ENCHANTMENTS, ItemEnchantments.EMPTY).entrySet()) {
-        xp += entry.getKey().value().getMinCost(entry.getIntValue());
+      // 1.20.1: covers both regular and stored (enchanted book) enchantments.
+      for (var entry : net.minecraft.world.item.enchantment.EnchantmentHelper.getEnchantments(stack).entrySet()) {
+        xp += entry.getKey().getMinCost(entry.getValue());
       }
       if (xp <= 0) {
         return ResultWrapper.result(null, "could not extract experience from item");

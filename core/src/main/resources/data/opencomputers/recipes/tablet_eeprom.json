@@ -1,0 +1,15 @@
+{
+  "type": "opencomputers:shapeless",
+  "ingredients": [
+    {
+      "item": "opencomputers:tablet"
+    },
+    {
+      "item": "opencomputers:eeprom"
+    }
+  ],
+  "result": {
+    "item": "opencomputers:tablet"
+  },
+  "category": "misc"
+}

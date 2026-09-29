@@ -36,7 +36,7 @@ public final class DriverTerminalServer extends Item implements HostAware {
       if (rack.getItem(i) == stack) return i;
     }
     for (int i = 0; i < rack.getContainerSize(); i++) {
-      if (ItemStack.isSameItemSameComponents(rack.getItem(i), stack)) return i;
+      if (ItemStack.isSameItemSameTags(rack.getItem(i), stack)) return i;
     }
     return -1;
   }

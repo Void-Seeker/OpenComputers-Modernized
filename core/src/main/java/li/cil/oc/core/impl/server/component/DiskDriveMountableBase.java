@@ -1,5 +1,7 @@
 package li.cil.oc.core.impl.server.component;
 
+import li.cil.oc.compat.MathCompat;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.EnumSet;
@@ -82,7 +84,7 @@ public abstract class DiskDriveMountableBase extends AbstractManagedEnvironment 
 
   @Callback(doc = "function([velocity:number]):boolean -- Eject the currently present medium from the drive.")
   public Object[] eject(Context context, Arguments args) {
-    double velocity = Math.clamp(args.optDouble(0, 0), 0, 1);
+    double velocity = MathCompat.clamp(args.optDouble(0, 0), 0, 1);
     ItemStack ejected = removeItem(0, 1);
     if (!ejected.isEmpty()) {
       var pos = BlockPosition.apply(rack);
@@ -218,7 +220,7 @@ public abstract class DiskDriveMountableBase extends AbstractManagedEnvironment 
     var provider = rack.level().registryAccess();
     var stack = getItem(0);
     if (!stack.isEmpty()) {
-      nbt.put("disk", stack.save(provider, new CompoundTag()));
+      nbt.put("disk", stack.save(new CompoundTag()));
     }
     return nbt;
   }

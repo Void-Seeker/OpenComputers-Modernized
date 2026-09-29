@@ -197,86 +197,58 @@ public final class Registry implements li.cil.oc.api.detail.DriverAPI {
     if (!force && memo.containsKey(valueRef)) {
       return memo.get(valueRef);
     }
-    switch (valueRef) {
-      case null -> {
-        return null;
-      }
-      case Boolean ignored -> {
-        return valueRef;
-      }
-      case Byte ignored -> {
-        return valueRef;
-      }
-      case Character ignored -> {
-        return valueRef;
-      }
-      case Short ignored -> {
-        return valueRef;
-      }
-      case Integer ignored -> {
-        return valueRef;
-      }
-      case Long ignored -> {
-        return valueRef;
-      }
-      case Float ignored -> {
-        return valueRef;
-      }
-      case Double ignored -> {
-        return valueRef;
-      }
-      case Number number -> {
-        return number.doubleValue();
-      }
-      case String ignored -> {
-        return valueRef;
-      }
-      case boolean[] ignored -> {
-        return valueRef;
-      }
-      case byte[] ignored -> {
-        return valueRef;
-      }
-      case char[] ignored -> {
-        return valueRef;
-      }
-      case short[] ignored -> {
-        return valueRef;
-      }
-      case int[] ignored -> {
-        return valueRef;
-      }
-      case long[] ignored -> {
-        return valueRef;
-      }
-      case float[] ignored -> {
-        return valueRef;
-      }
-      case double[] ignored -> {
-        return valueRef;
-      }
-      case String[] ignored -> {
-        return valueRef;
-      }
-      case Value ignored -> {
-        return valueRef;
-      }
-      case ScalaClosure.LuaCallable ignored -> {
-        return valueRef;
-      }
-      case Object[] objects -> {
-        return convertList(valueRef, Arrays.asList(objects).iterator(), memo);
-      }
-      case Map<?, ?> map -> {
-        return convertMap(valueRef, map, memo);
-      }
-      case Iterable<?> iterable -> {
-        List<Object> list = new ArrayList<>();
-        for (Object o : iterable) list.add(o);
-        return convertList(valueRef, list.iterator(), memo);
-      }
-      default -> {
-      }
+    if (valueRef == null) {
+      return null;
+    } else if (valueRef instanceof Boolean) {
+      return valueRef;
+    } else if (valueRef instanceof Byte) {
+      return valueRef;
+    } else if (valueRef instanceof Character) {
+      return valueRef;
+    } else if (valueRef instanceof Short) {
+      return valueRef;
+    } else if (valueRef instanceof Integer) {
+      return valueRef;
+    } else if (valueRef instanceof Long) {
+      return valueRef;
+    } else if (valueRef instanceof Float) {
+      return valueRef;
+    } else if (valueRef instanceof Double) {
+      return valueRef;
+    } else if (valueRef instanceof Number number) {
+      return number.doubleValue();
+    } else if (valueRef instanceof String) {
+      return valueRef;
+    } else if (valueRef instanceof boolean[]) {
+      return valueRef;
+    } else if (valueRef instanceof byte[]) {
+      return valueRef;
+    } else if (valueRef instanceof char[]) {
+      return valueRef;
+    } else if (valueRef instanceof short[]) {
+      return valueRef;
+    } else if (valueRef instanceof int[]) {
+      return valueRef;
+    } else if (valueRef instanceof long[]) {
+      return valueRef;
+    } else if (valueRef instanceof float[]) {
+      return valueRef;
+    } else if (valueRef instanceof double[]) {
+      return valueRef;
+    } else if (valueRef instanceof String[]) {
+      return valueRef;
+    } else if (valueRef instanceof Value) {
+      return valueRef;
+    } else if (valueRef instanceof ScalaClosure.LuaCallable) {
+      return valueRef;
+    } else if (valueRef instanceof Object[] objects) {
+      return convertList(valueRef, Arrays.asList(objects).iterator(), memo);
+    } else if (valueRef instanceof Map<?, ?> map) {
+      return convertMap(valueRef, map, memo);
+    } else if (valueRef instanceof Iterable<?> iterable) {
+      List<Object> list = new ArrayList<>();
+      for (Object o : iterable) list.add(o);
+      return convertList(valueRef, list.iterator(), memo);
     }
     java.util.HashMap<Object, Object> converted = new java.util.HashMap<>();
     memo.put(valueRef, converted);

@@ -1,5 +1,9 @@
 package li.cil.oc.core.impl.server.fs;
 
+import li.cil.oc.compat.CustomData;
+
+import li.cil.oc.compat.MathCompat;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -50,13 +54,13 @@ public final class FileSystem implements li.cil.oc.api.detail.FileSystemAPI {
   public static void removeAddress(ItemStack fsStack) {
     var item = fsStack.getItem();
     if (item instanceof FileSystemLike) {
-      var customData = fsStack.get(net.minecraft.core.component.DataComponents.CUSTOM_DATA);
+      var customData = CustomData.get(fsStack);
       CompoundTag data;
       if (customData != null && !customData.isEmpty()) {
         data = customData.copyTag();
       } else {
         data = new CompoundTag();
-        fsStack.set(net.minecraft.core.component.DataComponents.CUSTOM_DATA, net.minecraft.world.item.component.CustomData.of(data));
+        CustomData.set(fsStack, li.cil.oc.compat.CustomData.of(data));
       }
       if (!data.contains(OCSettings.namespace + "data")) {
         data.put(OCSettings.namespace + "data", new CompoundTag());
@@ -89,7 +93,7 @@ public final class FileSystem implements li.cil.oc.api.detail.FileSystemAPI {
   public li.cil.oc.api.network.ManagedEnvironment asManagedEnvironment(li.cil.oc.api.fs.FileSystem fileSystem, Label label,
                                                                        EnvironmentHost host, String accessSound, int speed) {
     if (fileSystem == null) return null;
-    int clampedSpeed = Math.clamp(speed - 1, 0, 5);
+    int clampedSpeed = MathCompat.clamp(speed - 1, 0, 5);
     if (environmentFactory != null)
       return environmentFactory.create(fileSystem, label, host, accessSound, clampedSpeed);
     return null;

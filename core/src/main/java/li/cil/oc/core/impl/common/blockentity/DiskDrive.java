@@ -1,5 +1,7 @@
 package li.cil.oc.core.impl.common.blockentity;
 
+import li.cil.oc.compat.MathCompat;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Map;
@@ -209,7 +211,7 @@ public class DiskDrive extends BlockEntity implements Environment, EnvironmentHo
 
   @Callback(doc = "function([velocity:number]):boolean -- Eject the currently present medium from the drive.")
   public Object[] eject(Context context, Arguments args) {
-    double velocity = Math.clamp(args.optDouble(0, 0), 0, 1);
+    double velocity = MathCompat.clamp(args.optDouble(0, 0), 0, 1);
     ItemStack stack = getItem(0);
     if (!stack.isEmpty()) {
       var ejected = stack.split(1);
@@ -295,7 +297,7 @@ public class DiskDrive extends BlockEntity implements Environment, EnvironmentHo
     super.readFromNBTForClient(nbt);
     if (nbt.contains(DiskTag)) {
       if (getLevel() != null) {
-        setItem(0, ItemStack.parseOptional(getLevel().registryAccess(), nbt.getCompound(DiskTag)));
+        setItem(0, ItemStack.of(nbt.getCompound(DiskTag)));
       }
     }
   }
@@ -306,7 +308,7 @@ public class DiskDrive extends BlockEntity implements Environment, EnvironmentHo
     if (!getItem(0).isEmpty()) {
       var tag = new CompoundTag();
       if (getLevel() != null) {
-        getItem(0).save(getLevel().registryAccess(), tag);
+        getItem(0).save(tag);
         nbt.put(DiskTag, tag);
       }
     }

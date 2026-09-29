@@ -1,0 +1,26 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "ABA",
+    "CDC",
+    "ACA"
+  ],
+  "key": {
+    "A": {
+      "tag": "forge:nuggets/gold"
+    },
+    "B": {
+      "item": "minecraft:redstone"
+    },
+    "C": {
+      "item": "opencomputers:transistor"
+    },
+    "D": {
+      "item": "minecraft:clock"
+    }
+  },
+  "result": {
+    "count": 1,
+    "item": "opencomputers:cu"
+  }
+}

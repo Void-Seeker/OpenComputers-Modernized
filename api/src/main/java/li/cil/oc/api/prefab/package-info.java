@@ -7,6 +7,5 @@
  * while leaving them in the same package with the same name and then ship them
  * with your mod!
  */
-@SuppressWarnings("unused")
 package li.cil.oc.api.prefab;
 

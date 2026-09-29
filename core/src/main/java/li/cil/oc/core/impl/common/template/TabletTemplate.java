@@ -56,7 +56,7 @@ public final class TabletTemplate {
     }
     var data = new TabletData();
     data.tier = li.cil.oc.core.impl.util.ItemUtils.caseTier(inventory.getItem(0));
-    data.container = items.isEmpty() ? null : items.getFirst();
+    data.container = items.isEmpty() ? null : items.get(0);
     java.util.List<ItemStack> itemList = new java.util.ArrayList<>();
     itemList.add(li.cil.oc.api.Items.get(Constants.BlockName.ScreenTier1).createItemStack(1));
     for (int i = (data.tier == Tier.One ? 0 : 1); i < items.size(); i++) {

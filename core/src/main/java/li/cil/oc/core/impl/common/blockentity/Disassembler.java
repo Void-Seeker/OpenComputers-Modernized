@@ -1,5 +1,7 @@
 package li.cil.oc.core.impl.common.blockentity;
 
+import li.cil.oc.compat.MathCompat;
+
 import java.util.ArrayList;
 import java.util.Map;
 import li.cil.oc.api.Network;
@@ -20,13 +22,12 @@ import li.cil.oc.core.impl.util.InventoryUtils;
 import li.cil.oc.core.impl.util.ItemUtils;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.component.CustomData;
+import li.cil.oc.compat.CustomData;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import org.jetbrains.annotations.NotNull;
@@ -99,7 +100,7 @@ public class Disassembler extends BlockEntity implements li.cil.oc.api.network.E
   @Override
   public double globalDemand(Direction side) {
     if (node instanceof li.cil.oc.api.network.Connector c) {
-      return Math.clamp(c.globalBufferSize() - c.globalBuffer(), 0, energyThroughput());
+      return MathCompat.clamp(c.globalBufferSize() - c.globalBuffer(), 0, energyThroughput());
     }
     return 0;
   }
@@ -113,7 +114,7 @@ public class Disassembler extends BlockEntity implements li.cil.oc.api.network.E
   public double tryChangeBuffer(Direction side, double amount, boolean doReceive) {
     if (isClient() || OCSettings.get().ignorePower) return 0;
     if (hasConnector(side) && node instanceof li.cil.oc.api.network.Connector c) {
-      double cappedAmount = Math.clamp(amount, 0, Math.min(energyThroughput(), globalDemand(side)));
+      double cappedAmount = MathCompat.clamp(amount, 0, Math.min(energyThroughput(), globalDemand(side)));
       if (doReceive) return cappedAmount - c.changeBuffer(cappedAmount);
       return cappedAmount;
     }
@@ -207,7 +208,7 @@ public class Disassembler extends BlockEntity implements li.cil.oc.api.network.E
         }
         while (buffer >= OCSettings.get().disassemblerItemCost && !queue.isEmpty()) {
           buffer -= OCSettings.get().disassemblerItemCost;
-          var stack = queue.removeFirst();
+          var stack = queue.remove(0);
           if (disassembleNextInstantly || level.random.nextDouble() >= OCSettings.get().disassemblerBreakChance) {
             drop(stack);
           }
@@ -296,7 +297,7 @@ public class Disassembler extends BlockEntity implements li.cil.oc.api.network.E
     queue.clear();
     var tagList = nbt.getList(OCSettings.namespace + "queue", Tag.TAG_COMPOUND);
     for (int i = 0; i < tagList.size(); i++) {
-      queue.add(ItemStack.parseOptional(getEffectiveProvider(), tagList.getCompound(i)));
+      queue.add(ItemStack.of(tagList.getCompound(i)));
     }
     buffer = nbt.getDouble(OCSettings.namespace + "buffer");
     totalRequiredEnergy = nbt.getDouble(OCSettings.namespace + "total");
@@ -307,7 +308,7 @@ public class Disassembler extends BlockEntity implements li.cil.oc.api.network.E
   public void writeToNBTForServer(CompoundTag nbt) {
     super.writeToNBTForServer(nbt);
     var tagList = new ListTag();
-    for (var stack : queue) tagList.add(stack.save(getEffectiveProvider(), new CompoundTag()));
+    for (var stack : queue) tagList.add(stack.save(new CompoundTag()));
     nbt.put(OCSettings.namespace + "queue", tagList);
     nbt.putDouble(OCSettings.namespace + "buffer", buffer);
     nbt.putDouble(OCSettings.namespace + "total", totalRequiredEnergy);
@@ -349,7 +350,7 @@ public class Disassembler extends BlockEntity implements li.cil.oc.api.network.E
 
   private boolean allowDisassembling(ItemStack stack) {
     if (stack == null) return false;
-    CustomData _cd = stack.get(DataComponents.CUSTOM_DATA);
+    CustomData _cd = CustomData.get(stack);
     return _cd == null || _cd.isEmpty() || !_cd.copyTag().getBoolean(OCSettings.namespace + "undisassemblable");
   }
 

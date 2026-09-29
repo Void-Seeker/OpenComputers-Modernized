@@ -1,5 +1,7 @@
 package li.cil.oc.core.impl.common.inventory;
 
+import li.cil.oc.compat.CustomData;
+
 import java.util.ArrayList;
 import java.util.List;
 import li.cil.oc.api.driver.DriverItem;
@@ -174,7 +176,7 @@ public interface ComponentInventory extends Inventory, Environment {
         var removals = pendingRemovals();
         if (removals != null && slot < removals.length &&
           removals[slot] != null && !removals[slot].isEmpty() &&
-          ItemStack.isSameItemSameComponents(stack, removals[slot])) {
+          ItemStack.isSameItemSameTags(stack, removals[slot])) {
           removals[slot] = ItemStack.EMPTY;
         } else {
           adds[slot] = stack.copy();
@@ -194,7 +196,7 @@ public interface ComponentInventory extends Inventory, Environment {
       if (adds != null && slot >= 0 && slot < adds.length) {
         var addsStack = adds[slot];
         if (addsStack != null && !addsStack.isEmpty() &&
-          ItemStack.isSameItemSameComponents(stack, addsStack)) {
+          ItemStack.isSameItemSameTags(stack, addsStack)) {
           adds[slot] = ItemStack.EMPTY;
         } else {
           var removals = pendingRemovals();
@@ -275,7 +277,7 @@ public interface ComponentInventory extends Inventory, Environment {
       var removed = removals[slot];
       var added = adds[slot];
       if (removed != null && !removed.isEmpty() && added != null && !added.isEmpty()) {
-        if (!ItemStack.isSameItemSameComponents(removed, added)) {
+        if (!ItemStack.isSameItemSameTags(removed, added)) {
           processItemRemoved(slot, removed);
           processItemAdded(slot, added);
           setChanged();
@@ -322,7 +324,7 @@ public interface ComponentInventory extends Inventory, Environment {
 
   default void save(ManagedEnvironment component, DriverItem driver, ItemStack stack, HolderLookup.Provider provider) {
     try {
-      var customData = stack.get(net.minecraft.core.component.DataComponents.CUSTOM_DATA);
+      var customData = CustomData.get(stack);
       CompoundTag nbt;
       if (customData != null && !customData.isEmpty()) {
         nbt = customData.copyTag();
@@ -336,7 +338,7 @@ public interface ComponentInventory extends Inventory, Environment {
       }
       component.save(data, provider);
       nbt.put(OCSettings.namespace + "data", data);
-      stack.set(net.minecraft.core.component.DataComponents.CUSTOM_DATA, net.minecraft.world.item.component.CustomData.of(nbt));
+      CustomData.set(stack, li.cil.oc.compat.CustomData.of(nbt));
     } catch (Throwable e) {
       LOGGER.warn("An item component of type '{}' (provided by driver '{}') threw an error while saving.", component.getClass().getName(), driver.getClass().getName(), e);
     }

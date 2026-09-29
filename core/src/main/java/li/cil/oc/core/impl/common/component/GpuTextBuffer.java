@@ -277,7 +277,8 @@ public class GpuTextBuffer implements TextBufferProxy {
                               String owner, int srcId, int fromCol, int fromRow) {
       if (dst instanceof VideoRamRasterizer videoDevice) {
         var buffer = videoDevice.getBuffer(owner, srcId);
-        if (buffer instanceof GpuTextBuffer gpuBuffer) {
+        if (buffer != null) {
+          final GpuTextBuffer gpuBuffer = buffer;
           GpuTextBuffer.bitblt(dst, col, row, w, h, gpuBuffer, fromCol, fromRow);
         }
       }

@@ -1,0 +1,29 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "ABA",
+    "CDC",
+    "AEA"
+  ],
+  "key": {
+    "A": {
+      "tag": "forge:ingots/iron"
+    },
+    "B": {
+      "item": "opencomputers:inventorycontrollerupgrade"
+    },
+    "C": {
+      "item": "minecraft:hopper"
+    },
+    "D": {
+      "item": "minecraft:bucket"
+    },
+    "E": {
+      "item": "opencomputers:tankcontrollerupgrade"
+    }
+  },
+  "result": {
+    "count": 4,
+    "item": "opencomputers:transposer"
+  }
+}

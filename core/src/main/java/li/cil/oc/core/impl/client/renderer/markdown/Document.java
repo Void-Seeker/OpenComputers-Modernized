@@ -47,7 +47,7 @@ public final class Document {
     for (int i = 0; i < segments.size() - 1; i++) {
       segments.get(i).next = segments.get(i + 1);
     }
-    return segments.isEmpty() ? null : segments.getFirst();
+    return segments.isEmpty() ? null : segments.get(0);
   }
 
   public static int height(Segment document, int maxWidth, Font renderer) {

@@ -317,9 +317,7 @@ public abstract class Robot extends RobotBase implements Computer, PowerInformat
     if (isServer()) {
       if (isToolSlot(slot)) {
         if (player() != null) {
-          var modifiers = com.google.common.collect.ArrayListMultimap.<net.minecraft.core.Holder<net.minecraft.world.entity.ai.attributes.Attribute>, net.minecraft.world.entity.ai.attributes.AttributeModifier>create();
-          stack.forEachModifier(net.minecraft.world.entity.EquipmentSlotGroup.MAINHAND, modifiers::put);
-          player().getAttributes().addTransientAttributeModifiers(modifiers);
+          player().getAttributes().addTransientAttributeModifiers(stack.getAttributeModifiers(net.minecraft.world.entity.EquipmentSlot.MAINHAND));
         }
         PacketSender.sendRobotInventory(this, slot, stack);
       }
@@ -352,9 +350,7 @@ public abstract class Robot extends RobotBase implements Computer, PowerInformat
     if (isServer()) {
       if (isToolSlot(slot)) {
         if (player() != null) {
-          var modifiers = com.google.common.collect.ArrayListMultimap.<net.minecraft.core.Holder<net.minecraft.world.entity.ai.attributes.Attribute>, net.minecraft.world.entity.ai.attributes.AttributeModifier>create();
-          stack.forEachModifier(net.minecraft.world.entity.EquipmentSlotGroup.MAINHAND, modifiers::put);
-          player().getAttributes().removeAttributeModifiers(modifiers);
+          player().getAttributes().removeAttributeModifiers(stack.getAttributeModifiers(net.minecraft.world.entity.EquipmentSlot.MAINHAND));
         }
         PacketSender.sendRobotInventory(this, slot, ItemStack.EMPTY);
       }

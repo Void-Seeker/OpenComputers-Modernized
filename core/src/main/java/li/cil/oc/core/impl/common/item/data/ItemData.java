@@ -1,18 +1,12 @@
 package li.cil.oc.core.impl.common.item.data;
 
-import java.util.Optional;
-import java.util.stream.Stream;
 import li.cil.oc.api.Items;
 import li.cil.oc.api.Persistable;
 import li.cil.oc.core.impl.util.SideTracker;
 import net.minecraft.core.HolderLookup;
-import net.minecraft.core.HolderLookup.RegistryLookup;
-import net.minecraft.core.Registry;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.component.CustomData;
+import li.cil.oc.compat.CustomData;
 import org.jetbrains.annotations.NotNull;
 
 public abstract class ItemData implements Persistable {
@@ -23,7 +17,7 @@ public abstract class ItemData implements Persistable {
   }
 
   public void load(ItemStack stack, HolderLookup.Provider provider) {
-    var tag = stack.get(DataComponents.CUSTOM_DATA);
+    var tag = CustomData.get(stack);
     if (tag != null && !tag.isEmpty()) {
       load(tag.copyTag(), provider);
     }
@@ -31,39 +25,19 @@ public abstract class ItemData implements Persistable {
 
   public void load(ItemStack stack) {
     var server = SideTracker.getCurrentServer();
-    load(stack, server != null ? server.registryAccess() : new HolderLookup.Provider() {
-      @Override
-      public <T> @NotNull Optional<RegistryLookup<T>> lookup(@NotNull ResourceKey<? extends Registry<? extends T>> registry) {
-        return Optional.empty();
-      }
-
-      @Override
-      public @NotNull Stream<ResourceKey<? extends Registry<?>>> listRegistries() {
-        return Stream.of();
-      }
-    });
+    load(stack, server != null ? server.registryAccess() : li.cil.oc.compat.RegistryLookup.get());
   }
 
   public void save(ItemStack stack, HolderLookup.Provider provider) {
-    var tag = stack.get(DataComponents.CUSTOM_DATA);
+    var tag = CustomData.get(stack);
     var nbt = tag != null && !tag.isEmpty() ? tag.copyTag() : new CompoundTag();
     save(nbt, provider);
-    stack.set(DataComponents.CUSTOM_DATA, CustomData.of(nbt));
+    CustomData.set(stack, CustomData.of(nbt));
   }
 
   public void save(ItemStack stack) {
     var server = SideTracker.getCurrentServer();
-    save(stack, server != null ? server.registryAccess() : new HolderLookup.Provider() {
-      @Override
-      public @NotNull <T> Optional<RegistryLookup<T>> lookup(@NotNull ResourceKey<? extends Registry<? extends T>> registry) {
-        return Optional.empty();
-      }
-
-      @Override
-      public @NotNull Stream<ResourceKey<? extends Registry<?>>> listRegistries() {
-        return Stream.of();
-      }
-    });
+    save(stack, server != null ? server.registryAccess() : li.cil.oc.compat.RegistryLookup.get());
   }
 
   public ItemStack createItemStack() {

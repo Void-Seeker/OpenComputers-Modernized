@@ -1,5 +1,7 @@
 package li.cil.oc.core.impl.common.blockentity;
 
+import li.cil.oc.compat.MathCompat;
+
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
@@ -473,7 +475,7 @@ public class Case extends BlockEntity implements PowerAcceptor, Computer, Colore
   public double tryChangeBuffer(Direction side, double amount, boolean doReceive) {
     if (isClient() || OCSettings.get().ignorePower) return 0;
     if (hasConnector(side) && node() instanceof Connector c) {
-      double cappedAmount = Math.clamp(amount, 0, Math.min(energyThroughput(), globalDemand(side)));
+      double cappedAmount = MathCompat.clamp(amount, 0, Math.min(energyThroughput(), globalDemand(side)));
       if (doReceive) return cappedAmount - c.changeBuffer(cappedAmount);
       return cappedAmount;
     }
@@ -499,7 +501,7 @@ public class Case extends BlockEntity implements PowerAcceptor, Computer, Colore
   @Override
   public double globalDemand(Direction side) {
     if (node() instanceof Connector c) {
-      return Math.clamp(c.globalBufferSize() - c.globalBuffer(), 0, energyThroughput());
+      return MathCompat.clamp(c.globalBufferSize() - c.globalBuffer(), 0, energyThroughput());
     }
     return 0;
   }
@@ -752,7 +754,7 @@ public class Case extends BlockEntity implements PowerAcceptor, Computer, Colore
 
   @Override
   public void readFromNBTForServer(CompoundTag nbt) {
-    tier = Math.clamp(nbt.getByte(OCSettings.namespace + "tier"), 0, 3);
+    tier = MathCompat.clamp(nbt.getByte(OCSettings.namespace + "tier"), 0, 3);
     _color = Color.byTier[tier];
     if (nbt.contains(OCSettings.namespace + "renderColor")) {
       _color = nbt.getInt(OCSettings.namespace + "renderColor");
@@ -822,11 +824,6 @@ public class Case extends BlockEntity implements PowerAcceptor, Computer, Colore
       }
     }
     save(nbt, provider);
-  }
-
-  @Override
-  public @NotNull CompoundTag getUpdateTag(HolderLookup.@NotNull Provider provider) {
-    return super.getUpdateTag(provider);
   }
 
   @Override

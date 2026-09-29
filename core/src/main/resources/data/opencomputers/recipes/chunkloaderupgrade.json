@@ -1,0 +1,32 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "ABA",
+    "CDC",
+    "EFE"
+  ],
+  "key": {
+    "A": {
+      "tag": "forge:ingots/gold"
+    },
+    "B": {
+      "tag": "forge:glass"
+    },
+    "C": {
+      "item": "opencomputers:chip3"
+    },
+    "D": {
+      "item": "minecraft:ender_eye"
+    },
+    "E": {
+      "item": "minecraft:obsidian"
+    },
+    "F": {
+      "item": "opencomputers:printedcircuitboard"
+    }
+  },
+  "result": {
+    "count": 1,
+    "item": "opencomputers:chunkloaderupgrade"
+  }
+}

@@ -21,7 +21,7 @@ public final class Sound {
     if (hostTimeouts != null && hostTimeouts.getOrDefault(name, 0L) > now) {
       return;
     }
-    var location = ResourceLocation.parse(OCSettings.resourceDomain + ":" + name);
+    var location = new ResourceLocation(OCSettings.resourceDomain + ":" + name);
     var soundEvent = SoundEvent.createVariableRangeEvent(location);
     host.level().playSound(null, host.xPosition(), host.yPosition(), host.zPosition(), soundEvent, SoundSource.BLOCKS, OCSettings.get().soundVolume, 1.0f);
     globalTimeouts.computeIfAbsent(host, k -> new java.util.HashMap<>()).put(name, now + COOLDOWN);

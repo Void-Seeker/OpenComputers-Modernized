@@ -1,5 +1,7 @@
 package li.cil.oc.core.impl.util;
 
+import li.cil.oc.compat.MathCompat;
+
 import java.util.Arrays;
 import li.cil.oc.core.impl.OCSettings;
 import li.cil.oc.core.util.ExtendedUnicodeHelper;
@@ -167,15 +169,15 @@ public class TextBuffer {
     if (w <= 0 || h <= 0) return false;
     if (tx == 0 && ty == 0) return false;
 
-    int _dx0 = Math.clamp(col + tx + w - 1, 0, width - 1);
-    int _dx1 = Math.clamp(col + tx, 0, width);
+    int _dx0 = MathCompat.clamp(col + tx + w - 1, 0, width - 1);
+    int _dx1 = MathCompat.clamp(col + tx, 0, width);
     int dx0 = tx > 0 ? _dx0 : _dx1;
     int dx1 = tx > 0 ? _dx1 : _dx0;
     int leftEdge = Math.min(dx0, dx1) - 1;
     if (leftEdge >= width - 1) return false;
 
-    int _dy0 = Math.clamp(row + ty + h - 1, 0, height - 1);
-    int _dy1 = Math.clamp(row + ty, 0, height);
+    int _dy0 = MathCompat.clamp(row + ty + h - 1, 0, height - 1);
+    int _dy1 = MathCompat.clamp(row + ty, 0, height);
     int dy0 = ty > 0 ? _dy0 : _dy1;
     int dy1 = ty > 0 ? _dy1 : _dy0;
 

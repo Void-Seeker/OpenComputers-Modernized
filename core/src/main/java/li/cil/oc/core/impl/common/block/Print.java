@@ -130,7 +130,7 @@ public class Print extends RedstoneAware implements CustomDrops<li.cil.oc.core.i
   }
 
   @Override
-  public @NotNull ItemStack getCloneItemStack(LevelReader level, @NotNull BlockPos pos, @NotNull BlockState state) {
+  public @NotNull ItemStack getCloneItemStack(net.minecraft.world.level.BlockGetter level, @NotNull BlockPos pos, @NotNull BlockState state) {
     if (level.getBlockEntity(pos) instanceof li.cil.oc.core.impl.common.blockentity.Print print) {
       return print.data.createItemStack();
     }
@@ -160,7 +160,7 @@ public class Print extends RedstoneAware implements CustomDrops<li.cil.oc.core.i
   }
 
   @Override
-  protected void tick(@NotNull BlockState state, ServerLevel level, @NotNull BlockPos pos, @NotNull RandomSource random) {
+  public void tick(@NotNull BlockState state, ServerLevel level, @NotNull BlockPos pos, @NotNull RandomSource random) {
     if (level.getBlockEntity(pos) instanceof li.cil.oc.core.impl.common.blockentity.Print print) {
       print.syncFromBlockState(state);
       print.updateBounds();

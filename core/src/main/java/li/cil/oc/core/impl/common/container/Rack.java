@@ -70,7 +70,8 @@ public class Rack extends Player {
     var presenceBytes = new byte[rack.getContainerSize() * MaxConnections];
     for (int slot = 0; slot < rack.getContainerSize(); slot++) {
       var mountable = rack.getMountable(slot);
-      if (mountable instanceof RackMountable rm) {
+      if (mountable != null) {
+        final RackMountable rm = mountable;
         presenceBytes[slot * MaxConnections] = 1;
         int count = Math.min(MaxConnections - 1, rm.getConnectableCount());
         for (int ci = 0; ci < count; ci++) {

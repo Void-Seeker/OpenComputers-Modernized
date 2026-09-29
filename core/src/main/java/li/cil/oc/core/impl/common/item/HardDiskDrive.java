@@ -1,11 +1,12 @@
 package li.cil.oc.core.impl.common.item;
 
+import li.cil.oc.compat.CustomData;
+
 import java.util.List;
 import li.cil.oc.core.common.item.traits.FileSystemLike;
 import li.cil.oc.core.common.item.traits.ItemTier;
 import li.cil.oc.core.impl.OCSettings;
 import li.cil.oc.core.impl.common.item.data.DriveData;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.InteractionHand;
@@ -67,8 +68,8 @@ public class HardDiskDrive extends DelegateItem implements ItemTier, FileSystemL
   }
 
   @Override
-  public void appendHoverText(@NotNull ItemStack stack, @NotNull TooltipContext context, @NotNull List<Component> tooltip, @NotNull TooltipFlag flag) {
-    var cd = stack.get(DataComponents.CUSTOM_DATA);
+  public void appendHoverText(@NotNull ItemStack stack, @org.jetbrains.annotations.Nullable net.minecraft.world.level.Level context, @NotNull List<Component> tooltip, @NotNull TooltipFlag flag) {
+    var cd = CustomData.get(stack);
     var tag = cd != null ? cd.copyTag() : new CompoundTag();
     if (tag.contains(OCSettings.namespace + "data")) {
       var data = tag.getCompound(OCSettings.namespace + "data");

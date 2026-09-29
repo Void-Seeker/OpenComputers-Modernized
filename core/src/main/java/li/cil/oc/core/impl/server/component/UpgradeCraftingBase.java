@@ -1,5 +1,7 @@
 package li.cil.oc.core.impl.server.component;
 
+import li.cil.oc.compat.MathCompat;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -19,7 +21,6 @@ import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.TransientCraftingContainer;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.CraftingInput;
 import net.minecraft.world.item.crafting.RecipeType;
 import org.jetbrains.annotations.NotNull;
 
@@ -54,7 +55,7 @@ public abstract class UpgradeCraftingBase extends AbstractManagedEnvironment imp
 
   @Callback(doc = "function([count:number]):number -- Tries to craft the specified number of items in the top left area of the inventory.")
   public Object[] craft(Context context, Arguments args) {
-    int count = Math.clamp(args.optInteger(0, 64), 0, 64);
+    int count = MathCompat.clamp(args.optInteger(0, 64), 0, 64);
     Object[] result = craftingInventory.craft(count);
     return ResultWrapper.result(result);
   }
@@ -81,22 +82,22 @@ public abstract class UpgradeCraftingBase extends AbstractManagedEnvironment imp
       load(player.getInventory());
       int countCrafted = 0;
       var level = host.level();
-      var input = CraftingInput.of(getWidth(), getHeight(), getItems());
+      var input = this;
       var recipeOpt = level.getRecipeManager().getRecipeFor(RecipeType.CRAFTING, input, level);
       if (recipeOpt.isEmpty()) {
         return new Object[]{false, 0};
       }
       var originalHolder = recipeOpt.get();
-      ItemStack originalCraft = originalHolder.value().assemble(input, level.registryAccess());
+      ItemStack originalCraft = originalHolder.assemble(input, level.registryAccess());
       if (originalCraft.isEmpty()) {
         return new Object[]{false, 0};
       }
       while (countCrafted < wantedCount) {
-        CraftingInput currentInput = CraftingInput.of(getWidth(), getHeight(), getItems());
+        var currentInput = this;
         var currentRecipeOpt = level.getRecipeManager().getRecipeFor(RecipeType.CRAFTING, currentInput, level);
         if (currentRecipeOpt.isEmpty()) break;
         if (currentRecipeOpt.get() != originalHolder) break;
-        ItemStack result = currentRecipeOpt.get().value().assemble(currentInput, level.registryAccess());
+        ItemStack result = currentRecipeOpt.get().assemble(currentInput, level.registryAccess());
         if (result.isEmpty()) break;
         countCrafted += result.getCount();
         postItemCraftedEvent(player, result, this);

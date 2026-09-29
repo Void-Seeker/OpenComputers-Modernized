@@ -21,7 +21,7 @@ public class Manual extends DelegateItem {
   }
 
   @Override
-  public void appendHoverText(@NotNull ItemStack stack, Item.@NotNull TooltipContext context, @NotNull List<Component> tooltip, @NotNull TooltipFlag flag) {
+  public void appendHoverText(@NotNull ItemStack stack, @org.jetbrains.annotations.Nullable net.minecraft.world.level.Level context, @NotNull List<Component> tooltip, @NotNull TooltipFlag flag) {
     tooltip.add(Component.literal(ChatFormatting.DARK_GRAY + "v" + Tags.VERSION));
     super.appendHoverText(stack, context, tooltip, flag);
   }

@@ -1,5 +1,7 @@
 package li.cil.oc.core.impl.server.component;
 
+import li.cil.oc.compat.MathCompat;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
@@ -60,7 +62,7 @@ public class GraphicsCardBase extends AbstractManagedEnvironment implements Devi
     this.maxResolution = OCSettings.screenResolutionsByTier[tier];
     this.maxDepth = OCSettings.screenDepthsByTier[tier];
     this.bitbltCost = OCSettings.get().bitbltCost * Math.pow(2, tier);
-    this.totalVRAM = (maxResolution[0] * maxResolution[1]) * OCSettings.get().vramSizes[Math.clamp(tier, 0, 2)];
+    this.totalVRAM = (maxResolution[0] * maxResolution[1]) * OCSettings.get().vramSizes[MathCompat.clamp(tier, 0, 2)];
 
     deviceInfo = Map.of(DeviceAttribute.Class, DeviceClass.Display, DeviceAttribute.Description, "Graphics controller", DeviceAttribute.Vendor, Constants.DeviceInfo.DefaultVendor, DeviceAttribute.Product, "MPG" + ((tier + 1) * 1000) + " GTZ", DeviceAttribute.Capacity, capacityInfo(), DeviceAttribute.Width, widthInfo(), DeviceAttribute.Clock, clockInfo());
     setNode(this.node);

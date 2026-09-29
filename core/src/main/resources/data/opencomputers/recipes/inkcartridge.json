@@ -1,0 +1,24 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "ingredients": [
+    {
+      "tag": "forge:dyes/cyan"
+    },
+    {
+      "tag": "forge:dyes/magenta"
+    },
+    {
+      "tag": "forge:dyes/yellow"
+    },
+    {
+      "tag": "forge:dyes/black"
+    },
+    {
+      "item": "opencomputers:inkcartridgeempty"
+    }
+  ],
+  "result": {
+    "count": 1,
+    "item": "opencomputers:inkcartridge"
+  }
+}

@@ -1,5 +1,7 @@
 package li.cil.oc.core.impl.common;
 
+import li.cil.oc.compat.CustomData;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -15,7 +17,6 @@ import li.cil.oc.api.fs.FileSystem;
 import li.cil.oc.core.Constants;
 import li.cil.oc.core.impl.OCSettings;
 import li.cil.oc.core.impl.util.Color;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.world.item.ItemStack;
 
 public final class LootManager {
@@ -36,7 +37,7 @@ public final class LootManager {
   }
 
   public static boolean isLootDisk(ItemStack stack) {
-    var customData = stack.get(DataComponents.CUSTOM_DATA);
+    var customData = CustomData.get(stack);
     return API.items.get(stack) == API.items.get(Constants.ItemName.Floppy) &&
       customData != null && !customData.isEmpty() && customData.copyTag().contains(OCSettings.namespace + "lootFactory");
   }

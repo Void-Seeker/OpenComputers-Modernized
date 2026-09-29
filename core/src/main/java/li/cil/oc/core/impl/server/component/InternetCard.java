@@ -1,5 +1,7 @@
 package li.cil.oc.core.impl.server.component;
 
+import li.cil.oc.compat.MathCompat;
+
 import com.google.common.net.InetAddresses;
 import java.io.BufferedWriter;
 import java.io.FileNotFoundException;
@@ -362,7 +364,7 @@ public class InternetCard extends AbstractManagedEnvironment implements DeviceIn
 
     @Callback(doc = "function([n:number]):string -- Tries to read data from the socket stream. Returns the read byte array.")
     public synchronized Object[] read(Context context, Arguments args) {
-      int n = Math.clamp(args.optInteger(0, Integer.MAX_VALUE), 0, OCSettings.get().maxReadBuffer);
+      int n = MathCompat.clamp(args.optInteger(0, Integer.MAX_VALUE), 0, OCSettings.get().maxReadBuffer);
       if (checkConnected()) {
         try {
           ByteBuffer buffer = ByteBuffer.allocate(n);
@@ -508,7 +510,7 @@ public class InternetCard extends AbstractManagedEnvironment implements DeviceIn
 
     @Callback(doc = "function([n:number]):string -- Tries to read data from the response. Returns the read byte array.")
     public synchronized Object[] read(Context context, Arguments args) {
-      int n = Math.clamp(args.optInteger(0, Integer.MAX_VALUE), 0, OCSettings.get().maxReadBuffer);
+      int n = MathCompat.clamp(args.optInteger(0, Integer.MAX_VALUE), 0, OCSettings.get().maxReadBuffer);
       if (checkResponse()) {
         if (eof && queue.isEmpty()) return ResultWrapper.result((Object) null);
         byte[] buffer = new byte[n];

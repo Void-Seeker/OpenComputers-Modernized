@@ -51,40 +51,40 @@ public class AdapterRenderer implements BlockEntityRenderer<Adapter> {
 
       switch (side) {
         case DOWN -> {
-          consumer.addVertex(matrix, 0, 1, 0).setColor(255, 255, 255, 255).setUv(u1, v0).setOverlay(packedOverlay).setLight(fullBright).setNormal(0, 1, 0);
-          consumer.addVertex(matrix, 1, 1, 0).setColor(255, 255, 255, 255).setUv(u0, v0).setOverlay(packedOverlay).setLight(fullBright).setNormal(0, 1, 0);
-          consumer.addVertex(matrix, 1, 1, 1).setColor(255, 255, 255, 255).setUv(u0, v1).setOverlay(packedOverlay).setLight(fullBright).setNormal(0, 1, 0);
-          consumer.addVertex(matrix, 0, 1, 1).setColor(255, 255, 255, 255).setUv(u1, v1).setOverlay(packedOverlay).setLight(fullBright).setNormal(0, 1, 0);
+          consumer.vertex(matrix, 0, 1, 0).color(255, 255, 255, 255).uv(u1, v0).overlayCoords(packedOverlay).uv2(fullBright).normal(0, 1, 0).endVertex();
+          consumer.vertex(matrix, 1, 1, 0).color(255, 255, 255, 255).uv(u0, v0).overlayCoords(packedOverlay).uv2(fullBright).normal(0, 1, 0).endVertex();
+          consumer.vertex(matrix, 1, 1, 1).color(255, 255, 255, 255).uv(u0, v1).overlayCoords(packedOverlay).uv2(fullBright).normal(0, 1, 0).endVertex();
+          consumer.vertex(matrix, 0, 1, 1).color(255, 255, 255, 255).uv(u1, v1).overlayCoords(packedOverlay).uv2(fullBright).normal(0, 1, 0).endVertex();
         }
         case UP -> {
-          consumer.addVertex(matrix, 0, 0, 0).setColor(255, 255, 255, 255).setUv(u1, v1).setOverlay(packedOverlay).setLight(fullBright).setNormal(0, 1, 0);
-          consumer.addVertex(matrix, 0, 0, 1).setColor(255, 255, 255, 255).setUv(u1, v0).setOverlay(packedOverlay).setLight(fullBright).setNormal(0, 1, 0);
-          consumer.addVertex(matrix, 1, 0, 1).setColor(255, 255, 255, 255).setUv(u0, v0).setOverlay(packedOverlay).setLight(fullBright).setNormal(0, 1, 0);
-          consumer.addVertex(matrix, 1, 0, 0).setColor(255, 255, 255, 255).setUv(u0, v1).setOverlay(packedOverlay).setLight(fullBright).setNormal(0, 1, 0);
+          consumer.vertex(matrix, 0, 0, 0).color(255, 255, 255, 255).uv(u1, v1).overlayCoords(packedOverlay).uv2(fullBright).normal(0, 1, 0).endVertex();
+          consumer.vertex(matrix, 0, 0, 1).color(255, 255, 255, 255).uv(u1, v0).overlayCoords(packedOverlay).uv2(fullBright).normal(0, 1, 0).endVertex();
+          consumer.vertex(matrix, 1, 0, 1).color(255, 255, 255, 255).uv(u0, v0).overlayCoords(packedOverlay).uv2(fullBright).normal(0, 1, 0).endVertex();
+          consumer.vertex(matrix, 1, 0, 0).color(255, 255, 255, 255).uv(u0, v1).overlayCoords(packedOverlay).uv2(fullBright).normal(0, 1, 0).endVertex();
         }
         case NORTH -> {
-          consumer.addVertex(matrix, 1, 1, 0).setColor(255, 255, 255, 255).setUv(u0, v1).setOverlay(packedOverlay).setLight(fullBright).setNormal(0, 1, 0);
-          consumer.addVertex(matrix, 0, 1, 0).setColor(255, 255, 255, 255).setUv(u1, v1).setOverlay(packedOverlay).setLight(fullBright).setNormal(0, 1, 0);
-          consumer.addVertex(matrix, 0, 0, 0).setColor(255, 255, 255, 255).setUv(u1, v0).setOverlay(packedOverlay).setLight(fullBright).setNormal(0, 1, 0);
-          consumer.addVertex(matrix, 1, 0, 0).setColor(255, 255, 255, 255).setUv(u0, v0).setOverlay(packedOverlay).setLight(fullBright).setNormal(0, 1, 0);
+          consumer.vertex(matrix, 1, 1, 0).color(255, 255, 255, 255).uv(u0, v1).overlayCoords(packedOverlay).uv2(fullBright).normal(0, 1, 0).endVertex();
+          consumer.vertex(matrix, 0, 1, 0).color(255, 255, 255, 255).uv(u1, v1).overlayCoords(packedOverlay).uv2(fullBright).normal(0, 1, 0).endVertex();
+          consumer.vertex(matrix, 0, 0, 0).color(255, 255, 255, 255).uv(u1, v0).overlayCoords(packedOverlay).uv2(fullBright).normal(0, 1, 0).endVertex();
+          consumer.vertex(matrix, 1, 0, 0).color(255, 255, 255, 255).uv(u0, v0).overlayCoords(packedOverlay).uv2(fullBright).normal(0, 1, 0).endVertex();
         }
         case SOUTH -> {
-          consumer.addVertex(matrix, 0, 1, 1).setColor(255, 255, 255, 255).setUv(u0, v1).setOverlay(packedOverlay).setLight(fullBright).setNormal(0, 1, 0);
-          consumer.addVertex(matrix, 1, 1, 1).setColor(255, 255, 255, 255).setUv(u1, v1).setOverlay(packedOverlay).setLight(fullBright).setNormal(0, 1, 0);
-          consumer.addVertex(matrix, 1, 0, 1).setColor(255, 255, 255, 255).setUv(u1, v0).setOverlay(packedOverlay).setLight(fullBright).setNormal(0, 1, 0);
-          consumer.addVertex(matrix, 0, 0, 1).setColor(255, 255, 255, 255).setUv(u0, v0).setOverlay(packedOverlay).setLight(fullBright).setNormal(0, 1, 0);
+          consumer.vertex(matrix, 0, 1, 1).color(255, 255, 255, 255).uv(u0, v1).overlayCoords(packedOverlay).uv2(fullBright).normal(0, 1, 0).endVertex();
+          consumer.vertex(matrix, 1, 1, 1).color(255, 255, 255, 255).uv(u1, v1).overlayCoords(packedOverlay).uv2(fullBright).normal(0, 1, 0).endVertex();
+          consumer.vertex(matrix, 1, 0, 1).color(255, 255, 255, 255).uv(u1, v0).overlayCoords(packedOverlay).uv2(fullBright).normal(0, 1, 0).endVertex();
+          consumer.vertex(matrix, 0, 0, 1).color(255, 255, 255, 255).uv(u0, v0).overlayCoords(packedOverlay).uv2(fullBright).normal(0, 1, 0).endVertex();
         }
         case WEST -> {
-          consumer.addVertex(matrix, 0, 1, 0).setColor(255, 255, 255, 255).setUv(u0, v1).setOverlay(packedOverlay).setLight(fullBright).setNormal(0, 1, 0);
-          consumer.addVertex(matrix, 0, 1, 1).setColor(255, 255, 255, 255).setUv(u1, v1).setOverlay(packedOverlay).setLight(fullBright).setNormal(0, 1, 0);
-          consumer.addVertex(matrix, 0, 0, 1).setColor(255, 255, 255, 255).setUv(u1, v0).setOverlay(packedOverlay).setLight(fullBright).setNormal(0, 1, 0);
-          consumer.addVertex(matrix, 0, 0, 0).setColor(255, 255, 255, 255).setUv(u0, v0).setOverlay(packedOverlay).setLight(fullBright).setNormal(0, 1, 0);
+          consumer.vertex(matrix, 0, 1, 0).color(255, 255, 255, 255).uv(u0, v1).overlayCoords(packedOverlay).uv2(fullBright).normal(0, 1, 0).endVertex();
+          consumer.vertex(matrix, 0, 1, 1).color(255, 255, 255, 255).uv(u1, v1).overlayCoords(packedOverlay).uv2(fullBright).normal(0, 1, 0).endVertex();
+          consumer.vertex(matrix, 0, 0, 1).color(255, 255, 255, 255).uv(u1, v0).overlayCoords(packedOverlay).uv2(fullBright).normal(0, 1, 0).endVertex();
+          consumer.vertex(matrix, 0, 0, 0).color(255, 255, 255, 255).uv(u0, v0).overlayCoords(packedOverlay).uv2(fullBright).normal(0, 1, 0).endVertex();
         }
         case EAST -> {
-          consumer.addVertex(matrix, 1, 1, 1).setColor(255, 255, 255, 255).setUv(u0, v1).setOverlay(packedOverlay).setLight(fullBright).setNormal(0, 1, 0);
-          consumer.addVertex(matrix, 1, 1, 0).setColor(255, 255, 255, 255).setUv(u1, v1).setOverlay(packedOverlay).setLight(fullBright).setNormal(0, 1, 0);
-          consumer.addVertex(matrix, 1, 0, 0).setColor(255, 255, 255, 255).setUv(u1, v0).setOverlay(packedOverlay).setLight(fullBright).setNormal(0, 1, 0);
-          consumer.addVertex(matrix, 1, 0, 1).setColor(255, 255, 255, 255).setUv(u0, v0).setOverlay(packedOverlay).setLight(fullBright).setNormal(0, 1, 0);
+          consumer.vertex(matrix, 1, 1, 1).color(255, 255, 255, 255).uv(u0, v1).overlayCoords(packedOverlay).uv2(fullBright).normal(0, 1, 0).endVertex();
+          consumer.vertex(matrix, 1, 1, 0).color(255, 255, 255, 255).uv(u1, v1).overlayCoords(packedOverlay).uv2(fullBright).normal(0, 1, 0).endVertex();
+          consumer.vertex(matrix, 1, 0, 0).color(255, 255, 255, 255).uv(u1, v0).overlayCoords(packedOverlay).uv2(fullBright).normal(0, 1, 0).endVertex();
+          consumer.vertex(matrix, 1, 0, 1).color(255, 255, 255, 255).uv(u0, v0).overlayCoords(packedOverlay).uv2(fullBright).normal(0, 1, 0).endVertex();
         }
       }
     }

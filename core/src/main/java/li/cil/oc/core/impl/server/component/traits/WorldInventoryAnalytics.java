@@ -97,9 +97,9 @@ public interface WorldInventoryAnalytics extends WorldAware, SideRestricted, Net
       ItemStack stack = inventory.getItem(ExtendedArguments.checkSlot(args, inventory, 1));
       if (stack.getCount() > 0) {
         if (!label.isEmpty())
-          stack.set(net.minecraft.core.component.DataComponents.CUSTOM_NAME, Component.literal(label));
-        else if (stack.has(net.minecraft.core.component.DataComponents.CUSTOM_NAME))
-          stack.remove(net.minecraft.core.component.DataComponents.CUSTOM_NAME);
+          stack.setHoverName(Component.literal(label));
+        else if (stack.hasCustomHoverName())
+          stack.resetHoverName();
         return result(true);
       }
       return result(false);

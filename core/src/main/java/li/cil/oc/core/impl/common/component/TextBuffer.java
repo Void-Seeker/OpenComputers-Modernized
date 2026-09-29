@@ -1,5 +1,7 @@
 package li.cil.oc.core.impl.common.component;
 
+import li.cil.oc.compat.CustomData;
+
 import com.google.common.base.Strings;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -483,7 +485,7 @@ public class TextBuffer extends TextBufferBase {
       if (player == null) return;
       var stack = player.getMainHandItem();
       if (stack.isEmpty()) return;
-      var existing = stack.get(net.minecraft.core.component.DataComponents.CUSTOM_DATA);
+      var existing = CustomData.get(stack);
       var tag = existing != null ? existing.copyTag() : new CompoundTag();
       tag.remove(OCSettings.namespace + "clipboard");
       if (line >= 0 && line < owner.getViewportHeight()) {
@@ -493,10 +495,9 @@ public class TextBuffer extends TextBufferBase {
         }
       }
       if (tag.isEmpty()) {
-        stack.remove(net.minecraft.core.component.DataComponents.CUSTOM_DATA);
+        CustomData.remove(stack);
       } else {
-        stack.set(net.minecraft.core.component.DataComponents.CUSTOM_DATA,
-          net.minecraft.world.item.component.CustomData.of(tag));
+        CustomData.set(stack, li.cil.oc.compat.CustomData.of(tag));
       }
     }
 

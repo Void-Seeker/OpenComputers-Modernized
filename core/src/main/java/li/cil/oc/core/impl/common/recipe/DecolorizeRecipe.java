@@ -1,12 +1,12 @@
 package li.cil.oc.core.impl.common.recipe;
 
+import net.minecraft.resources.ResourceLocation;
 import li.cil.oc.core.impl.util.ItemColorizer;
-import net.minecraft.core.HolderLookup;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.crafting.CraftingBookCategory;
-import net.minecraft.world.item.crafting.CraftingInput;
+import net.minecraft.world.inventory.CraftingContainer;
 import net.minecraft.world.item.crafting.CustomRecipe;
 import net.minecraft.world.item.crafting.RecipeSerializer;
 import net.minecraft.world.level.Level;
@@ -21,22 +21,22 @@ public class DecolorizeRecipe extends CustomRecipe {
     SERIALIZER = serializer;
   }
 
-  public DecolorizeRecipe(CraftingBookCategory category, Item target) {
-    super(category);
+  public DecolorizeRecipe(ResourceLocation id, CraftingBookCategory category, Item target) {
+    super(id, category);
     this.targetItem = target;
   }
 
-  public DecolorizeRecipe(Item target) {
-    this(CraftingBookCategory.MISC, target);
+  public DecolorizeRecipe(ResourceLocation id, Item target) {
+    this(id, CraftingBookCategory.MISC, target);
   }
 
   @SuppressWarnings("unused")
-  public DecolorizeRecipe(Block target) {
-    this(target.asItem());
+  public DecolorizeRecipe(ResourceLocation id, Block target) {
+    this(id, target.asItem());
   }
 
   @Override
-  public boolean matches(@NotNull CraftingInput crafting, @NotNull Level world) {
+  public boolean matches(@NotNull CraftingContainer crafting, @NotNull Level world) {
     ItemStack[] stacks = getItems(crafting);
     java.util.List<ItemStack> targets = new java.util.ArrayList<>();
     java.util.List<ItemStack> other = new java.util.ArrayList<>();
@@ -48,11 +48,11 @@ public class DecolorizeRecipe extends CustomRecipe {
         other.add(stack);
       }
     }
-    return targets.size() == 1 && other.size() == 1 && other.getFirst().getItem() == Items.WATER_BUCKET;
+    return targets.size() == 1 && other.size() == 1 && other.get(0).getItem() == Items.WATER_BUCKET;
   }
 
   @Override
-  public @NotNull ItemStack assemble(@NotNull CraftingInput crafting, HolderLookup.@NotNull Provider provider) {
+  public @NotNull ItemStack assemble(@NotNull CraftingContainer crafting, @NotNull net.minecraft.core.RegistryAccess provider) {
     ItemStack targetStack = null;
 
     ItemStack[] stacks = getItems(crafting);
@@ -82,9 +82,9 @@ public class DecolorizeRecipe extends CustomRecipe {
     return SERIALIZER;
   }
 
-  private ItemStack[] getItems(CraftingInput crafting) {
+  private ItemStack[] getItems(CraftingContainer crafting) {
     java.util.List<ItemStack> list = new java.util.ArrayList<>();
-    for (int i = 0; i < crafting.size(); i++) {
+    for (int i = 0; i < crafting.getContainerSize(); i++) {
       var stack = crafting.getItem(i);
       if (!stack.isEmpty()) list.add(stack);
     }

@@ -1,5 +1,7 @@
 package li.cil.oc.core.impl.util;
 
+import li.cil.oc.compat.MathCompat;
+
 import li.cil.oc.api.Persistable;
 import li.cil.oc.core.impl.OCSettings;
 import net.minecraft.core.HolderLookup;
@@ -121,7 +123,7 @@ public final class PackedColor {
 
     @Override
     public int inflate(int value) {
-      return palette()[Math.clamp(value, 0, palette().length - 1)];
+      return palette()[MathCompat.clamp(value, 0, palette().length - 1)];
     }
 
     @Override

@@ -4,6 +4,5 @@
  * These interfaces allow specializing item drivers to provide static data,
  * that is without creating an actual environment.
  */
-@SuppressWarnings("unused")
 package li.cil.oc.api.driver.item;
 

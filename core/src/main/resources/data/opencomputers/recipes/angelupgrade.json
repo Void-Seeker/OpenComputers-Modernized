@@ -1,0 +1,26 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "ABA",
+    "CDC",
+    "ABA"
+  ],
+  "key": {
+    "A": {
+      "tag": "forge:ingots/iron"
+    },
+    "B": {
+      "item": "minecraft:ender_pearl"
+    },
+    "C": {
+      "item": "opencomputers:chip1"
+    },
+    "D": {
+      "item": "minecraft:sticky_piston"
+    }
+  },
+  "result": {
+    "count": 1,
+    "item": "opencomputers:angelupgrade"
+  }
+}

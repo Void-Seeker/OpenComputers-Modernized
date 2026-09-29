@@ -1,5 +1,7 @@
 package li.cil.oc.core.impl.common.blockentity;
 
+import li.cil.oc.compat.MathCompat;
+
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Map;
@@ -239,7 +241,7 @@ public class Charger extends BlockEntity implements li.cil.oc.api.network.Enviro
   public double tryChangeBuffer(Direction side, double amount, boolean doReceive) {
     if (isClient() || OCSettings.get().ignorePower) return 0;
     if (hasConnector(side) && node instanceof li.cil.oc.api.network.Connector c) {
-      double cappedAmount = Math.clamp(amount, 0, Math.min(energyThroughput(), globalDemand(side)));
+      double cappedAmount = MathCompat.clamp(amount, 0, Math.min(energyThroughput(), globalDemand(side)));
       if (doReceive) return cappedAmount - c.changeBuffer(cappedAmount);
       return cappedAmount;
     }
@@ -265,7 +267,7 @@ public class Charger extends BlockEntity implements li.cil.oc.api.network.Enviro
   @Override
   public double globalDemand(Direction side) {
     if (node instanceof li.cil.oc.api.network.Connector c) {
-      return Math.clamp(c.globalBufferSize() - c.globalBuffer(), 0, energyThroughput());
+      return MathCompat.clamp(c.globalBufferSize() - c.globalBuffer(), 0, energyThroughput());
     }
     return 0;
   }
@@ -471,9 +473,9 @@ public class Charger extends BlockEntity implements li.cil.oc.api.network.Enviro
     var loadProvider = getEffectiveProvider();
     if (loadProvider != null) load(nbt, loadProvider);
     if (nbt.contains(OCSettings.namespace + "chargeSpeed"))
-      chargeSpeed = Math.clamp(nbt.getDouble(OCSettings.namespace + "chargeSpeed"), 0, 1);
+      chargeSpeed = MathCompat.clamp(nbt.getDouble(OCSettings.namespace + "chargeSpeed"), 0, 1);
     else
-      chargeSpeed = Math.clamp(nbt.getDouble("chargeSpeed"), 0, 1);
+      chargeSpeed = MathCompat.clamp(nbt.getDouble("chargeSpeed"), 0, 1);
     if (nbt.contains(OCSettings.namespace + "hasPower"))
       hasPower = nbt.getBoolean(OCSettings.namespace + "hasPower");
     else
@@ -656,7 +658,7 @@ public class Charger extends BlockEntity implements li.cil.oc.api.network.Enviro
 
     @Override
     public boolean equals(Object obj) {
-      if (obj instanceof PlayerChargeable(Player player1)) return player1 == player;
+      if (obj instanceof PlayerChargeable other) return other.player() == player;
       return false;
     }
 

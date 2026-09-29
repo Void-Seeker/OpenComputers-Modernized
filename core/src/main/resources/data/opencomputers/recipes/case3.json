@@ -1,0 +1,29 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "ABA",
+    "CDC",
+    "AEA"
+  ],
+  "key": {
+    "A": {
+      "tag": "forge:gems/diamond"
+    },
+    "B": {
+      "item": "opencomputers:chip3"
+    },
+    "C": {
+      "item": "minecraft:iron_bars"
+    },
+    "D": {
+      "tag": "forge:chests"
+    },
+    "E": {
+      "item": "opencomputers:printedcircuitboard"
+    }
+  },
+  "result": {
+    "count": 1,
+    "item": "opencomputers:case3"
+  }
+}

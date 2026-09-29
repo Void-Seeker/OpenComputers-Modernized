@@ -1,5 +1,7 @@
 package li.cil.oc.core.impl.client.renderer.gui;
 
+import li.cil.oc.compat.MathCompat;
+
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import li.cil.oc.api.internal.TextBuffer;
 import li.cil.oc.core.impl.client.Textures;
@@ -97,10 +99,10 @@ public final class BufferRenderer {
     double u2d = u2 / 16.0;
     double v1d = v1 / 16.0;
     double v2d = v2 / 16.0;
-    consumer.addVertex((float) (guiX + x), (float) (guiY + y + h), 0).setUv((float) u1d, (float) v2d);
-    consumer.addVertex((float) (guiX + x + w), (float) (guiY + y + h), 0).setUv((float) u2d, (float) v2d);
-    consumer.addVertex((float) (guiX + x + w), (float) (guiY + y), 0).setUv((float) u2d, (float) v1d);
-    consumer.addVertex((float) (guiX + x), (float) (guiY + y), 0).setUv((float) u1d, (float) v1d);
+    consumer.vertex((float) (guiX + x), (float) (guiY + y + h), 0).uv((float) u1d, (float) v2d).endVertex();
+    consumer.vertex((float) (guiX + x + w), (float) (guiY + y + h), 0).uv((float) u2d, (float) v2d).endVertex();
+    consumer.vertex((float) (guiX + x + w), (float) (guiY + y), 0).uv((float) u2d, (float) v1d).endVertex();
+    consumer.vertex((float) (guiX + x), (float) (guiY + y), 0).uv((float) u1d, (float) v1d).endVertex();
   }
 
   @SuppressWarnings("unused")
@@ -227,11 +229,11 @@ public final class BufferRenderer {
     final Vector4f p2 = new Vector4f(x1, y0, 0, 1.0f).mul(m);
     final Vector4f p3 = new Vector4f(x0, y0, 0, 1.0f).mul(m);
 
-    float a = Math.clamp(alpha, 0.0f, 1.0f);
-    consumer.addVertex(p0.x(), p0.y(), p0.z()).setColor(r, g, b, a);
-    consumer.addVertex(p1.x(), p1.y(), p1.z()).setColor(r, g, b, a);
-    consumer.addVertex(p2.x(), p2.y(), p2.z()).setColor(r, g, b, a);
-    consumer.addVertex(p3.x(), p3.y(), p3.z()).setColor(r, g, b, a);
+    float a = MathCompat.clamp(alpha, 0.0f, 1.0f);
+    consumer.vertex(p0.x(), p0.y(), p0.z()).color(r, g, b, a).endVertex();
+    consumer.vertex(p1.x(), p1.y(), p1.z()).color(r, g, b, a).endVertex();
+    consumer.vertex(p2.x(), p2.y(), p2.z()).color(r, g, b, a).endVertex();
+    consumer.vertex(p3.x(), p3.y(), p3.z()).color(r, g, b, a).endVertex();
   }
 
   private static void drawCharQuad(VertexConsumer consumer, Matrix4f m, float tx, float ty,
@@ -242,11 +244,11 @@ public final class BufferRenderer {
     final Vector4f p2 = new Vector4f(tx + info.width(), ty, 0, 1.0f).mul(m);
     final Vector4f p3 = new Vector4f(tx, ty, 0, 1.0f).mul(m);
 
-    float a = Math.clamp(alpha, 0.0f, 1.0f);
-    consumer.addVertex(p0.x(), p0.y(), p0.z()).setColor(r, g, b, a).setUv(info.u1(), info.v2()).setLight(lightmap);
-    consumer.addVertex(p1.x(), p1.y(), p1.z()).setColor(r, g, b, a).setUv(info.u2(), info.v2()).setLight(lightmap);
-    consumer.addVertex(p2.x(), p2.y(), p2.z()).setColor(r, g, b, a).setUv(info.u2(), info.v1()).setLight(lightmap);
-    consumer.addVertex(p3.x(), p3.y(), p3.z()).setColor(r, g, b, a).setUv(info.u1(), info.v1()).setLight(lightmap);
+    float a = MathCompat.clamp(alpha, 0.0f, 1.0f);
+    consumer.vertex(p0.x(), p0.y(), p0.z()).color(r, g, b, a).uv(info.u1(), info.v2()).uv2(lightmap).endVertex();
+    consumer.vertex(p1.x(), p1.y(), p1.z()).color(r, g, b, a).uv(info.u2(), info.v2()).uv2(lightmap).endVertex();
+    consumer.vertex(p2.x(), p2.y(), p2.z()).color(r, g, b, a).uv(info.u2(), info.v1()).uv2(lightmap).endVertex();
+    consumer.vertex(p3.x(), p3.y(), p3.z()).color(r, g, b, a).uv(info.u1(), info.v1()).uv2(lightmap).endVertex();
   }
 
   private static li.cil.oc.core.impl.util.TextBuffer getTextData(TextBuffer screen) {

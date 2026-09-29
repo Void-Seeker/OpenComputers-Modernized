@@ -81,7 +81,7 @@ public class UpgradeGenerator extends AbstractManagedEnvironment implements Devi
     ItemStack container = containerItem != null ? containerItem.getDefaultInstance() : ItemStack.EMPTY;
     ItemStack inQueue = inventory;
     if (inQueue != null && !inQueue.isEmpty()) {
-      if (!ItemStack.isSameItem(inQueue, stack) || !ItemStack.isSameItemSameComponents(inQueue, stack)) {
+      if (!ItemStack.isSameItem(inQueue, stack) || !ItemStack.isSameItemSameTags(inQueue, stack)) {
         return ResultWrapper.result(null, "different fuel type already queued");
       }
     } else {
@@ -147,7 +147,7 @@ public class UpgradeGenerator extends AbstractManagedEnvironment implements Devi
     ItemStack requiredContainer = requiredContainerItem != null ? requiredContainerItem.getDefaultInstance() : ItemStack.EMPTY;
     ItemStack selectedEmptyContainer = null;
     if (!requiredContainer.isEmpty() && requiredContainer.getCount() > 0) {
-      if (previousSelectedItem.getCount() > 0 && previousSelectedItem.getItem() == requiredContainer.getItem() && ItemStack.isSameItemSameComponents(previousSelectedItem, requiredContainer)) {
+      if (previousSelectedItem.getCount() > 0 && previousSelectedItem.getItem() == requiredContainer.getItem() && ItemStack.isSameItemSameTags(previousSelectedItem, requiredContainer)) {
         selectedEmptyContainer = previousSelectedItem.copy();
       } else {
         return ResultWrapper.result(false, "removing this fuel requires the appropriate container in the selected slot");
@@ -235,7 +235,7 @@ public class UpgradeGenerator extends AbstractManagedEnvironment implements Devi
   public void load(CompoundTag nbt, HolderLookup.Provider provider) {
     super.load(nbt, provider);
     if (nbt.contains("inventory")) {
-      inventory = ItemStack.parseOptional(host.level().registryAccess(), nbt.getCompound("inventory"));
+      inventory = ItemStack.of(nbt.getCompound("inventory"));
     }
     remainingTicks = nbt.getInt("remainingTicks");
   }
@@ -244,7 +244,7 @@ public class UpgradeGenerator extends AbstractManagedEnvironment implements Devi
   public void save(CompoundTag nbt, HolderLookup.Provider provider) {
     super.save(nbt, provider);
     if (inventory != null && !inventory.isEmpty()) {
-      nbt.put("inventory", inventory.save(host.level().registryAccess(), new CompoundTag()));
+      nbt.put("inventory", inventory.save(new CompoundTag()));
     }
     if (remainingTicks > 0) {
       nbt.putInt("remainingTicks", remainingTicks);

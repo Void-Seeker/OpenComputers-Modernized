@@ -31,7 +31,7 @@ public class DroneRenderer extends EntityRenderer<Drone> {
     model.setupAnim(entity, partialTick);
 
     VertexConsumer vertexConsumer = buffer.getBuffer(RenderType.entityCutoutNoCull(model.texture));
-    model.renderToBuffer(poseStack, vertexConsumer, packedLight, OverlayTexture.NO_OVERLAY, 0xFFFFFFFF);
+    model.renderToBuffer(poseStack, vertexConsumer, packedLight, OverlayTexture.NO_OVERLAY, 1f, 1f, 1f, 1f);
 
     if (entity.isRunning()) {
       int lightColor = entity.lightColor();

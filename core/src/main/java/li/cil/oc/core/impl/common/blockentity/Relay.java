@@ -1,5 +1,7 @@
 package li.cil.oc.core.impl.common.blockentity;
 
+import li.cil.oc.compat.MathCompat;
+
 import com.google.common.base.Charsets;
 import dan200.computercraft.api.peripheral.IComputerAccess;
 import java.util.ArrayList;
@@ -187,7 +189,7 @@ public class Relay extends HubBlockEntity implements ComponentInventory, PowerAc
     if (isClient() || OCSettings.get().ignorePower) return 0;
     var c = connector(side);
     if (c != null) {
-      double cappedAmount = Math.clamp(amount, 0, Math.min(energyThroughput(), globalDemand(side)));
+      double cappedAmount = MathCompat.clamp(amount, 0, Math.min(energyThroughput(), globalDemand(side)));
       if (doReceive) return cappedAmount - c.changeBuffer(cappedAmount);
       return cappedAmount;
     }
@@ -206,7 +208,7 @@ public class Relay extends HubBlockEntity implements ComponentInventory, PowerAc
 
   public double globalDemand(Direction side) {
     var c = connector(side);
-    return c != null ? Math.clamp(c.globalBufferSize() - c.globalBuffer(), 0, energyThroughput()) : 0.0;
+    return c != null ? MathCompat.clamp(c.globalBufferSize() - c.globalBuffer(), 0, energyThroughput()) : 0.0;
   }
 
   @Override
@@ -228,7 +230,7 @@ public class Relay extends HubBlockEntity implements ComponentInventory, PowerAc
 
   @Callback(doc = "function(strength:number):number -- Set the signal strength (range) used when relaying messages.")
   public synchronized Object[] setStrength(Context ignoredContext, Arguments args) {
-    strength = Math.clamp(args.checkDouble(0), 0, maxWirelessRange());
+    strength = MathCompat.clamp(args.checkDouble(0), 0, maxWirelessRange());
     return li.cil.oc.core.util.ResultWrapper.result(strength);
   }
 
@@ -437,7 +439,7 @@ public class Relay extends HubBlockEntity implements ComponentInventory, PowerAc
       if (items[slot] != null) updateLimits(slot, items[slot]);
     }
     if (nbt.contains(OCSettings.namespace + "strength")) {
-      strength = Math.clamp(nbt.getDouble(OCSettings.namespace + "strength"), 0, maxWirelessRange());
+      strength = MathCompat.clamp(nbt.getDouble(OCSettings.namespace + "strength"), 0, maxWirelessRange());
     }
     if (nbt.contains(OCSettings.namespace + "isRepeater")) {
       isRepeater = nbt.getBoolean(OCSettings.namespace + "isRepeater");

@@ -159,7 +159,7 @@ public abstract class DataCard extends AbstractManagedEnvironment implements Dev
     public Object[] decodeNBT(Context context, Arguments args) {
       byte[] data = complexCost(context, args);
       try {
-        return ResultWrapper.result(net.minecraft.nbt.NbtIo.readCompressed(new java.io.ByteArrayInputStream(data), net.minecraft.nbt.NbtAccounter.create(0x200000L)));
+        return ResultWrapper.result(li.cil.oc.compat.NbtCompat.readCompressed(new java.io.ByteArrayInputStream(data), new net.minecraft.nbt.NbtAccounter(0x200000L)));
       } catch (IOException e) {
         throw new RuntimeException(e);
       }

@@ -84,11 +84,11 @@ public final class DynamicFontRenderer extends TextureFontRenderer {
       return charMap.computeIfAbsent((int) '?', this::createCharIcon);
     }
 
-    if (textures.getLast().isFull(charCode)) {
+    if (textures.get(textures.size() - 1).isFull(charCode)) {
       textures.add(new CharTexture(this));
     }
 
-    return textures.getLast().add(charCode);
+    return textures.get(textures.size() - 1).add(charCode);
   }
 
   private ByteBuffer glyphData(int charCode) {
@@ -113,7 +113,7 @@ public final class DynamicFontRenderer extends TextureFontRenderer {
     private CharTexture(DynamicFontRenderer owner) {
       this.owner = owner;
       this.texture = new DynamicTexture(ATLAS_SIZE, ATLAS_SIZE, false);
-      this.location = ResourceLocation.fromNamespaceAndPath(OCSettings.resourceDomain, "textures/font/dynamic_" + textureCounter.getAndIncrement());
+      this.location = new ResourceLocation(OCSettings.resourceDomain, "textures/font/dynamic_" + textureCounter.getAndIncrement());
       this.cellWidth = owner.charWidth() + 2;
       this.cellHeight = owner.charHeight() + 2;
       this.cols = ATLAS_SIZE / cellWidth;

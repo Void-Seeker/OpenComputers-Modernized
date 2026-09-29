@@ -1,5 +1,7 @@
 package li.cil.oc.core.impl.common.component;
 
+import li.cil.oc.compat.MathCompat;
+
 import com.google.common.base.Strings;
 import java.util.HashMap;
 import java.util.Map;
@@ -502,8 +504,8 @@ public abstract class TextBufferBase extends AbstractManagedEnvironment implemen
     }
     precisionMode = nbt.getBoolean(OCSettings.namespace + "precise");
     if (nbt.contains(OCSettings.namespace + "viewportWidth")) {
-      viewportW = Math.clamp(nbt.getInt(OCSettings.namespace + "viewportWidth"), 1, data.width);
-      viewportH = Math.clamp(nbt.getInt(OCSettings.namespace + "viewportHeight"), 1, data.height);
+      viewportW = MathCompat.clamp(nbt.getInt(OCSettings.namespace + "viewportWidth"), 1, data.width);
+      viewportH = MathCompat.clamp(nbt.getInt(OCSettings.namespace + "viewportHeight"), 1, data.height);
     } else {
       viewportW = data.width;
       viewportH = data.height;

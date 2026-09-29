@@ -1,5 +1,7 @@
 package li.cil.oc.core.impl.server.component;
 
+import li.cil.oc.compat.MathCompat;
+
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -80,7 +82,7 @@ public abstract class UpgradeNavigationBase extends AbstractManagedEnvironment i
 
   @Callback(doc = "function(range:number):table -- Find waypoints in the specified range.")
   public Object[] findWaypoints(Context context, Arguments args) {
-    double range = Math.clamp(args.checkDouble(0), 0, OCSettings.get().maxWirelessRange[Tier.Two]);
+    double range = MathCompat.clamp(args.checkDouble(0), 0, OCSettings.get().maxWirelessRange[Tier.Two]);
     if (range <= 0) return ResultWrapper.result();
     if (!consumeEnergy(range * OCSettings.get().wirelessCostPerRange[Tier.Two] * 0.25))
       return ResultWrapper.result(null, "not enough energy");

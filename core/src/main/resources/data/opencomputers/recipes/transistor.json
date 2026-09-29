@@ -1,0 +1,26 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "AAA",
+    "BCB",
+    " D "
+  ],
+  "key": {
+    "A": {
+      "tag": "forge:ingots/iron"
+    },
+    "B": {
+      "tag": "forge:nuggets/gold"
+    },
+    "C": {
+      "item": "minecraft:paper"
+    },
+    "D": {
+      "item": "minecraft:redstone"
+    }
+  },
+  "result": {
+    "count": 8,
+    "item": "opencomputers:transistor"
+  }
+}

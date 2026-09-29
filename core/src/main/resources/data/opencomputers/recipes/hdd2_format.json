@@ -1,0 +1,13 @@
+{
+  "type": "opencomputers:shapeless",
+  "ingredients": [
+    {
+      "item": "opencomputers:hdd2"
+    }
+  ],
+  "result": {
+    "count": 1,
+    "item": "opencomputers:hdd2"
+  },
+  "category": "misc"
+}

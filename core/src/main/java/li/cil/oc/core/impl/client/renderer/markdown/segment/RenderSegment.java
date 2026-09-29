@@ -57,10 +57,10 @@ public class RenderSegment extends Segment implements InteractiveSegment {
     if (hovered != null) {
       var m = pose.last().pose();
       var consumer = graphics.bufferSource().getBuffer(RenderType.gui());
-      consumer.addVertex(m, 0, 0, 0).setColor(1, 1, 1, 0.15f);
-      consumer.addVertex(m, 0, imageRenderer.getHeight(), 0).setColor(1, 1, 1, 0.15f);
-      consumer.addVertex(m, imageRenderer.getWidth(), imageRenderer.getHeight(), 0).setColor(1, 1, 1, 0.15f);
-      consumer.addVertex(m, imageRenderer.getWidth(), 0, 0).setColor(1, 1, 1, 0.15f);
+      consumer.vertex(m, 0, 0, 0).color(1, 1, 1, 0.15f).endVertex();
+      consumer.vertex(m, 0, imageRenderer.getHeight(), 0).color(1, 1, 1, 0.15f).endVertex();
+      consumer.vertex(m, imageRenderer.getWidth(), imageRenderer.getHeight(), 0).color(1, 1, 1, 0.15f).endVertex();
+      consumer.vertex(m, imageRenderer.getWidth(), 0, 0).color(1, 1, 1, 0.15f).endVertex();
     }
 
     imageRenderer.render(graphics, mouseX - lastX, mouseY - lastY);

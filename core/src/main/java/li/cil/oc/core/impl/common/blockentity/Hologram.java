@@ -1,5 +1,7 @@
 package li.cil.oc.core.impl.common.blockentity;
 
+import li.cil.oc.compat.MathCompat;
+
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Map;
@@ -329,12 +331,12 @@ public class Hologram extends BlockEntity implements Environment, SidedEnvironme
     if (z < 0 || z >= WIDTH) throw new ArrayIndexOutOfBoundsException("z");
     int minY, maxY, value;
     if (args.count() > 4) {
-      minY = Math.clamp(args.checkInteger(2), 1, 32);
-      maxY = Math.clamp(args.checkInteger(3), 1, 32);
+      minY = MathCompat.clamp(args.checkInteger(2), 1, 32);
+      maxY = MathCompat.clamp(args.checkInteger(3), 1, 32);
       value = checkColor(args, 4);
     } else {
       minY = 1;
-      maxY = Math.clamp(args.checkInteger(2), 1, 32);
+      maxY = MathCompat.clamp(args.checkInteger(2), 1, 32);
       value = checkColor(args, 3);
     }
     if (minY > maxY) throw new IllegalArgumentException("interval is empty");
@@ -362,12 +364,12 @@ public class Hologram extends BlockEntity implements Environment, SidedEnvironme
     int tz = args.checkInteger(5);
     if (w <= 0 || h <= 0) return null;
     if (tx == 0 && tz == 0) return null;
-    int a = Math.clamp(x + tx + w - 1, 0, WIDTH - 1);
-    int b = Math.clamp(x + tx, 0, WIDTH);
+    int a = MathCompat.clamp(x + tx + w - 1, 0, WIDTH - 1);
+    int b = MathCompat.clamp(x + tx, 0, WIDTH);
     int dx0 = tx > 0 ? a : b;
     int dx1 = tx > 0 ? b : a;
-    int c = Math.clamp(z + tz + h - 1, 0, WIDTH - 1);
-    int d = Math.clamp(z + tz, 0, WIDTH);
+    int c = MathCompat.clamp(z + tz + h - 1, 0, WIDTH - 1);
+    int d = MathCompat.clamp(z + tz, 0, WIDTH);
     int dz0 = tz > 0 ? c : d;
     int dz1 = tz > 0 ? d : c;
     int sx = tx > 0 ? -1 : 1;
@@ -425,7 +427,7 @@ public class Hologram extends BlockEntity implements Environment, SidedEnvironme
   @SuppressWarnings("SameReturnValue")
   @Callback(doc = "function(value:number) -- Set the render scale. A larger scale consumes more energy.")
   public Object[] setScale(Context context, Arguments args) {
-    scale = Math.clamp(args.checkDouble(0), 0.333333, OCSettings.get().hologramMaxScaleByTier[tier]);
+    scale = MathCompat.clamp(args.checkDouble(0), 0.333333, OCSettings.get().hologramMaxScaleByTier[tier]);
     PacketSender.sendHologramScale(this, scale);
     return null;
   }
@@ -439,9 +441,9 @@ public class Hologram extends BlockEntity implements Environment, SidedEnvironme
   @Callback(doc = "function(tx:number, ty:number, tz:number) -- Sets the relative render projection offsets of the hologram.")
   public Object[] setTranslation(Context context, Arguments args) {
     double maxTranslation = OCSettings.get().hologramMaxTranslationByTier[tier];
-    translationX = Math.clamp(args.checkDouble(0), -maxTranslation, maxTranslation);
-    translationY = Math.clamp(args.checkDouble(1), 0, maxTranslation * 2);
-    translationZ = Math.clamp(args.checkDouble(2), -maxTranslation, maxTranslation);
+    translationX = MathCompat.clamp(args.checkDouble(0), -maxTranslation, maxTranslation);
+    translationY = MathCompat.clamp(args.checkDouble(1), 0, maxTranslation * 2);
+    translationZ = MathCompat.clamp(args.checkDouble(2), -maxTranslation, maxTranslation);
     PacketSender.sendHologramOffset(this, translationX, translationY, translationZ);
     return null;
   }
@@ -485,7 +487,7 @@ public class Hologram extends BlockEntity implements Environment, SidedEnvironme
   @Callback(doc = "function(speed:number, x:number, y:number, z:number):boolean -- Set the rotation speed of the displayed hologram.")
   public Object[] setRotationSpeed(Context context, Arguments args) {
     if (tier > 0) {
-      rotationSpeed = (float) Math.clamp(args.checkDouble(0), -360 * 4, 360 * 4);
+      rotationSpeed = (float) MathCompat.clamp(args.checkDouble(0), -360 * 4, 360 * 4);
       rotationSpeedX = (float) args.checkDouble(1);
       rotationSpeedY = (float) args.checkDouble(2);
       rotationSpeedZ = (float) args.checkDouble(3);
@@ -572,7 +574,7 @@ public class Hologram extends BlockEntity implements Environment, SidedEnvironme
 
   @Override
   public void readFromNBTForServer(CompoundTag nbt) {
-    tier = Math.clamp(nbt.getByte(OCSettings.namespace + "tier"), 0, 1);
+    tier = MathCompat.clamp(nbt.getByte(OCSettings.namespace + "tier"), 0, 1);
     if (nbt.contains(OCSettings.namespace + "yaw")) {
       facingDirection = Direction.from3DDataValue(nbt.getInt(OCSettings.namespace + "yaw"));
     }
