@@ -52,6 +52,11 @@ legacyForge {
             programArgument '--nogui'
             systemProperty 'forge.enabledGameTestNamespaces', mod_id
         }
+        gameTestServer {
+            type = "gameTestServer"
+            gameDirectory = project.file('runs/gametest')
+            systemProperty 'forge.enabledGameTestNamespaces', mod_id
+        }
         data {
             // Loads every mod and registry without a world or window; used as a startup smoke test.
             data()
