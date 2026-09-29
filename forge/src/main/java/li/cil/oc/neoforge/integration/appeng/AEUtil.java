@@ -26,23 +26,23 @@ public final class AEUtil {
   }
 
   public static boolean isController(ItemStack stack) {
-    return stack != null && !stack.isEmpty() && AEBlocks.CONTROLLER.is(stack);
+    return stack != null && !stack.isEmpty() && AEBlocks.CONTROLLER.isSameAs(stack);
   }
 
   public static boolean isExportBus(ItemStack stack) {
-    return stack != null && !stack.isEmpty() && AEParts.EXPORT_BUS.is(stack);
+    return stack != null && !stack.isEmpty() && AEParts.EXPORT_BUS.isSameAs(stack);
   }
 
   public static boolean isImportBus(ItemStack stack) {
-    return stack != null && !stack.isEmpty() && AEParts.IMPORT_BUS.is(stack);
+    return stack != null && !stack.isEmpty() && AEParts.IMPORT_BUS.isSameAs(stack);
   }
 
   public static boolean isBlockInterface(ItemStack stack) {
-    return stack != null && !stack.isEmpty() && AEBlocks.INTERFACE.is(stack);
+    return stack != null && !stack.isEmpty() && AEBlocks.INTERFACE.isSameAs(stack);
   }
 
   public static boolean isPartInterface(ItemStack stack) {
-    return stack != null && !stack.isEmpty() && AEParts.INTERFACE.is(stack);
+    return stack != null && !stack.isEmpty() && AEParts.INTERFACE.isSameAs(stack);
   }
 
   public static MEStorage getGridStorage(IGrid grid) {

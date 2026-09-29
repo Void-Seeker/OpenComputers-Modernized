@@ -5,9 +5,8 @@ plugins {
 
 // 1.20.1 backport: integrations that are not ported yet.
 def unportedIntegrations = [
-    'appeng', 'appmek', 'cbmultipart', 'computercraft', 'create', 'emi', 'enderio', 'enderstorage',
-    'jade', 'jei', 'mekanism', 'morered', 'projectred', 'refinedstorage2', 'refinedstorage_mekanism',
-    'rei', 'rftools', 'sable', 'tis3d', 'top', 'wthit',
+    'cbmultipart', 'computercraft', 'enderio', 'enderstorage', 'morered', 'projectred',
+    'refinedstorage2', 'refinedstorage_mekanism', 'rei', 'rftools', 'sable', 'tis3d', 'top', 'wthit',
 ]
 sourceSets.main.java {
     unportedIntegrations.each { exclude "li/cil/oc/neoforge/integration/${it}/**" }
@@ -95,7 +94,25 @@ dependencies {
     compileOnly("li.cil.repack:OC-LuaJ:${luaj_version}")
     implementation("li.cil.repack:OC-JNLua-Natives:${jnlua_natives_version}")
 
-    // Integrations: ported one by one to their 1.20.1 versions, see integrationDeps below.
+    // Integrations with the mods of the Reclamation - Hardcore Edition pack, pinned to the pack's versions.
+    // Others are excluded below until ported.
+    modCompileOnly("appeng:appliedenergistics2-forge:${ae2_version}")
+    modCompileOnly("maven.modrinth:applied-mekanistics:${appmek_version}")
+    modCompileOnly("mekanism:Mekanism:${minecraft_version}-${mekanism_version}")
+    modCompileOnly("com.simibubi.create:create-${minecraft_version}:${create_version}:slim") { transitive = false }
+    modCompileOnly("mezz.jei:jei-${minecraft_version}-common-api:${jei_version}")
+    modCompileOnly("mezz.jei:jei-${minecraft_version}-forge-api:${jei_version}")
+    modCompileOnly("dev.emi:emi-forge:${emi_version}+${minecraft_version}:api")
+    modCompileOnly("maven.modrinth:jade:${jade_version}+forge")
+    // The same mods at dev runtime only (not bundled), so runGameTestServer/runClient exercise the integrations.
+    modRuntimeOnly("appeng:appliedenergistics2-forge:${ae2_version}")
+    modRuntimeOnly("maven.modrinth:guideme:${guideme_version}") // required by AE2 15.4
+    modRuntimeOnly("mekanism:Mekanism:${minecraft_version}-${mekanism_version}")
+    modRuntimeOnly("maven.modrinth:applied-mekanistics:${appmek_version}")
+    modRuntimeOnly("maven.modrinth:create:${create_modrinth_version}")
+    modRuntimeOnly("maven.modrinth:jade:${jade_version}+forge")
+    modRuntimeOnly("mezz.jei:jei-${minecraft_version}-forge:${jei_version}")
+    modRuntimeOnly("dev.emi:emi-forge:${emi_version}+${minecraft_version}")
 
     commonResources(project(path: ':core-api', configuration: 'commonResources'))
     commonResources(project(path: ':core', configuration: 'commonResources'))

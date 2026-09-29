@@ -25,7 +25,9 @@ public interface ChemicalNetworkControl {
     for (var entry : all) {
       var key = entry.getKey();
       if (key instanceof MekanismKey chemicalKey) {
-        result.add(chemicalKey.getStack().copyWithAmount(entry.getLongValue()));
+        var stack = chemicalKey.getStack().copy();
+        stack.setAmount(entry.getLongValue());
+        result.add(stack);
       }
     }
     return ResultWrapper.result((Object) result.toArray());

@@ -506,7 +506,7 @@ public interface NetworkControl<AETile extends IActionHost> extends Persistable,
     public void load(CompoundTag nbt, HolderLookup.Provider provider) {
       super.load(nbt, provider);
       if (nbt.contains(STACK_KEY)) {
-        var key = AEKey.fromTagGeneric(provider, nbt.getCompound(STACK_KEY));
+        var key = AEKey.fromTagGeneric(nbt.getCompound(STACK_KEY));
         if (key instanceof AEItemKey itemKey) {
           stack = itemKey;
         }
@@ -535,7 +535,7 @@ public interface NetworkControl<AETile extends IActionHost> extends Persistable,
     public void save(CompoundTag nbt, HolderLookup.Provider provider) {
       super.save(nbt, provider);
       if (stack != null) {
-        nbt.put(STACK_KEY, stack.toTagGeneric(provider));
+        nbt.put(STACK_KEY, stack.toTagGeneric());
       }
       nbt.putLong(AMOUNT_KEY, amount);
       var linksList = new ListTag();

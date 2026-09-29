@@ -25,7 +25,7 @@ public final class DriverMekanismComputer implements DriverBlock {
   private static BlockEntity resolveTile(final Level world, final BlockPos pos) {
     BlockEntity tile = world.getBlockEntity(pos);
     if (tile instanceof TileEntityBoundingBlock boundingBlock) {
-      final BlockEntity main = boundingBlock.getMainTile(pos);
+      final BlockEntity main = boundingBlock.getMainTile();
       if (main != null) {
         tile = main;
       }

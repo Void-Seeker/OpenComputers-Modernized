@@ -294,7 +294,7 @@ public final class OpenComputers {
         .collect(Collectors.toList());
       if (!powerBlockList.isEmpty()) {
         net.minecraft.world.level.block.Block[] powerBlocks = powerBlockList.toArray(new net.minecraft.world.level.block.Block[0]);
-        // 1.20.1 TODO(integration/appeng): li.cil.oc.neoforge.integration.appeng.ModAppEng.registerCapabilities(event, powerBlocks);
+        li.cil.oc.neoforge.integration.appeng.ModAppEng.registerCapabilities(event, powerBlocks);
       }
     }
 

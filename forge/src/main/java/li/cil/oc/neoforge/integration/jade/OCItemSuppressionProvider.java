@@ -9,6 +9,8 @@ import li.cil.oc.core.impl.common.blockentity.Microcontroller;
 import li.cil.oc.core.impl.common.blockentity.RobotBase;
 import li.cil.oc.neoforge.common.blockentity.RobotProxy;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.Container;
 import net.minecraft.world.item.ItemStack;
 import org.jetbrains.annotations.Nullable;
@@ -20,7 +22,7 @@ import snownee.jade.api.view.ItemView;
 import snownee.jade.api.view.ViewGroup;
 
 @SuppressWarnings("unused")
-public enum OCItemSuppressionProvider implements IServerExtensionProvider<ItemStack>, IClientExtensionProvider<ItemStack, ItemView> {
+public enum OCItemSuppressionProvider implements IServerExtensionProvider<Object, ItemStack>, IClientExtensionProvider<ItemStack, ItemView> {
   INSTANCE;
 
   private static final ResourceLocation UID = new ResourceLocation("opencomputers:item_storage");
@@ -32,17 +34,17 @@ public enum OCItemSuppressionProvider implements IServerExtensionProvider<ItemSt
 
   @Nullable
   @Override
-  public List<ViewGroup<ItemStack>> getGroups(Accessor<?> accessor) {
-    if (accessor.getTarget() instanceof Case || accessor.getTarget() instanceof Microcontroller) {
+  public List<ViewGroup<ItemStack>> getGroups(ServerPlayer player, ServerLevel level, Object target, boolean showDetails) {
+    if (target instanceof Case || target instanceof Microcontroller) {
       return List.of();
     }
-    if (accessor.getTarget() instanceof RobotBase robot) {
+    if (target instanceof RobotBase robot) {
       return buildFilteredContainerView(robot, robot.componentSlots());
     }
-    if (accessor.getTarget() instanceof RobotProxy proxy) {
+    if (target instanceof RobotProxy proxy) {
       return buildFilteredContainerView(proxy, proxy.robot.componentSlots());
     }
-    if (accessor.getTarget() instanceof Agent agent) {
+    if (target instanceof Agent agent) {
       return buildAgentItemView(agent);
     }
     return null;

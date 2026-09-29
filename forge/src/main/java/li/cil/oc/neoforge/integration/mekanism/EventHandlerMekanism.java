@@ -1,6 +1,6 @@
 package li.cil.oc.neoforge.integration.mekanism;
 
-import mekanism.api.MekanismItemAbilities;
+import mekanism.common.item.ItemConfigurator;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 
@@ -21,6 +21,8 @@ public final class EventHandlerMekanism {
     if (stack.isEmpty()) {
       return false;
     }
-    return stack.canPerformAction(MekanismItemAbilities.WRENCH_DISMANTLE);
+    // Mekanism 10.4 has no wrench item ability yet; the configurator acts as wrench in wrench mode.
+    return stack.getItem() instanceof ItemConfigurator configurator
+      && configurator.getMode(stack) == ItemConfigurator.ConfiguratorMode.WRENCH;
   }
 }

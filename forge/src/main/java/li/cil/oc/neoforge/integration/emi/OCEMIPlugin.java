@@ -81,11 +81,11 @@ public class OCEMIPlugin implements EmiPlugin {
   private void registerComparisons(EmiRegistry registry) {
     var mc = li.cil.oc.api.Items.get(Constants.BlockName.Microcontroller);
     if (mc != null && mc.item() != null) {
-      registry.setDefaultComparison(EmiStack.of(mc.item()), Comparison.compareComponents());
+      registry.setDefaultComparison(EmiStack.of(mc.item()), Comparison.compareNbt());
     }
     var robot = li.cil.oc.api.Items.get(Constants.BlockName.Robot);
     if (robot != null && robot.item() != null) {
-      registry.setDefaultComparison(EmiStack.of(robot.item()), Comparison.compareComponents());
+      registry.setDefaultComparison(EmiStack.of(robot.item()), Comparison.compareNbt());
     }
     var eeprom = li.cil.oc.api.Items.get(Constants.ItemName.EEPROM);
     if (eeprom != null && eeprom.item() != null) {
@@ -392,8 +392,7 @@ public class OCEMIPlugin implements EmiPlugin {
   }
 
   private static class ManualButtonWidget extends Widget {
-    private static final ResourceLocation BUTTON = new ResourceLocation("widget/button");
-    private static final ResourceLocation BUTTON_HIGHLIGHTED = new ResourceLocation("widget/button_highlighted");
+    private static final ResourceLocation WIDGETS = new ResourceLocation("textures/gui/widgets.png");
     private final int x, y, w, h;
     private final Component label;
     private final String manualPath;
@@ -415,7 +414,8 @@ public class OCEMIPlugin implements EmiPlugin {
     @Override
     public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float delta) {
       boolean hovered = mouseX >= x && mouseX < x + w && mouseY >= y && mouseY < y + h;
-      guiGraphics.blitSprite(hovered ? BUTTON_HIGHLIGHTED : BUTTON, x, y, w, h);
+      // 1.20.1 has no GUI sprite atlas; draw the button like AbstractButton does.
+      guiGraphics.blitNineSliced(WIDGETS, x, y, w, h, 20, 4, 200, 20, 0, hovered ? 86 : 66);
       var font = Minecraft.getInstance().font;
       guiGraphics.drawString(font, label, x + (w - font.width(label)) / 2, y + (h - 8) / 2, 0xFFFFFF, false);
     }

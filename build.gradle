@@ -198,6 +198,7 @@ subprojects {
         maven {
             url = "https://modmaven.dev/"
             content {
+                includeGroup "appeng"
                 includeGroup "mekanism"
                 includeGroup "mcjty.theoneprobe"
             }

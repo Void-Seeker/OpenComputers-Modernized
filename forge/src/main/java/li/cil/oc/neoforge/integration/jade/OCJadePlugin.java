@@ -12,15 +12,15 @@ import org.jetbrains.annotations.Nullable;
 import snownee.jade.addon.core.ObjectNameProvider;
 import snownee.jade.api.BlockAccessor;
 import snownee.jade.api.EntityAccessor;
-import snownee.jade.api.IComponentProvider;
+import snownee.jade.api.IBlockComponentProvider;
+import snownee.jade.api.IEntityComponentProvider;
 import snownee.jade.api.ITooltip;
 import snownee.jade.api.IWailaClientRegistration;
 import snownee.jade.api.IWailaCommonRegistration;
 import snownee.jade.api.IWailaPlugin;
-import snownee.jade.api.JadeIds;
+import snownee.jade.api.Identifiers;
 import snownee.jade.api.WailaPlugin;
 import snownee.jade.api.config.IPluginConfig;
-import snownee.jade.api.config.IWailaConfig;
 import snownee.jade.api.ui.IElement;
 import snownee.jade.api.ui.IElementHelper;
 
@@ -29,8 +29,9 @@ import snownee.jade.api.ui.IElementHelper;
 public class OCJadePlugin implements IWailaPlugin {
   @Override
   public void register(final IWailaCommonRegistration registration) {
-    registration.registerBlockDataProvider(OCDataProvider.INSTANCE, AbstractBlock.class);
-    registration.registerItemStorage(OCItemSuppressionProvider.INSTANCE, AbstractBlock.class);
+    // Jade 11 (1.20.1) keys server data and item storage on the block entity class, not the block.
+    registration.registerBlockDataProvider(OCDataProvider.INSTANCE, li.cil.oc.core.impl.common.blockentity.traits.BlockEntity.class);
+    registration.registerItemStorage(OCItemSuppressionProvider.INSTANCE, li.cil.oc.core.impl.common.blockentity.traits.BlockEntity.class);
     registration.registerItemStorage(OCItemSuppressionProvider.INSTANCE, Drone.class);
   }
 
@@ -43,7 +44,15 @@ public class OCJadePlugin implements IWailaPlugin {
     registration.registerItemStorageClient(OCItemSuppressionProvider.INSTANCE);
   }
 
-  private enum OCEntityNameProvider implements IComponentProvider<EntityAccessor> {
+  /**
+   * Jade 11 (1.20.1) has no {@code ITooltip#replace}; swap the core object name line for ours.
+   */
+  private static void replaceObjectName(final ITooltip tooltip, final Component name) {
+    tooltip.remove(Identifiers.CORE_OBJECT_NAME);
+    tooltip.add(0, name, Identifiers.CORE_OBJECT_NAME);
+  }
+
+  private enum OCEntityNameProvider implements IEntityComponentProvider {
     INSTANCE;
 
     private static final ResourceLocation UID = new ResourceLocation("opencomputers:drone_name");
@@ -61,19 +70,19 @@ public class OCJadePlugin implements IWailaPlugin {
       String ocName = drone.name();
       MutableComponent name = Component.empty().append(
           ocName.isEmpty()
-            ? ObjectNameProvider.getEntityName(drone, IWailaConfig.get().getGeneral().getEnableAccessibilityPlugin() && config.get(JadeIds.ACCESS_ENTITY_DETAILS))
+            ? ObjectNameProvider.getEntityName(drone)
             : Component.literal(ocName))
         .withStyle(rarity.getStyleModifier());
-      tooltip.replace(JadeIds.CORE_OBJECT_NAME, name);
+      replaceObjectName(tooltip, name);
     }
 
     @Override
     public int getDefaultPriority() {
-      return ObjectNameProvider.getEntity().getDefaultPriority() + 10;
+      return ObjectNameProvider.INSTANCE.getDefaultPriority() + 10;
     }
   }
 
-  private enum OCBlockNameProvider implements IComponentProvider<BlockAccessor> {
+  private enum OCBlockNameProvider implements IBlockComponentProvider {
     INSTANCE;
 
     private static final ResourceLocation UID = new ResourceLocation("opencomputers:block_name");
@@ -88,16 +97,16 @@ public class OCJadePlugin implements IWailaPlugin {
       ItemStack picked = accessor.getPickedResult();
       if (picked.isEmpty() || picked.getRarity() == Rarity.COMMON) return;
       MutableComponent name = Component.empty().append(picked.getHoverName()).withStyle(picked.getRarity().getStyleModifier());
-      tooltip.replace(JadeIds.CORE_OBJECT_NAME, name);
+      replaceObjectName(tooltip, name);
     }
 
     @Override
     public int getDefaultPriority() {
-      return ObjectNameProvider.getBlock().getDefaultPriority() + 10;
+      return ObjectNameProvider.INSTANCE.getDefaultPriority() + 10;
     }
   }
 
-  private enum DroneIconProvider implements IComponentProvider<EntityAccessor> {
+  private enum DroneIconProvider implements IEntityComponentProvider {
     INSTANCE;
 
     private static final ItemStack DRONE_ICON = new ItemStack(Items.DRONE.get());

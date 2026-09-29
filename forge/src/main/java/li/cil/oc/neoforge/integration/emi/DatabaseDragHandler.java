@@ -17,7 +17,7 @@ public class DatabaseDragHandler implements EmiDragDropHandler<Database> {
   public boolean dropStack(Database screen, EmiIngredient stack, int x, int y) {
     var stacks = stack.getEmiStacks();
     if (stacks.isEmpty()) return false;
-    var emiStack = stacks.getFirst();
+    var emiStack = stacks.get(0);
     if (emiStack.isEmpty()) return false;
     ItemStack itemStack = emiStack.getItemStack();
     if (itemStack.isEmpty()) return false;

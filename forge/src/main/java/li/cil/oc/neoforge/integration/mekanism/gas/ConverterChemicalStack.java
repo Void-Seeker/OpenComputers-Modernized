@@ -10,13 +10,13 @@ public final class ConverterChemicalStack implements Converter {
   @Override
   public void convert(Object value, Map<Object, Object> output) {
     if (value instanceof ChemicalStack stack) {
-      var key = stack.getChemicalHolder().getKey();
+      var key = stack.getTypeRegistryName();
       if (key != null) {
         if (OCSettings.get().insertIdsInConverters) {
-          output.put("id", key.location().toString());
+          output.put("id", key.toString());
         }
-        output.put("name", key.location().getPath());
-        output.put("label", stack.getChemical().getTextComponent().getString());
+        output.put("name", key.getPath());
+        output.put("label", stack.getTextComponent().getString());
       }
       output.put("amount", stack.getAmount());
     }

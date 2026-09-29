@@ -15,7 +15,8 @@ public final class ModAppEng implements ModProxy {
   }
 
   public static void registerCapabilities(CapabilityRegistrar event, Block[] powerBlocks) {
-    event.registerBlock(appeng.api.AECapabilities.IN_WORLD_GRID_NODE_HOST,
+    // AE2 15 looks up grid node hosts through this Forge capability (AE2 19: AECapabilities).
+    event.registerBlock(li.cil.oc.neoforge.compat.BlockCapability.of(appeng.capabilities.Capabilities.IN_WORLD_GRID_NODE_HOST),
       (level, pos, state, blockEntity, side) -> {
         if (blockEntity instanceof AppliedEnergistics2 ae2) {
           return new OCGridNodeHost(ae2);

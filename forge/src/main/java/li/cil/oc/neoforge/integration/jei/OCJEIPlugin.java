@@ -33,7 +33,7 @@ import mezz.jei.api.gui.inputs.IJeiUserInput;
 import mezz.jei.api.gui.widgets.IRecipeExtrasBuilder;
 import mezz.jei.api.gui.widgets.IRecipeWidget;
 import mezz.jei.api.helpers.IGuiHelper;
-import mezz.jei.api.ingredients.subtypes.ISubtypeInterpreter;
+import mezz.jei.api.ingredients.subtypes.IIngredientSubtypeInterpreter;
 import mezz.jei.api.ingredients.subtypes.UidContext;
 import mezz.jei.api.recipe.IFocus;
 import mezz.jei.api.recipe.IFocusGroup;
@@ -56,7 +56,6 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.RecipeHolder;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -78,16 +77,10 @@ public class OCJEIPlugin implements IModPlugin {
 
   @Override
   public void registerItemSubtypes(@NotNull ISubtypeRegistration registration) {
-    ISubtypeInterpreter<ItemStack> nbtInterpreter = new ISubtypeInterpreter<>() {
-      @Override
-      public @NotNull Object getSubtypeData(ItemStack stack, @NotNull UidContext context) {
-        return stack.getComponents();
-      }
-
-      @Override
-      public @NotNull String getLegacyStringSubtypeInfo(@NotNull ItemStack stack, @NotNull UidContext context) {
-        return "";
-      }
+    // JEI 15 (1.20.1): subtypes are strings; the 1.21 version keyed on the item components.
+    IIngredientSubtypeInterpreter<ItemStack> nbtInterpreter = (stack, context) -> {
+      var tag = stack.getTag();
+      return tag != null ? tag.toString() : IIngredientSubtypeInterpreter.NONE;
     };
     var mc = li.cil.oc.api.Items.get(Constants.BlockName.Microcontroller);
     if (mc != null && mc.item() != null) {
@@ -100,68 +93,42 @@ public class OCJEIPlugin implements IModPlugin {
 
     var eeprom = li.cil.oc.api.Items.get(Constants.ItemName.EEPROM);
     if (eeprom != null && eeprom.item() != null) {
-      registration.registerSubtypeInterpreter(eeprom.item(), new ISubtypeInterpreter<>() {
-        @Override
-        public @NotNull Object getSubtypeData(@NotNull ItemStack stack, @NotNull UidContext context) {
-          var customData = CustomData.get(stack);
-          if (customData != null && !customData.isEmpty()) {
-            var tag = customData.copyTag();
-            if (tag.contains(OCSettings.namespace + "data")) {
-              var data = tag.getCompound(OCSettings.namespace + "data");
-              if (data.contains(OCSettings.namespace + "eeprom") && data.getByteArray(OCSettings.namespace + "eeprom").length > 0) {
-                return "programmed";
-              }
+      registration.registerSubtypeInterpreter(eeprom.item(), (stack, context) -> {
+        var customData = CustomData.get(stack);
+        if (customData != null && !customData.isEmpty()) {
+          var tag = customData.copyTag();
+          if (tag.contains(OCSettings.namespace + "data")) {
+            var data = tag.getCompound(OCSettings.namespace + "data");
+            if (data.contains(OCSettings.namespace + "eeprom") && data.getByteArray(OCSettings.namespace + "eeprom").length > 0) {
+              return "programmed";
             }
           }
-          return "blank";
         }
-
-        @Override
-        public @NotNull String getLegacyStringSubtypeInfo(@NotNull ItemStack stack, @NotNull UidContext context) {
-          return "";
-        }
+        return "blank";
       });
     }
     var floppy = li.cil.oc.api.Items.get(Constants.ItemName.Floppy);
     if (floppy != null && floppy.item() != null) {
-      registration.registerSubtypeInterpreter(floppy.item(), new ISubtypeInterpreter<>() {
-        @Override
-        public @Nullable Object getSubtypeData(@NotNull ItemStack stack, @NotNull UidContext context) {
-          var customData = CustomData.get(stack);
-          if (customData != null && !customData.isEmpty() && customData.copyTag().contains(OCSettings.namespace + "lootFactory")) {
-            var tag = new CompoundTag();
-            tag.putString(OCSettings.namespace + "lootFactory", customData.copyTag().getString(OCSettings.namespace + "lootFactory"));
-            return tag;
-          }
-          return null;
+      registration.registerSubtypeInterpreter(floppy.item(), (stack, context) -> {
+        var customData = CustomData.get(stack);
+        if (customData != null && !customData.isEmpty() && customData.copyTag().contains(OCSettings.namespace + "lootFactory")) {
+          return customData.copyTag().getString(OCSettings.namespace + "lootFactory");
         }
-
-        @Override
-        public @NotNull String getLegacyStringSubtypeInfo(@NotNull ItemStack stack, @NotNull UidContext context) {
-          return "";
-        }
+        return IIngredientSubtypeInterpreter.NONE;
       });
     }
     var hoverBoots = li.cil.oc.api.Items.get(Constants.ItemName.HoverBoots);
     if (hoverBoots != null && hoverBoots.item() != null) {
-      registration.registerSubtypeInterpreter(hoverBoots.item(), new ISubtypeInterpreter<>() {
-        @Override
-        public @NotNull Object getSubtypeData(@NotNull ItemStack stack, @NotNull UidContext context) {
-          var customData = CustomData.get(stack);
-          if (customData != null && !customData.isEmpty()) {
-            var tag = customData.copyTag();
-            double charge = tag.getDouble(OCSettings.namespace + "charge");
-            if (charge > 0) {
-              return "charged";
-            }
+      registration.registerSubtypeInterpreter(hoverBoots.item(), (stack, context) -> {
+        var customData = CustomData.get(stack);
+        if (customData != null && !customData.isEmpty()) {
+          var tag = customData.copyTag();
+          double charge = tag.getDouble(OCSettings.namespace + "charge");
+          if (charge > 0) {
+            return "charged";
           }
-          return "uncharged";
         }
-
-        @Override
-        public @NotNull String getLegacyStringSubtypeInfo(@NotNull ItemStack stack, @NotNull UidContext context) {
-          return "";
-        }
+        return "uncharged";
       });
     }
   }
@@ -196,7 +163,8 @@ public class OCJEIPlugin implements IModPlugin {
   @Override
   public void registerVanillaCategoryExtensions(@NotNull IVanillaCategoryExtensionRegistration registration) {
     if (!LootManager.disksForCycling().isEmpty()) {
-      registration.getCraftingCategory().addExtension(LootDiskCyclingRecipe.class, new LootDiskCyclingExtension());
+      registration.getCraftingCategory().addCategoryExtension(LootDiskCyclingRecipe.class,
+        recipe -> !LootManager.disksForCycling().isEmpty(), recipe -> new LootDiskCyclingExtension());
     }
   }
 
@@ -374,14 +342,9 @@ public class OCJEIPlugin implements IModPlugin {
     }
   }
 
-  private static class LootDiskCyclingExtension implements ICraftingCategoryExtension<LootDiskCyclingRecipe> {
+  private static class LootDiskCyclingExtension implements ICraftingCategoryExtension {
     @Override
-    public boolean isHandled(@NotNull RecipeHolder<LootDiskCyclingRecipe> recipeHolder) {
-      return !LootManager.disksForCycling().isEmpty();
-    }
-
-    @Override
-    public void setRecipe(@NotNull RecipeHolder<LootDiskCyclingRecipe> recipeHolder, @NotNull IRecipeLayoutBuilder builder, @NotNull ICraftingGridHelper craftingGridHelper, @NotNull IFocusGroup focuses) {
+    public void setRecipe(@NotNull IRecipeLayoutBuilder builder, @NotNull ICraftingGridHelper craftingGridHelper, @NotNull IFocusGroup focuses) {
       var disks = LootManager.disksForCycling();
       if (disks.isEmpty()) return;
       var wrench = li.cil.oc.api.Items.get(Constants.ItemName.Wrench).createItemStack(1);
@@ -534,8 +497,7 @@ public class OCJEIPlugin implements IModPlugin {
 
   @SuppressWarnings("unused")
   private record ManualOpenButton(int x, int y, int w, int h, Component label, String path) implements IRecipeWidget {
-    private static final ResourceLocation BUTTON = new ResourceLocation("widget/button");
-    private static final ResourceLocation BUTTON_HIGHLIGHTED = new ResourceLocation("widget/button_highlighted");
+    private static final ResourceLocation WIDGETS = new ResourceLocation("textures/gui/widgets.png");
 
     @Override
     public @NotNull ScreenPosition getPosition() {
@@ -545,7 +507,8 @@ public class OCJEIPlugin implements IModPlugin {
     @Override
     public void drawWidget(GuiGraphics guiGraphics, double mouseX, double mouseY) {
       boolean hovered = mouseX >= 0 && mouseX < w && mouseY >= 0 && mouseY < h;
-      guiGraphics.blitSprite(hovered ? BUTTON_HIGHLIGHTED : BUTTON, 0, 0, w, h);
+      // 1.20.1 has no GUI sprite atlas; draw the button like AbstractButton does.
+      guiGraphics.blitNineSliced(WIDGETS, 0, 0, w, h, 20, 4, 200, 20, 0, hovered ? 86 : 66);
       var font = Minecraft.getInstance().font;
       guiGraphics.drawString(font, label, (w - font.width(label)) / 2, (h - 8) / 2, 0xFFFFFF, false);
     }
