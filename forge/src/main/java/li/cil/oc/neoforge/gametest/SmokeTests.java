@@ -70,4 +70,19 @@ public final class SmokeTests {
       "custom data read did not round trip: " + read);
     helper.succeed();
   }
+
+  @GameTest(template = EMPTY)
+  public static void powerConverterAcceptsForgeEnergy(final GameTestHelper helper) {
+    final BlockPos pos = new BlockPos(2, 2, 2);
+    helper.setBlock(pos, Blocks.POWER_CONVERTER.get());
+    final var storage = Capabilities.EnergyStorage.BLOCK.getCapability(helper.getLevel(), helper.absolutePos(pos), Direction.NORTH);
+    helper.assertTrue(storage != null, "power converter exposes no Forge Energy storage");
+    helper.assertTrue(storage.canReceive(), "power converter does not accept Forge Energy");
+    // The block entity needs a tick to join OC's network before it has a buffer to fill.
+    helper.runAfterDelay(5, () -> {
+      final var later = Capabilities.EnergyStorage.BLOCK.getCapability(helper.getLevel(), helper.absolutePos(pos), Direction.NORTH);
+      helper.assertTrue(later != null && later.receiveEnergy(1000, true) > 0, "power converter accepted no Forge Energy");
+      helper.succeed();
+    });
+  }
 }
