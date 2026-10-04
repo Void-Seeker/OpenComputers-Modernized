@@ -70,7 +70,9 @@ public abstract class RedstoneVanilla extends RedstoneSignaller implements Devic
     return ResultWrapper.result(ret);
   }
 
-  @Callback(direct = true, doc = "function(side:number):number -- Get the comparator input on the specified side.")
+  // Not direct: comparator values of chests, hoppers and the like come from block entities, which the level only
+  // hands out on the server thread.
+  @Callback(doc = "function(side:number):number -- Get the comparator input on the specified side.")
   public Object[] getComparatorInput(Context context, Arguments args) {
     Direction side = checkSide(args);
     BlockPosition blockPos = BlockPosition.apply(redstone()).offset(side);
@@ -78,7 +80,7 @@ public abstract class RedstoneVanilla extends RedstoneSignaller implements Devic
     if (level.isLoaded(blockPos.toBlockPos())) {
       BlockState state = level.getBlockState(blockPos.toBlockPos());
       if (state.hasAnalogOutputSignal()) {
-        return ResultWrapper.result((double) state.getSignal(level, blockPos.toBlockPos(), side.getOpposite()));
+        return ResultWrapper.result((double) state.getAnalogOutputSignal(level, blockPos.toBlockPos()));
       }
     }
     return ResultWrapper.result(0);

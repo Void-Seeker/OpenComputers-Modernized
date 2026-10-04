@@ -2,11 +2,9 @@ package li.cil.oc.neoforge.gametest;
 
 import java.util.List;
 import li.cil.oc.core.Constants;
-import li.cil.oc.core.impl.common.item.data.MicrocontrollerData;
 import li.cil.oc.core.impl.util.BlockPosition;
 import li.cil.oc.core.impl.util.FluidUtils;
 import li.cil.oc.neoforge.OpenComputers;
-import li.cil.oc.neoforge.common.init.Blocks;
 import li.cil.oc.neoforge.util.FluidUtilsOriginal;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTest;
@@ -98,43 +96,28 @@ public final class TransposerTests {
     helper.setBlock(tank, net.minecraft.world.level.block.Blocks.CAULDRON);
     helper.setBlock(composter, net.minecraft.world.level.block.Blocks.COMPOSTER.defaultBlockState().setValue(ComposterBlock.LEVEL, 8));
 
-    final var data = new MicrocontrollerData();
-    for (final String part : List.of(Constants.ItemName.CPUTier1, Constants.ItemName.RAMTier2, Constants.BlockName.Transposer)) {
-      data.components.add(li.cil.oc.api.Items.get(part).createItemStack(1));
-    }
-    data.components.add(ItemStack.EMPTY);
-    helper.setBlock(pos, Blocks.MICROCONTROLLER.get());
-    final BlockPos abs = helper.absolutePos(pos);
-    Blocks.MICROCONTROLLER.get().setPlacedBy(helper.getLevel(), abs, helper.getLevel().getBlockState(abs), net.minecraftforge.common.util.FakePlayerFactory.getMinecraft(helper.getLevel()), data.createItemStack());
     // sides: north 2, south 3, west 4, east 5
-    final byte[] code = ("local tp = component.proxy(component.list(\"transposer\")())\n"
+    final String program = "local tp = component.proxy(component.list(\"transposer\")())\n"
       + "local function check(what, ok, how) if not ok then error(what .. \": \" .. tostring(how), 0) end end\n"
       + "check(\"bucket on lava\", tp.use(5, 2, 1, 3))\n"
       + "check(\"hand on composter\", tp.use(4, 2))\n"
       + "local ok, how = tp.use(5)\n"
       + "if ok then error(\"empty hand on an empty cauldron did something: \" .. tostring(how), 0) end\n"
-      + "while true do computer.pullSignal(1) end\n").getBytes(java.nio.charset.StandardCharsets.UTF_8);
-    helper.runAfterDelay(5, () -> {
-      final var mc = (li.cil.oc.core.impl.common.blockentity.Microcontroller) helper.getLevel().getBlockEntity(abs);
-      mc.changeEEPROM(li.cil.oc.api.Items.registerEEPROM("use test", code, null, false));
-      ((li.cil.oc.api.network.Connector) mc.snooperNode).changeBuffer(1000);
-      helper.assertTrue(mc.machine().start(), "machine did not start");
-      helper.runAfterDelay(60, () -> {
-        helper.assertTrue(mc.machine().isRunning(), "program stopped: " + mc.machine().lastError());
-        helper.assertTrue(state(helper, lava).is(net.minecraft.world.level.block.Blocks.CAULDRON), "lava was not scooped: " + state(helper, lava));
-        helper.assertTrue(state(helper, tank).is(net.minecraft.world.level.block.Blocks.LAVA_CAULDRON), "the scooped lava did not go into the tank: " + state(helper, tank));
-        helper.assertTrue(state(helper, composter).getValue(ComposterBlock.LEVEL) == 0, "composter was not emptied");
-        final Container box = (Container) helper.getBlockEntity(chest);
-        helper.assertTrue(box.getItem(0).is(Items.BUCKET) && box.getItem(0).getCount() == 1, "the empty bucket is not back in its slot: " + box.getItem(0));
-        int boneMeal = 0;
-        for (int i = 0; i < box.getContainerSize(); i++) {
-          if (box.getItem(i).is(Items.BONE_MEAL)) boneMeal += box.getItem(i).getCount();
-        }
-        helper.assertTrue(boneMeal == 1, "the chest got " + boneMeal + " bone meal from the composter instead of 1");
-        final var loose = helper.getLevel().getEntitiesOfClass(ItemEntity.class, new AABB(abs).inflate(4));
-        helper.assertTrue(loose.isEmpty(), "items were left lying around: " + loose);
-        helper.succeed();
-      });
+      + "while true do computer.pullSignal(1) end\n";
+    TestMachines.runMicrocontroller(helper, pos, List.of(Constants.ItemName.CPUTier1, Constants.ItemName.RAMTier2, Constants.BlockName.Transposer), program, mc -> {
+      helper.assertTrue(state(helper, lava).is(net.minecraft.world.level.block.Blocks.CAULDRON), "lava was not scooped: " + state(helper, lava));
+      helper.assertTrue(state(helper, tank).is(net.minecraft.world.level.block.Blocks.LAVA_CAULDRON), "the scooped lava did not go into the tank: " + state(helper, tank));
+      helper.assertTrue(state(helper, composter).getValue(ComposterBlock.LEVEL) == 0, "composter was not emptied");
+      final Container box = (Container) helper.getBlockEntity(chest);
+      helper.assertTrue(box.getItem(0).is(Items.BUCKET) && box.getItem(0).getCount() == 1, "the empty bucket is not back in its slot: " + box.getItem(0));
+      int boneMeal = 0;
+      for (int i = 0; i < box.getContainerSize(); i++) {
+        if (box.getItem(i).is(Items.BONE_MEAL)) boneMeal += box.getItem(i).getCount();
+      }
+      helper.assertTrue(boneMeal == 1, "the chest got " + boneMeal + " bone meal from the composter instead of 1");
+      final var loose = helper.getLevel().getEntitiesOfClass(ItemEntity.class, new AABB(helper.absolutePos(pos)).inflate(4));
+      helper.assertTrue(loose.isEmpty(), "items were left lying around: " + loose);
+      helper.succeed();
     });
   }
 }
