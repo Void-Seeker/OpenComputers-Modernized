@@ -205,9 +205,13 @@ public abstract class MachineBase extends AbstractManagedEnvironment implements 
         }
       }
     }
-    if (newArch != architecture) synchronized (this) {
-      architecture = newArch;
-      if (architecture != null && node != null && node.network() != null) architecture.onConnect();
+    if (newArch != architecture && lockForServer("the architecture switch")) {
+      try {
+        architecture = newArch;
+        if (architecture != null && node != null && node.network() != null) architecture.onConnect();
+      } finally {
+        executionLock.unlock();
+      }
     }
     hasMemory = architecture != null && architecture.recomputeMemory(components);
   }
@@ -348,7 +352,8 @@ public abstract class MachineBase extends AbstractManagedEnvironment implements 
       if (t == State.Stopping || t == State.Stopped) return false;
       if (t == State.Paused && ticksToPause <= remainingPause) return false;
     }
-    synchronized (this) {
+    if (!lockForServer("pausing")) return false;
+    try {
       synchronized (state) {
         State t = state.peek();
         if (t == State.Stopping || t == State.Stopped) return false;
@@ -358,6 +363,8 @@ public abstract class MachineBase extends AbstractManagedEnvironment implements 
         host.markChanged();
         return true;
       }
+    } finally {
+      executionLock.unlock();
     }
   }
 
@@ -585,6 +592,27 @@ public abstract class MachineBase extends AbstractManagedEnvironment implements 
     return ResultWrapper.result(ProgramLocations.getMappings(getArchitectureName(architecture.getClass())));
   }
 
+  // Guards a slice of execution. The computer thread holds it for its whole slice. The server thread only takes it
+  // when it is free: a program stuck in a direct call that waits for the server thread must not hang the server.
+  private final java.util.concurrent.locks.ReentrantLock executionLock = new java.util.concurrent.locks.ReentrantLock();
+  private long lastLockWarning;
+
+  private boolean lockForServer(String what) {
+    try {
+      if (executionLock.tryLock(10, java.util.concurrent.TimeUnit.MILLISECONDS)) return true;
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      return false;
+    }
+    long now = System.currentTimeMillis();
+    if (now - lastLockWarning > 10000) {
+      lastLockWarning = now;
+      LOGGER.warn("The computer at {}, {}, {} is busy in a direct call; {} is skipped for now.",
+        (int) host.xPosition(), (int) host.yPosition(), (int) host.zPosition(), what);
+    }
+    return false;
+  }
+
   public boolean isExecuting() {
     synchronized (state) {
       return state.contains(State.Running);
@@ -709,10 +737,13 @@ public abstract class MachineBase extends AbstractManagedEnvironment implements 
       shouldClose = state.peek() == State.Stopping;
     }
     if (shouldClose) {
-      synchronized (this) {
+      if (!lockForServer("closing")) return;
+      try {
         synchronized (state) {
           tryClose();
         }
+      } finally {
+        executionLock.unlock();
       }
     }
   }
@@ -807,7 +838,8 @@ public abstract class MachineBase extends AbstractManagedEnvironment implements 
 
   @Override
   public void load(CompoundTag nbt, HolderLookup.Provider provider) {
-    synchronized (this) {
+    if (!lockForServer("loading")) return;
+    try {
       synchronized (state) {
         close();
         state.clear();
@@ -884,6 +916,8 @@ public abstract class MachineBase extends AbstractManagedEnvironment implements 
           close();
         }
       }
+    } finally {
+      executionLock.unlock();
     }
   }
 
@@ -892,7 +926,8 @@ public abstract class MachineBase extends AbstractManagedEnvironment implements 
     if (isExecuting() || SaveHandlerDelegate.get().savingForClients()) {
       return;
     }
-    synchronized (this) {
+    if (!lockForServer("saving")) return;
+    try {
       synchronized (state) {
         if (isExecuting() || SaveHandlerDelegate.get().savingForClients()) {
           return;
@@ -965,6 +1000,8 @@ public abstract class MachineBase extends AbstractManagedEnvironment implements 
           LOGGER.error("Error saving computer state", t);
         }
       }
+    } finally {
+      executionLock.unlock();
     }
   }
 
@@ -996,7 +1033,8 @@ public abstract class MachineBase extends AbstractManagedEnvironment implements 
     synchronized (state) {
       if (!state.isEmpty() && state.peek() == State.Stopped) return;
     }
-    synchronized (this) {
+    if (!lockForServer("closing")) return;
+    try {
       synchronized (state) {
         state.clear();
         state.push(State.Stopped);
@@ -1007,6 +1045,8 @@ public abstract class MachineBase extends AbstractManagedEnvironment implements 
         cpuStart = 0;
         remainIdle = 0;
       }
+    } finally {
+      executionLock.unlock();
     }
     host.markChanged();
   }
@@ -1046,7 +1086,8 @@ public abstract class MachineBase extends AbstractManagedEnvironment implements 
 
   @Override
   public void run() {
-    synchronized (this) {
+    executionLock.lock();
+    try {
       boolean isSyncReturn;
       synchronized (state) {
         State t = state.peek();
@@ -1104,6 +1145,8 @@ public abstract class MachineBase extends AbstractManagedEnvironment implements 
         crash("gui.opencomputers.error.internalerror");
       }
       cpuTotal += System.nanoTime() - cpuStart;
+    } finally {
+      executionLock.unlock();
     }
     host.markChanged();
   }

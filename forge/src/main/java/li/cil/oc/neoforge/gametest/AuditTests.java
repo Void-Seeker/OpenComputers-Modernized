@@ -315,5 +315,50 @@ public final class AuditTests {
       });
     });
   }
+
+  /**
+   * The server thread never waits on a computer's execution lock. With the lock held by another thread (a program
+   * stuck in a direct call), saving and pausing the machine return at once, and the program goes on afterwards.
+   */
+  @GameTest(template = EMPTY, timeoutTicks = 400)
+  public static void serverThreadDoesNotWaitOnAStuckComputer(final GameTestHelper helper) {
+    final BlockPos pos = new BlockPos(2, 2, 2);
+    TestMachines.runMicrocontroller(helper, pos, List.of(Constants.ItemName.CPUTier1, Constants.ItemName.RAMTier2),
+      "while true do computer.pullSignal(1) end\n",
+      mc -> {
+        final var machine = (li.cil.oc.core.impl.server.machine.MachineBase) mc.machine();
+        final java.util.concurrent.locks.ReentrantLock lock;
+        try {
+          final var field = li.cil.oc.core.impl.server.machine.MachineBase.class.getDeclaredField("executionLock");
+          field.setAccessible(true);
+          lock = (java.util.concurrent.locks.ReentrantLock) field.get(machine);
+        } catch (ReflectiveOperationException e) {
+          throw new RuntimeException(e);
+        }
+        final Thread holder = new Thread(() -> {
+          lock.lock();
+          try {
+            Thread.sleep(1500);
+          } catch (InterruptedException ignored) {
+          } finally {
+            lock.unlock();
+          }
+        }, "stuck computer");
+        holder.start();
+        helper.runAfterDelay(2, () -> {
+          helper.assertTrue(lock.isLocked(), "the test thread does not hold the execution lock");
+          final long start = System.nanoTime();
+          mc.saveWithoutMetadata(); // machine.save
+          machine.pause(1);
+          final long ms = (System.nanoTime() - start) / 1_000_000;
+          helper.assertTrue(ms < 500, "the server thread waited " + ms + " ms on the computer's lock");
+          helper.runAfterDelay(60, () -> {
+            helper.assertTrue(!lock.isLocked() || lock.isHeldByCurrentThread() || mc.machine().isRunning(), "lock state unexpected");
+            helper.assertTrue(mc.machine().isRunning(), "the machine stopped: " + mc.machine().lastError());
+            helper.succeed();
+          });
+        });
+      });
+  }
 }
 

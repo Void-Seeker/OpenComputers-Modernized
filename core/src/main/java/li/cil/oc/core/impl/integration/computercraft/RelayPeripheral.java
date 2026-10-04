@@ -71,6 +71,17 @@ public class RelayPeripheral implements IDynamicPeripheral {
       for (var component : visibleComponents()) {
         if (component.address().equals(address)) {
           var fakeContext = new CCContext(computer, context);
+          var callback = component.annotation(method);
+          if (callback != null && !callback.direct()) {
+            // OC runs its synchronized calls on the server thread; this is CC's computer thread
+            return context.executeMainThreadTask(() -> {
+              try {
+                return component.invoke(method, fakeContext, remaining);
+              } catch (Exception e) {
+                throw new LuaException(e.getMessage());
+              }
+            });
+          }
           try {
             var result = component.invoke(method, fakeContext, remaining);
             return MethodResult.of(result);
