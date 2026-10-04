@@ -35,6 +35,8 @@ public class Raid extends BlockEntity implements li.cil.oc.api.network.Environme
   public final RaidLabel label = new RaidLabel();
   public final boolean[] presence;
   public FileSystem filesystem = null;
+  /** Set once the block has dropped as a RAID item holding its disks, so the disks are not dropped again. */
+  public boolean droppedAsItem;
   public long lastAccess = 0;
 
   public Raid(BlockPos pos, BlockState state) {

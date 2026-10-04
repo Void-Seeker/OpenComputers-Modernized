@@ -42,6 +42,8 @@ public class Microcontroller extends BlockEntity implements PowerAcceptor, Hub, 
 
   public static BlockEntityType<Microcontroller> TYPE;
   public final MicrocontrollerData info = new MicrocontrollerData();
+  /** Set once the block has dropped as an assembled microcontroller, so its parts are not dropped again. */
+  public boolean droppedAsItem;
   public final boolean[] outputSides = new boolean[6];
   public final Node snooperNode;
   public final Node[] componentNodes;

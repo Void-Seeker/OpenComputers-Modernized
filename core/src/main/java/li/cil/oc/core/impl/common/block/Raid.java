@@ -23,6 +23,18 @@ import org.jetbrains.annotations.NotNull;
 public class Raid extends SimpleBlock implements GUI, CustomDrops<li.cil.oc.core.impl.common.blockentity.Raid> {
   public static final DirectionProperty FACING = BlockStateProperties.HORIZONTAL_FACING;
 
+  // The disks belong inside the dropped RAID, however the block is removed (also by explosions).
+  @Override
+  protected void onDropInventory(@org.jetbrains.annotations.NotNull net.minecraft.world.level.block.state.BlockState state,
+                                 @org.jetbrains.annotations.NotNull net.minecraft.world.level.Level level,
+                                 @org.jetbrains.annotations.NotNull net.minecraft.core.BlockPos pos) {
+    if (!level.isClientSide && level.getBlockEntity(pos) instanceof li.cil.oc.core.impl.common.blockentity.Raid raid) {
+      doCustomDrops(raid, null, false);
+      return;
+    }
+    super.onDropInventory(state, level, pos);
+  }
+
   public Raid() {
     super();
     registerDefaultState(defaultBlockState().setValue(FACING, Direction.NORTH));
@@ -99,6 +111,8 @@ public class Raid extends SimpleBlock implements GUI, CustomDrops<li.cil.oc.core
 
   @Override
   public void doCustomDrops(li.cil.oc.core.impl.common.blockentity.Raid blockEntity, Player player, boolean willHarvest) {
+    if (blockEntity.droppedAsItem) return;
+    blockEntity.droppedAsItem = true;
     var stack = createItemStack();
     boolean hasItems = false;
     for (var item : blockEntity.items()) {

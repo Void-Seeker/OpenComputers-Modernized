@@ -7,6 +7,7 @@ import li.cil.oc.core.impl.util.Tooltip;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -45,5 +46,19 @@ public class SimpleBlock extends AbstractBlock {
         customDrops.doCustomInit(te, placer, stack);
       }
     }
+  }
+
+  // The loot tables of CustomDrops blocks are empty: they drop through doCustomDrops. Upstream only calls it from
+  // the platform SimpleBlock, which cables, prints, RAIDs and microcontrollers do not extend, so they dropped nothing.
+  @Override
+  @SuppressWarnings({"rawtypes", "unchecked"})
+  public void playerWillDestroy(@NotNull Level world, @NotNull BlockPos pos, @NotNull BlockState state, @NotNull Player player) {
+    if (!world.isClientSide && this instanceof CustomDrops customDrops) {
+      BlockEntity te = world.getBlockEntity(pos);
+      if (te != null && customDrops.getBlockClass().isInstance(te)) {
+        customDrops.doCustomDrops(te, player, true);
+      }
+    }
+    super.playerWillDestroy(world, pos, state, player);
   }
 }

@@ -161,6 +161,16 @@ public class Microcontroller extends SimpleBlock implements PowerAcceptor, State
     }
   }
 
+  // The parts belong inside the dropped microcontroller, however the block is removed (also by explosions).
+  @Override
+  protected void onDropInventory(@NotNull BlockState state, @NotNull Level level, @NotNull BlockPos pos) {
+    if (!level.isClientSide && level.getBlockEntity(pos) instanceof li.cil.oc.core.impl.common.blockentity.Microcontroller microcontroller) {
+      doCustomDrops(microcontroller, null, false);
+      return;
+    }
+    super.onDropInventory(state, level, pos);
+  }
+
   @Override
   public Class<li.cil.oc.core.impl.common.blockentity.Microcontroller> getBlockClass() {
     return li.cil.oc.core.impl.common.blockentity.Microcontroller.class;
@@ -178,6 +188,8 @@ public class Microcontroller extends SimpleBlock implements PowerAcceptor, State
 
   @Override
   public void doCustomDrops(li.cil.oc.core.impl.common.blockentity.Microcontroller blockEntity, Player player, boolean willHarvest) {
+    if (blockEntity.droppedAsItem) return;
+    blockEntity.droppedAsItem = true;
     blockEntity.info.storedEnergy = (int) ((li.cil.oc.api.network.Connector) blockEntity.snooperNode).localBuffer();
     var level = blockEntity.getLevel();
     if (level != null) {
