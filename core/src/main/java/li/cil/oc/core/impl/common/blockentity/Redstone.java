@@ -54,7 +54,7 @@ public class Redstone extends BlockEntity implements Environment, BundledRedston
   }
 
   @Override
-  public Level level() {
+  public Level world() {
     return getLevel();
   }
 

@@ -122,7 +122,7 @@ public class Relay extends HubBlockEntity implements ComponentInventory, PowerAc
     return updatingComponents;
   }
 
-  public Level level() {
+  public Level world() {
     return getLevel();
   }
 

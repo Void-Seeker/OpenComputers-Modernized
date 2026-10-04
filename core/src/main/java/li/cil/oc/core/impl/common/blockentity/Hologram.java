@@ -93,7 +93,7 @@ public class Hologram extends BlockEntity implements Environment, SidedEnvironme
   }
 
   @Override
-  public Level level() {
+  public Level world() {
     return getLevel();
   }
 

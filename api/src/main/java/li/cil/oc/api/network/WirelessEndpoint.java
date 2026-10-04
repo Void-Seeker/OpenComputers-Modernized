@@ -31,8 +31,11 @@ public interface WirelessEndpoint {
 
   /**
    * The Level this endpoint lives in.
+   * <br>
+   * 1.20.1 backport: called {@code level()} upstream. That name collides with {@code Entity.level()} and
+   * gets renamed by reobfuscation for some implementations only.
    */
-  Level level();
+  Level world();
 
   /**
    * Makes the endpoint receive a single packet.

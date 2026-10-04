@@ -143,7 +143,7 @@ public class DebugCard extends DebugCardBase {
 
     @Override
     public @NotNull Level level() {
-      return host().level();
+      return host().world();
     }
 
     @Override

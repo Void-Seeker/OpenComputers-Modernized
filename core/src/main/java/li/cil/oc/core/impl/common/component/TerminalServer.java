@@ -211,7 +211,7 @@ public class TerminalServer implements Environment, EnvironmentHost, Analyzable,
   }
 
   @Override
-  public Level level() {
+  public Level world() {
     return rack.level();
   }
 

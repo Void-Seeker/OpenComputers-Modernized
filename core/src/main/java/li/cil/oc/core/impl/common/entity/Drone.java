@@ -447,6 +447,11 @@ public class Drone extends Entity implements MachineHost, li.cil.oc.api.internal
   }
 
   @Override
+  public Level world() {
+    return level();
+  }
+
+  @Override
   public Direction facing() {
     return Direction.SOUTH;
   }

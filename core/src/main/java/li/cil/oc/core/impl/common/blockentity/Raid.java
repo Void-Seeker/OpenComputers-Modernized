@@ -80,7 +80,7 @@ public class Raid extends BlockEntity implements li.cil.oc.api.network.Environme
   }
 
   @Override
-  public Level level() {
+  public Level world() {
     return getLevel();
   }
 

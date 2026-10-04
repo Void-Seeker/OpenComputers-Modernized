@@ -531,7 +531,7 @@ public class RobotProxy extends BlockEntity implements Computer, PowerInformatio
   }
 
   @Override
-  public net.minecraft.world.level.Level level() {
+  public net.minecraft.world.level.Level world() {
     return getLevel();
   }
 

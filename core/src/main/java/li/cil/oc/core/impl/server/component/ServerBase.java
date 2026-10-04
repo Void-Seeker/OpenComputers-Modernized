@@ -242,7 +242,7 @@ public abstract class ServerBase implements ComponentInventory, MachineHost, Ser
   }
 
   @Override
-  public net.minecraft.world.level.Level level() {
+  public net.minecraft.world.level.Level world() {
     return rack.level();
   }
 

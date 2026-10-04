@@ -45,7 +45,7 @@ public class PowerDistributor extends BlockEntity implements Environment, PowerB
   }
 
   @Override
-  public Level level() {
+  public Level world() {
     return getLevel();
   }
 

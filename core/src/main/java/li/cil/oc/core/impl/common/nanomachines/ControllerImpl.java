@@ -54,7 +54,7 @@ public class ControllerImpl implements Controller, WirelessEndpoint {
   }
 
   @Override
-  public Level level() {
+  public Level world() {
     return player.level();
   }
 

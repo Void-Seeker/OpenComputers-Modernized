@@ -60,7 +60,7 @@ public class Waypoint extends BlockEntity implements Environment, Rotatable, Red
   }
 
   @Override
-  public Level level() {
+  public Level world() {
     return getLevel();
   }
 

@@ -98,7 +98,7 @@ public class Screen extends BlockEntity implements TextBufferHost, SidedEnvironm
   }
 
   @Override
-  public Level level() {
+  public Level world() {
     return getLevel();
   }
 

@@ -34,7 +34,7 @@ public class MotionSensor extends BlockEntity implements Environment {
   }
 
   @Override
-  public Level level() {
+  public Level world() {
     return getLevel();
   }
 

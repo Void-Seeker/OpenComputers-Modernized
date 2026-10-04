@@ -92,7 +92,7 @@ public final class WirelessNetworkManager {
   }
 
   private static ResourceKey<Level> dimension(WirelessEndpoint endpoint) {
-    return endpoint.level().dimension();
+    return endpoint.world().dimension();
   }
 
   private static double[] offset(WirelessEndpoint endpoint, double value) {
@@ -109,7 +109,7 @@ public final class WirelessNetworkManager {
   private static boolean isUnobstructed(WirelessEndpoint reference, double strength, WirelessEndpoint endpoint, double distance) {
     double gap = distance - 1;
     if (gap > 0) {
-      Level world = reference.level();
+      Level world = reference.world();
       Vec3 origin = new Vec3(reference.x(), reference.y(), reference.z());
       Vec3 target = new Vec3(endpoint.x(), endpoint.y(), endpoint.z());
       Vec3 delta = target.subtract(origin);

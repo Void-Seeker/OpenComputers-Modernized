@@ -85,7 +85,7 @@ public class DiskDrive extends BlockEntity implements Environment, EnvironmentHo
   }
 
   @Override
-  public Level level() {
+  public Level world() {
     return getLevel();
   }
 

@@ -818,7 +818,7 @@ public abstract class RobotBase extends BlockEntity implements li.cil.oc.core.im
   }
 
   @Override
-  public Level level() {
+  public Level world() {
     return getLevel();
   }
 

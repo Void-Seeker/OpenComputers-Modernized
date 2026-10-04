@@ -52,7 +52,7 @@ public class PowerConverter extends BlockEntity implements PowerAcceptor, Enviro
   }
 
   @Override
-  public Level level() {
+  public Level world() {
     return getLevel();
   }
 

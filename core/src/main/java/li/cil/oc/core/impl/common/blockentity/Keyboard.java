@@ -48,7 +48,7 @@ public class Keyboard extends BlockEntity implements Environment, Rotatable, Sid
   }
 
   @Override
-  public Level level() {
+  public Level world() {
     return getLevel();
   }
 

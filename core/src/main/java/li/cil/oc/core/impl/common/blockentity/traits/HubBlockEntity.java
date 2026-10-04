@@ -52,7 +52,7 @@ public abstract class HubBlockEntity extends BlockEntity implements Hub {
     return null;
   }
 
-  public Level level() {
+  public Level world() {
     return getLevel();
   }
 
@@ -220,7 +220,7 @@ public abstract class HubBlockEntity extends BlockEntity implements Hub {
         return li.cil.oc.core.util.ResultWrapper.result(args);
       }
 
-      public Level level() {
+      public Level world() {
         return getLevel();
       }
 

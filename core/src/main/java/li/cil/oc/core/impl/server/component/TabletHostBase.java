@@ -377,7 +377,7 @@ public abstract class TabletHostBase implements ComponentInventory, MachineHost,
   }
 
   @Override
-  public Level level() {
+  public Level world() {
     return creationLevel;
   }
 

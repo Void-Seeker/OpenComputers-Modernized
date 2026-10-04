@@ -105,7 +105,7 @@ public class Case extends BlockEntity implements PowerAcceptor, Computer, Colore
   }
 
   @Override
-  public Level level() {
+  public Level world() {
     return getLevel();
   }
 

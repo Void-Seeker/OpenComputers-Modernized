@@ -36,7 +36,7 @@ public class Cable extends BlockEntity implements Environment, NotAnalyzable, Co
   }
 
   @Override
-  public Level level() {
+  public Level world() {
     return getLevel();
   }
 

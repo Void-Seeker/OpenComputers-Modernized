@@ -60,7 +60,7 @@ public abstract class WirelessNetworkCard extends NetworkCard implements Wireles
   }
 
   @Override
-  public Level level() {
+  public Level world() {
     return host.level();
   }
 
@@ -130,7 +130,7 @@ public abstract class WirelessNetworkCard extends NetworkCard implements Wireles
   @Override
   public void update() {
     super.update();
-    if (level().getGameTime() % 20 == 0) {
+    if (world().getGameTime() % 20 == 0) {
       Network.updateWirelessNetwork(this);
     }
   }
@@ -147,7 +147,7 @@ public abstract class WirelessNetworkCard extends NetworkCard implements Wireles
   public void onDisconnect(Node node) {
     super.onDisconnect(node);
     var wnPos = new net.minecraft.core.BlockPos(x(), y(), z());
-    if (node == this.node || !level().hasChunk(wnPos.getX() >> 4, wnPos.getZ() >> 4)) {
+    if (node == this.node || !world().hasChunk(wnPos.getX() >> 4, wnPos.getZ() >> 4)) {
       Network.leaveWirelessNetwork(this);
     }
   }

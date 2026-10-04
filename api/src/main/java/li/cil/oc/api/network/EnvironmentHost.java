@@ -18,7 +18,18 @@ public interface EnvironmentHost {
   /**
    * The Level the container lives in.
    */
-  Level level();
+  Level world();
+
+  /**
+   * Same as {@link #world()}; implement that one.
+   * <br>
+   * 1.20.1 backport: a method named {@code level()} collides with {@code Entity.level()} (drones implement
+   * both), and reobfuscation then renames it for some implementations only, which crashes with
+   * {@code AbstractMethodError}. As a default method it resolves correctly either way.
+   */
+  default Level level() {
+    return world();
+  }
 
   /**
    * The container's X position in the Level.

@@ -80,7 +80,7 @@ public class Microcontroller extends BlockEntity implements PowerAcceptor, Hub, 
   }
 
   @Override
-  public Level level() {
+  public Level world() {
     return getLevel();
   }
 

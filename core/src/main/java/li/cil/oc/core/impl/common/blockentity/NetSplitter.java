@@ -54,7 +54,7 @@ public class NetSplitter extends BlockEntity implements Environment, OpenSides, 
   }
 
   @Override
-  public Level level() {
+  public Level world() {
     return getLevel();
   }
 

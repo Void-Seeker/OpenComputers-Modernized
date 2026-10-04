@@ -50,7 +50,7 @@ public class Capacitor extends BlockEntity implements Environment, DeviceInfo {
   }
 
   @Override
-  public Level level() {
+  public Level world() {
     return getLevel();
   }
 

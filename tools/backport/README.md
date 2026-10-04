@@ -21,3 +21,17 @@ The hand-written runtime shims live in `api/src/main/java/li/cil/oc/compat/`:
 - `RegistryLookup` – registry access for code paths where 1.20.1 does not pass a `HolderLookup.Provider`.
 - `CustomData` – 1.21 `minecraft:custom_data` semantics on top of the 1.20.1 item tag; hides vanilla-owned keys.
 - `MathCompat`, `ModelCompat`, `NbtCompat` – Java 21 `Math.clamp`, packed-ARGB model tinting, size-limited compressed NBT reads.
+
+## Checking the reobfuscated jar
+
+Reobfuscation can rename a method of the mod's own interfaces to a Minecraft SRG name for some implementing
+classes only, which crashes with `AbstractMethodError` at runtime but passes compilation and the dev-mapped
+game tests. Upstream's `EnvironmentHost.level()` / `WirelessEndpoint.level()` hit this (drones also inherit
+`Entity.level()`); on this branch the abstract method is `world()` and `EnvironmentHost.level()` is a default
+method. Check every build:
+
+    ./gradlew :forge:build
+    python3 tools/backport/check_reobf.py forge/build/libs/opencomputers-forge-*.jar \
+        forge/build/moddev/artifacts/forge-*-merged.jar forge/build/moddev/artifacts/namedToIntermediate.tsrg
+
+It lists concrete classes that do not implement an abstract method of their interfaces at runtime names.

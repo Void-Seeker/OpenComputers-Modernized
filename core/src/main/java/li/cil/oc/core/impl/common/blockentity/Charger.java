@@ -76,7 +76,7 @@ public class Charger extends BlockEntity implements li.cil.oc.api.network.Enviro
   }
 
   @Override
-  public Level level() {
+  public Level world() {
     return getLevel();
   }
 
