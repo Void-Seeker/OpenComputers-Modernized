@@ -1,8 +1,11 @@
 package li.cil.oc.neoforge.common.item;
 
 import li.cil.oc.core.impl.OCSettings;
+import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.LevelReader;
 import li.cil.oc.compat.CustomData;
 import org.jetbrains.annotations.NotNull;
 
@@ -24,5 +27,12 @@ public class EEPROM extends SimpleItem {
       }
     }
     return super.getDescriptionId(stack);
+  }
+
+  // Sneak + right-click swaps it into a microcontroller; without this the game never asks the block.
+  @Override
+  public boolean doesSneakBypassUse(@NotNull ItemStack stack, LevelReader level, @NotNull BlockPos pos, @NotNull Player player) {
+    if (level.getBlockEntity(pos) instanceof li.cil.oc.core.impl.common.blockentity.Microcontroller) return true;
+    return super.doesSneakBypassUse(stack, level, pos, player);
   }
 }

@@ -8,14 +8,18 @@ import li.cil.oc.core.impl.common.item.data.RobotData;
 import li.cil.oc.neoforge.OpenComputers;
 import li.cil.oc.neoforge.common.init.Blocks;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.phys.BlockHitResult;
 import net.minecraftforge.common.util.FakePlayer;
 import net.minecraftforge.common.util.FakePlayerFactory;
 import net.minecraftforge.gametest.GameTestHolder;
@@ -186,6 +190,48 @@ public final class DropTests {
           "after the swap the machine should see the EEPROM and still its redstone card. Before: " + before + " | after: " + after);
         helper.succeed();
       });
+    });
+  }
+
+  /** Sneak + right-click with an EEPROM swaps it in, through the game's own click handling, and hands back the old one. */
+  @GameTest(template = EMPTY)
+  public static void sneakClickSwapsMicrocontrollerEeprom(final GameTestHelper helper) {
+    final var data = new MicrocontrollerData();
+    for (final String part : List.of(Constants.ItemName.CPUTier1, Constants.ItemName.RAMTier1)) {
+      data.components.add(item(part));
+    }
+    data.components.add(ItemStack.EMPTY);
+    final BlockPos pos = new BlockPos(2, 2, 2);
+    helper.setBlock(pos, Blocks.MICROCONTROLLER.get());
+    final BlockPos abs = helper.absolutePos(pos);
+    Blocks.MICROCONTROLLER.get().setPlacedBy(helper.getLevel(), abs, helper.getLevel().getBlockState(abs), player(helper), data.createItemStack());
+    helper.runAfterDelay(5, () -> {
+      final var mc = (li.cil.oc.core.impl.common.blockentity.Microcontroller) helper.getLevel().getBlockEntity(abs);
+      mc.changeEEPROM(li.cil.oc.api.Items.registerEEPROM("old", "-- old".getBytes(java.nio.charset.StandardCharsets.UTF_8), null, false));
+      final FakePlayer player = player(helper);
+      player.getInventory().clearContent();
+      player.setItemInHand(InteractionHand.MAIN_HAND, li.cil.oc.api.Items.registerEEPROM("new", "-- new".getBytes(java.nio.charset.StandardCharsets.UTF_8), null, false));
+      player.setShiftKeyDown(true);
+      try {
+        player.gameMode.useItemOn(player, helper.getLevel(), player.getMainHandItem(), InteractionHand.MAIN_HAND,
+          new BlockHitResult(Vec3.atCenterOf(abs).add(0, 0.5, 0), Direction.UP, abs, false));
+      } finally {
+        player.setShiftKeyDown(false);
+      }
+      String inside = "none";
+      for (final ItemStack part : mc.info.components) {
+        if (isOC(part, Constants.ItemName.EEPROM)) inside = part.getDescriptionId();
+      }
+      helper.assertTrue("new".equals(inside), "the microcontroller holds EEPROM '" + inside + "' instead of 'new'");
+      // the old one comes back, typically into the emptied hand; the new one must not stay with the player too
+      final List<String> held = new ArrayList<>();
+      for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
+        final ItemStack stack = player.getInventory().getItem(i);
+        if (isOC(stack, Constants.ItemName.EEPROM)) held.add(stack.getCount() + "x " + stack.getDescriptionId());
+      }
+      helper.assertTrue(held.equals(List.of("1x old")), "the player holds EEPROMs " + held + " instead of [1x old]");
+      player.getInventory().clearContent();
+      helper.succeed();
     });
   }
 
