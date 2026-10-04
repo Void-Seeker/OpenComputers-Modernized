@@ -11,6 +11,7 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
@@ -35,24 +36,13 @@ public final class FakePlayerClick {
   private FakePlayerClick() {
   }
 
+  /** Right-click the block on the given side, holding the stack. */
   public static Outcome click(ServerLevel level, BlockPos from, Direction side, ItemStack held) {
-    FakePlayer player = FakePlayerFactory.get(level, OCSettings.get().fakePlayerProfile);
-    // Creative mode would hand back what the click used up.
-    if (player.gameMode.getGameModeForPlayer() != GameType.SURVIVAL) player.setGameMode(GameType.SURVIVAL);
-    player.getInventory().clearContent();
-    BlockPos target = from.relative(side);
-    // Eyes on the face between the two blocks, so item ray casts start in the target block, not in our own.
-    Vec3 eye = Vec3.atCenterOf(from).relative(side, 0.51);
-    float pitch = side == Direction.UP ? -90 : side == Direction.DOWN ? 90 : 0;
-    float yaw = side.getAxis().isHorizontal() ? side.toYRot() : 0;
-    player.moveTo(eye.x, eye.y - player.getEyeHeight(), eye.z, yaw, pitch);
-    player.setYHeadRot(yaw);
-    player.setItemInHand(InteractionHand.MAIN_HAND, held);
-    BlockHitResult hit = new BlockHitResult(Vec3.atCenterOf(target).relative(side.getOpposite(), 0.5), side.getOpposite(), target, false);
-
+    FakePlayer player = prepare(level, from, side, held);
+    BlockHitResult hit = faceTowards(from, side);
     List<ItemStack> dropped = new ArrayList<>();
     captureLevel = level;
-    captureBounds = new AABB(from).minmax(new AABB(target)).inflate(1);
+    captureBounds = new AABB(from).minmax(new AABB(hit.getBlockPos())).inflate(1);
     captured = dropped;
     InteractionResult result;
     try {
@@ -69,7 +59,42 @@ public final class FakePlayerClick {
       captureBounds = null;
       captureLevel = null;
     }
+    return new Outcome(result, collect(player, dropped));
+  }
 
+  /**
+   * Place the held block into the block space on the given side, as if clicking the face of it; nothing is clicked
+   * or replaced there, so the space must hold only air or fluid.
+   */
+  public static Outcome place(ServerLevel level, BlockPos from, Direction side, ItemStack held) {
+    FakePlayer player = prepare(level, from, side, held);
+    // ItemStack.useOn fires Forge's block place event and undoes the placement when it is cancelled
+    InteractionResult result = held.useOn(new UseOnContext(player, InteractionHand.MAIN_HAND, faceTowards(from, side)));
+    return new Outcome(result, collect(player, List.of()));
+  }
+
+  private static FakePlayer prepare(ServerLevel level, BlockPos from, Direction side, ItemStack held) {
+    FakePlayer player = FakePlayerFactory.get(level, OCSettings.get().fakePlayerProfile);
+    // Creative mode would hand back what the click used up.
+    if (player.gameMode.getGameModeForPlayer() != GameType.SURVIVAL) player.setGameMode(GameType.SURVIVAL);
+    player.getInventory().clearContent();
+    // Eyes on the face between the two blocks, so item ray casts start in the target block, not in our own.
+    Vec3 eye = Vec3.atCenterOf(from).relative(side, 0.51);
+    float pitch = side == Direction.UP ? -90 : side == Direction.DOWN ? 90 : 0;
+    float yaw = side.getAxis().isHorizontal() ? side.toYRot() : 0;
+    player.moveTo(eye.x, eye.y - player.getEyeHeight(), eye.z, yaw, pitch);
+    player.setYHeadRot(yaw);
+    player.setItemInHand(InteractionHand.MAIN_HAND, held);
+    return player;
+  }
+
+  // The face of the target block that looks at us.
+  private static BlockHitResult faceTowards(BlockPos from, Direction side) {
+    BlockPos target = from.relative(side);
+    return new BlockHitResult(Vec3.atCenterOf(target).relative(side.getOpposite(), 0.5), side.getOpposite(), target, false);
+  }
+
+  private static List<ItemStack> collect(FakePlayer player, List<ItemStack> dropped) {
     Inventory inventory = player.getInventory();
     List<ItemStack> collected = new ArrayList<>();
     for (int slot = 0; slot < inventory.getContainerSize(); slot++) {
@@ -77,7 +102,7 @@ public final class FakePlayerClick {
       if (!stack.isEmpty()) collected.add(stack);
     }
     collected.addAll(dropped);
-    return new Outcome(result, collected);
+    return collected;
   }
 
   /** Registered on the Forge bus: swallows items that appear around a block while it is being clicked. */

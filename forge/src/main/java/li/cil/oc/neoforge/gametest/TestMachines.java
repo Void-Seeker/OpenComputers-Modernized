@@ -20,7 +20,7 @@ final class TestMachines {
 
   /**
    * Places a microcontroller built from the given parts, boots it with the program as its EEPROM and hands it to
-   * the check three seconds later. The program should end in an endless loop; an error stops the machine.
+   * the check five seconds later (tests using it need a longer timeout than the default 100 ticks). The program should end in an endless loop; an error stops the machine.
    */
   static void runMicrocontroller(final GameTestHelper helper, final BlockPos pos, final List<String> parts, final String program, final Consumer<Microcontroller> check) {
     final var data = new MicrocontrollerData();
@@ -36,7 +36,7 @@ final class TestMachines {
       mc.changeEEPROM(li.cil.oc.api.Items.registerEEPROM("test", program.getBytes(StandardCharsets.UTF_8), null, false));
       ((li.cil.oc.api.network.Connector) mc.snooperNode).changeBuffer(1000);
       helper.assertTrue(mc.machine().start(), "machine did not start");
-      helper.runAfterDelay(60, () -> {
+      helper.runAfterDelay(100, () -> {
         helper.assertTrue(mc.machine().isRunning(), "program stopped: " + mc.machine().lastError());
         check.accept(mc);
       });

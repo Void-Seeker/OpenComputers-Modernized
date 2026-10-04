@@ -10,7 +10,8 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.LayeredCauldronBlock;
-import net.minecraft.world.level.block.LiquidBlock;
+import net.minecraft.world.level.block.BucketPickup;
+import net.minecraft.world.level.block.LiquidBlockContainer;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.gameevent.GameEvent;
@@ -18,7 +19,9 @@ import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.level.material.Fluids;
 import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fluids.FluidType;
+import net.minecraftforge.fluids.FluidUtil;
 import net.minecraftforge.fluids.capability.IFluidHandler;
+import net.minecraftforge.fluids.capability.templates.FluidTank;
 import org.jetbrains.annotations.NotNull;
 
 public final class FluidUtilsOriginal {
@@ -80,8 +83,8 @@ public final class FluidUtilsOriginal {
         return new CauldronWrapper(world, pos);
       }
       Block block = state.getBlock();
-      if (block instanceof LiquidBlock) {
-        return new FluidBlockWrapper(world, pos);
+      if (state.isAir() || block instanceof BucketPickup || block instanceof LiquidBlockContainer || !state.getFluidState().isEmpty()) {
+        return new WorldFluidWrapper(world, pos);
       }
       return null;
     }
@@ -129,12 +132,15 @@ public final class FluidUtilsOriginal {
     }
   }
 
-  // A fluid source block can be drained like with a bucket, which removes it; flowing fluid holds nothing.
-  private record FluidBlockWrapper(Level level, BlockPos pos) implements IFluidHandler {
+  // Fluid in the world, handled like with a bucket that breaks nothing: a source block (also a waterlogged block)
+  // gives 1000 mB and is gone; 1000 mB go into air or flowing fluid as a source block, or waterlog a block, but never
+  // onto a source block, and never wash away torches, plants or the like.
+  private record WorldFluidWrapper(Level level, BlockPos pos) implements IFluidHandler {
 
     private FluidStack contents() {
       FluidState state = level.getFluidState(pos);
-      return state.isSource() ? new FluidStack(state.getType(), FluidType.BUCKET_VOLUME) : FluidStack.EMPTY;
+      return state.isSource() && level.getBlockState(pos).getBlock() instanceof BucketPickup
+        ? new FluidStack(state.getType(), FluidType.BUCKET_VOLUME) : FluidStack.EMPTY;
     }
 
     @Override
@@ -154,12 +160,23 @@ public final class FluidUtilsOriginal {
 
     @Override
     public boolean isFluidValid(int tank, @NotNull FluidStack stack) {
-      return false;
+      return stack.getFluid() != Fluids.EMPTY && stack.getFluid().getFluidType().canBePlacedInLevel(level, pos, stack);
     }
 
     @Override
     public int fill(@NotNull FluidStack resource, @NotNull FluidAction action) {
-      return 0;
+      if (resource.getAmount() < FluidType.BUCKET_VOLUME || !isFluidValid(0, resource) || level.getFluidState(pos).isSource()) return 0;
+      BlockState state = level.getBlockState(pos);
+      boolean canContain = state.getBlock() instanceof LiquidBlockContainer container && container.canPlaceLiquid(level, pos, state, resource.getFluid());
+      if (!state.isAir() && !state.liquid() && !canContain) return 0;
+      if (action.execute()) {
+        FluidStack bucket = new FluidStack(resource, FluidType.BUCKET_VOLUME);
+        FluidTank source = new FluidTank(FluidType.BUCKET_VOLUME);
+        source.fill(bucket, FluidAction.EXECUTE);
+        if (!FluidUtil.tryPlaceFluid(null, level, net.minecraft.world.InteractionHand.MAIN_HAND, pos, source, bucket)) return 0;
+        level.gameEvent(null, GameEvent.FLUID_PLACE, pos);
+      }
+      return FluidType.BUCKET_VOLUME;
     }
 
     @Override
@@ -172,7 +189,10 @@ public final class FluidUtilsOriginal {
       FluidStack contents = contents();
       if (contents.isEmpty() || maxDrain < contents.getAmount()) return FluidStack.EMPTY;
       if (action.execute()) {
-        level.setBlock(pos, Blocks.AIR.defaultBlockState(), Block.UPDATE_ALL_IMMEDIATE);
+        BlockState state = level.getBlockState(pos);
+        BucketPickup pickup = (BucketPickup) state.getBlock();
+        if (pickup.pickupBlock(level, pos, state).isEmpty()) return FluidStack.EMPTY;
+        pickup.getPickupSound(state).ifPresent(sound -> level.playSound(null, pos, sound, SoundSource.BLOCKS, 1.0F, 1.0F));
         level.gameEvent(null, GameEvent.FLUID_PICKUP, pos);
       }
       return contents;

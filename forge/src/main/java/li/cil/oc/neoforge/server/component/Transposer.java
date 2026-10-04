@@ -16,7 +16,7 @@ import li.cil.oc.core.impl.server.component.traits.WorldFluidContainerAnalytics;
 import li.cil.oc.core.impl.server.component.traits.WorldInventoryAnalytics;
 import li.cil.oc.core.impl.server.component.traits.WorldTankAnalytics;
 import li.cil.oc.core.impl.util.BlockPosition;
-import li.cil.oc.neoforge.server.component.traits.BlockUse;
+import li.cil.oc.neoforge.server.component.traits.BlockActions;
 import li.cil.oc.neoforge.server.component.traits.FluidContainerTransfer;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.item.ItemStack;
@@ -29,7 +29,7 @@ public final class Transposer {
 
   public abstract static class Common extends TransposerBase implements
     WorldInventoryAnalytics, WorldTankAnalytics, WorldFluidContainerAnalytics,
-    InventoryTransfer, FluidContainerTransfer, BlockUse {
+    InventoryTransfer, FluidContainerTransfer, BlockActions {
   }
 
   public static class Block extends Common {
