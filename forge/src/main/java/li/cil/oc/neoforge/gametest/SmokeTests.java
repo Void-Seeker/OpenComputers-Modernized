@@ -103,6 +103,39 @@ public final class SmokeTests {
     helper.succeed();
   }
 
+  /**
+   * A robot's own inventory survives a save and reload. Robots store it themselves (RobotBase, "oc:inventory"),
+   * and on load the inventory size is recalculated from the installed upgrades.
+   */
+  @GameTest(template = EMPTY)
+  public static void robotInventoryPersists(final GameTestHelper helper) {
+    final var data = new li.cil.oc.core.impl.common.item.data.RobotData();
+    data.name = "test";
+    data.components.add(li.cil.oc.api.Items.get(li.cil.oc.core.Constants.ItemName.InventoryUpgrade).createItemStack(1));
+    final ItemStack robotStack = data.createItemStack();
+    final BlockPos pos = new BlockPos(2, 2, 2);
+    helper.setBlock(pos, Blocks.ROBOT.get());
+    final var level = helper.getLevel();
+    final BlockPos abs = helper.absolutePos(pos);
+    Blocks.ROBOT.get().setPlacedBy(level, abs, level.getBlockState(abs), helper.makeMockPlayer(), robotStack);
+    final var proxy = (li.cil.oc.core.impl.common.blockentity.RobotProxy) level.getBlockEntity(abs);
+    final var robot = proxy.robot;
+    helper.assertTrue(robot.mainInventory().getContainerSize() >= 16, "placed robot has no inventory: " + robot.mainInventory().getContainerSize());
+    robot.mainInventory().setItem(3, new ItemStack(net.minecraft.world.item.Items.DIAMOND, 5));
+
+    final var tag = proxy.saveWithFullMetadata();
+    final var fresh = (li.cil.oc.core.impl.common.blockentity.RobotProxy) proxy.getType().create(abs, proxy.getBlockState());
+    fresh.setLevel(level);
+    fresh.load(tag);
+    helper.assertTrue(fresh.robot != robot, "reload reused the same robot object");
+    final int size = fresh.robot.mainInventory().getContainerSize();
+    final ItemStack stack = size > 3 ? fresh.robot.mainInventory().getItem(3) : ItemStack.EMPTY;
+    helper.assertTrue(stack.is(net.minecraft.world.item.Items.DIAMOND) && stack.getCount() == 5,
+      "robot inventory lost on reload: " + size + " slots, slot 4 holds " + stack);
+    helper.assertTrue(fresh.robot.info.components.size() == 1, "robot components lost on reload: " + fresh.robot.info.components);
+    helper.succeed();
+  }
+
   @GameTest(template = EMPTY)
   public static void powerConverterAcceptsForgeEnergy(final GameTestHelper helper) {
     final BlockPos pos = new BlockPos(2, 2, 2);
