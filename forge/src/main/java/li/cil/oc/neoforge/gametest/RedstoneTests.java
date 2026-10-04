@@ -103,4 +103,26 @@ public final class RedstoneTests {
         helper.succeed();
       });
   }
+
+  /** setOutput with a table sets every listed side in one call (brew.lua pulses its dropper like that). */
+  @GameTest(template = EMPTY, timeoutTicks = 200)
+  public static void setOutputTakesATable(final GameTestHelper helper) {
+    final BlockPos pos = new BlockPos(2, 2, 2);
+    TestMachines.runMicrocontroller(helper, pos, List.of(Constants.ItemName.CPUTier1, Constants.ItemName.RAMTier2, Constants.ItemName.RedstoneCardTier1),
+      "local rs = component.proxy(component.list(\"redstone\")())\n"
+        + "rs.setOutput({[0] = 15, 15, 15, 15, 15, 15})\n"
+        + "while true do computer.pullSignal(1) end\n",
+      mc -> {
+        final BlockPos abs = helper.absolutePos(pos);
+        final StringBuilder signals = new StringBuilder();
+        boolean all = true;
+        for (final Direction d : Direction.values()) {
+          final int signal = helper.getLevel().getSignal(abs, d.getOpposite());
+          signals.append(d).append('=').append(signal).append(' ');
+          all &= signal == 15;
+        }
+        helper.assertTrue(all, "a table of 15s should power every side; outputs: " + signals);
+        helper.succeed();
+      });
+  }
 }
