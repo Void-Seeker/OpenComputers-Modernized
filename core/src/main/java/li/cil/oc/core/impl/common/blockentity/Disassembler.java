@@ -294,6 +294,10 @@ public class Disassembler extends BlockEntity implements li.cil.oc.api.network.E
   @Override
   public void readFromNBTForServer(CompoundTag nbt) {
     super.readFromNBTForServer(nbt);
+    // Java interfaces cannot hook into the base class's NBT methods like the original Scala traits did,
+    // so the inventory has to be loaded explicitly.
+    var provider = getEffectiveProvider();
+    if (provider != null) load(nbt, provider);
     queue.clear();
     var tagList = nbt.getList(OCSettings.namespace + "queue", Tag.TAG_COMPOUND);
     for (int i = 0; i < tagList.size(); i++) {
@@ -307,6 +311,8 @@ public class Disassembler extends BlockEntity implements li.cil.oc.api.network.E
   @Override
   public void writeToNBTForServer(CompoundTag nbt) {
     super.writeToNBTForServer(nbt);
+    var provider = getEffectiveProvider();
+    if (provider != null) save(nbt, provider);
     var tagList = new ListTag();
     for (var stack : queue) tagList.add(stack.save(new CompoundTag()));
     nbt.put(OCSettings.namespace + "queue", tagList);

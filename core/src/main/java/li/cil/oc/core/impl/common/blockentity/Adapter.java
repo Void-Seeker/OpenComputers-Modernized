@@ -380,6 +380,10 @@ public class Adapter extends BlockEntity implements li.cil.oc.api.network.Enviro
   @Override
   public void readFromNBTForServer(CompoundTag nbt) {
     super.readFromNBTForServer(nbt);
+    // Java interfaces cannot hook into the base class's NBT methods like the original Scala traits did,
+    // so the inventory has to be loaded explicitly.
+    var provider = getEffectiveProvider();
+    if (provider != null) load(nbt, provider);
     if (nbt.contains(OCSettings.namespace + "openSides")) {
       uncompressSides(nbt.getByte(OCSettings.namespace + "openSides"));
     }
@@ -395,6 +399,8 @@ public class Adapter extends BlockEntity implements li.cil.oc.api.network.Enviro
   @Override
   public void writeToNBTForServer(CompoundTag nbt) {
     super.writeToNBTForServer(nbt);
+    var provider = getEffectiveProvider();
+    if (provider != null) save(nbt, provider);
     nbt.putByte(OCSettings.namespace + "openSides", compressSides());
     var blocksNbt = new ListTag();
     for (int i = 0; i < blocks.length; i++) {

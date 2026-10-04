@@ -71,6 +71,38 @@ public final class SmokeTests {
     helper.succeed();
   }
 
+  /**
+   * Items in OC block inventories survive a save and reload. Several block entities never saved them,
+   * because the Java Inventory interface cannot hook into the base class's NBT methods like the Scala traits did.
+   */
+  @GameTest(template = EMPTY)
+  public static void blockInventoriesPersist(final GameTestHelper helper) {
+    final java.util.List<net.minecraftforge.registries.RegistryObject<? extends net.minecraft.world.level.block.Block>> blocks = java.util.List.of(
+      Blocks.DISK_DRIVE, Blocks.ASSEMBLER, Blocks.ADAPTER, Blocks.DISASSEMBLER, Blocks.PRINTER, Blocks.RELAY, Blocks.CHARGER, Blocks.CASE_TIER_1);
+    final StringBuilder failures = new StringBuilder();
+    for (int i = 0; i < blocks.size(); i++) {
+      final BlockPos pos = new BlockPos(1 + i, 2, 1);
+      helper.setBlock(pos, blocks.get(i).get());
+      final var be = helper.getBlockEntity(pos);
+      final var name = blocks.get(i).getId().getPath();
+      if (!(be instanceof li.cil.oc.core.impl.common.inventory.Inventory inventory)) {
+        failures.append(' ').append(name).append(" (no inventory)");
+        continue;
+      }
+      inventory.updateItems(0, new ItemStack(net.minecraft.world.item.Items.DIAMOND));
+      final var tag = be.saveWithFullMetadata();
+      final var fresh = be.getType().create(helper.absolutePos(pos), be.getBlockState());
+      fresh.setLevel(helper.getLevel());
+      fresh.load(tag);
+      final var items = ((li.cil.oc.core.impl.common.inventory.Inventory) fresh).items();
+      if (items.length == 0 || items[0] == null || !items[0].is(net.minecraft.world.item.Items.DIAMOND)) {
+        failures.append(' ').append(name);
+      }
+    }
+    helper.assertTrue(failures.length() == 0, "inventory lost on reload:" + failures);
+    helper.succeed();
+  }
+
   @GameTest(template = EMPTY)
   public static void powerConverterAcceptsForgeEnergy(final GameTestHelper helper) {
     final BlockPos pos = new BlockPos(2, 2, 2);

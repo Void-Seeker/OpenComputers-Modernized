@@ -379,12 +379,15 @@ public class Printer extends BlockEntity implements li.cil.oc.api.network.Enviro
   @Override
   public void readFromNBTForServer(CompoundTag nbt) {
     super.readFromNBTForServer(nbt);
+    // Java interfaces cannot hook into the base class's NBT methods like the original Scala traits did,
+    // so the inventory has to be loaded explicitly.
+    var provider = getEffectiveProvider();
+    if (provider != null) load(nbt, provider);
     if (nbt.contains(OCSettings.namespace + "node")) {
       node.load(nbt.getCompound(OCSettings.namespace + "node"), getEffectiveProvider());
     }
     amountMaterial = nbt.getInt(OCSettings.namespace + "amountMaterial");
     amountInk = nbt.getInt(OCSettings.namespace + "amountInk");
-    var provider = getEffectiveProvider();
     if (provider != null) data.load(nbt.getCompound(OCSettings.namespace + "data"), provider);
     isActive = nbt.getBoolean(OCSettings.namespace + "active");
     limit = nbt.getInt(OCSettings.namespace + "limit");
@@ -398,6 +401,8 @@ public class Printer extends BlockEntity implements li.cil.oc.api.network.Enviro
   @Override
   public void writeToNBTForServer(CompoundTag nbt) {
     super.writeToNBTForServer(nbt);
+    var provider = getEffectiveProvider();
+    if (provider != null) save(nbt, provider);
     var tag = new CompoundTag();
     node.save(tag, getEffectiveProvider());
     nbt.put(OCSettings.namespace + "node", tag);

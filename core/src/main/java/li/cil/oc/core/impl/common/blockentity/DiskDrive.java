@@ -293,6 +293,22 @@ public class DiskDrive extends BlockEntity implements Environment, EnvironmentHo
   private static final String DiskTag = OCSettings.namespace + "disk";
 
   @Override
+  public void readFromNBTForServer(CompoundTag nbt) {
+    super.readFromNBTForServer(nbt);
+    // Java interfaces cannot hook into the base class's NBT methods like the original Scala traits did,
+    // so the inventory has to be loaded explicitly.
+    var provider = getEffectiveProvider();
+    if (provider != null) load(nbt, provider);
+  }
+
+  @Override
+  public void writeToNBTForServer(CompoundTag nbt) {
+    super.writeToNBTForServer(nbt);
+    var provider = getEffectiveProvider();
+    if (provider != null) save(nbt, provider);
+  }
+
+  @Override
   public void readFromNBTForClient(CompoundTag nbt) {
     super.readFromNBTForClient(nbt);
     if (nbt.contains(DiskTag)) {

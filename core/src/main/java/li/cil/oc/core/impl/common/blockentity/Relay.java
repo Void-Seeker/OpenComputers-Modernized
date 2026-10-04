@@ -435,6 +435,10 @@ public class Relay extends HubBlockEntity implements ComponentInventory, PowerAc
   @Override
   public void readFromNBTForServer(CompoundTag nbt) {
     super.readFromNBTForServer(nbt);
+    // Java interfaces cannot hook into the base class's NBT methods like the original Scala traits did,
+    // so the inventory has to be loaded explicitly.
+    var provider = getEffectiveProvider();
+    if (provider != null) load(nbt, provider);
     for (int slot = 0; slot < items.length; slot++) {
       if (items[slot] != null) updateLimits(slot, items[slot]);
     }
@@ -446,7 +450,6 @@ public class Relay extends HubBlockEntity implements ComponentInventory, PowerAc
     }
     var tagList = nbt.getList(OCSettings.namespace + "componentNodes", Tag.TAG_COMPOUND);
     for (int i = 0; i < Math.min(tagList.size(), componentNodes.length); i++) {
-      var provider = getEffectiveProvider();
       if (provider != null) componentNodes[i].load(tagList.getCompound(i), provider);
     }
   }
@@ -454,6 +457,8 @@ public class Relay extends HubBlockEntity implements ComponentInventory, PowerAc
   @Override
   public void writeToNBTForServer(CompoundTag nbt) {
     super.writeToNBTForServer(nbt);
+    var provider = getEffectiveProvider();
+    if (provider != null) save(nbt, provider);
     nbt.putDouble(OCSettings.namespace + "strength", strength);
     nbt.putBoolean(OCSettings.namespace + "isRepeater", isRepeater);
     var tagList = new ListTag();
