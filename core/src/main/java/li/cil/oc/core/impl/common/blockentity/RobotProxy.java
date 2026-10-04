@@ -247,6 +247,10 @@ public class RobotProxy extends BlockEntity implements Computer, PowerInformatio
       return;
     }
     super.dispose();
+    if (isServer() && robot != null && robot.machine() != null) {
+      var m = robot.machine();
+      li.cil.oc.core.impl.util.EventHandlerDelegate.get().scheduleServer(m::stop); // closes the Lua state, like a case
+    }
   }
 
   @Override

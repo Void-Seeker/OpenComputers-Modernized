@@ -252,27 +252,23 @@ public final class EventHandler {
       var chunkMax = new net.minecraft.core.BlockPos(chunkPos.getMaxBlockX(), e.getLevel().getMaxBuildHeight(), chunkPos.getMaxBlockZ());
       var aabb = new net.minecraft.world.phys.AABB(chunkMin.getX(), chunkMin.getY(), chunkMin.getZ(), chunkMax.getX(), chunkMax.getY(), chunkMax.getZ());
       for (var entity : e.getLevel().getEntities(null, aabb)) {
-        if (entity instanceof MachineHost host) {
-          if (host.machine() instanceof Machine machine) {
-            scheduleClose(machine);
-          }
-        } else if (entity instanceof Rack rack) {
-          for (int i = 0; i < rack.getContainerSize(); i++) {
-            if (rack.getMountable(i) instanceof Server server && server.machine() != null) {
-              server.machine().stop();
-            }
-          }
+        if (entity instanceof MachineHost host && host.machine() instanceof Machine machine) {
+          scheduleClose(machine); // drones
         }
       }
       var chunk = e.getChunk();
       if (chunk instanceof net.minecraft.world.level.chunk.LevelChunk levelChunk) {
+        // Block entities dispose themselves when the chunk removes them, after it has been saved. Racks are block
+        // entities, so this is where their servers' machines stop (upstream looked for them among the entities).
         for (var be : levelChunk.getBlockEntities().values()) {
           if (be instanceof li.cil.oc.core.impl.common.blockentity.traits.BlockEntity te) {
             te.markUnloading();
           }
-          if (be instanceof li.cil.oc.core.impl.common.blockentity.Screen screen) {
-            if (screen.node != null) {
-              screen.node.remove();
+          if (be instanceof Rack rack) {
+            for (int i = 0; i < rack.getContainerSize(); i++) {
+              if (rack.getMountable(i) instanceof Server server && server.machine() != null) {
+                server.machine().stop();
+              }
             }
           }
         }

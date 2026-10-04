@@ -62,8 +62,13 @@ public abstract class BlockEntity extends net.minecraft.world.level.block.entity
     return BlockPosition.apply(worldPosition.getX(), worldPosition.getY(), worldPosition.getZ(), getLevel());
   }
 
+  /** Called from the chunk unload event; the chunk is saved after it and removed after that. */
   public void markUnloading() {
     unloading = true;
+  }
+
+  public boolean isUnloading() {
+    return unloading;
   }
 
   private final java.util.concurrent.atomic.AtomicBoolean changeScheduled = new java.util.concurrent.atomic.AtomicBoolean();
@@ -81,12 +86,13 @@ public abstract class BlockEntity extends net.minecraft.world.level.block.entity
     }
   }
 
+  // Also on chunk unload. The chunk has been saved by then (ChunkMap.scheduleUnload: event, save, remove), so the
+  // nodes can leave their networks and the machines can close. Skipping this, as upstream does, leaves stale nodes
+  // in networks that stay loaded: the block gets new addresses when its chunk returns, and Lua states never close.
   @Override
   public void setRemoved() {
     super.setRemoved();
-    if (!unloading) {
-      dispose();
-    }
+    dispose();
   }
 
   public void initialize() {

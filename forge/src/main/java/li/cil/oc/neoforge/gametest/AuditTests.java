@@ -234,5 +234,50 @@ public final class AuditTests {
       });
     });
   }
+
+  /**
+   * The chunk unload sequence (event, save, remove) applied to a microcontroller next to a capacitor: its nodes leave
+   * the capacitor's network and its machine stops; a block entity loaded from the saved data gets its addresses back.
+   */
+  @GameTest(template = EMPTY, timeoutTicks = 400)
+  public static void unloadedBlocksLeaveTheNetworkAndKeepTheirAddresses(final GameTestHelper helper) {
+    final BlockPos pos = new BlockPos(2, 2, 2);
+    final BlockPos[] behind = new BlockPos[1];
+    TestMachines.runMicrocontroller(helper, pos, List.of(Constants.ItemName.CPUTier1, Constants.ItemName.RAMTier2),
+      mc -> {
+        behind[0] = pos.relative(mc.facing().getOpposite());
+        helper.setBlock(behind[0], Blocks.CAPACITOR.get());
+        return "while true do computer.pullSignal(1) end\n";
+      },
+      mc -> {
+        final BlockPos abs = helper.absolutePos(pos);
+        final var capacitor = ((li.cil.oc.api.network.Environment) helper.getBlockEntity(behind[0])).node();
+        final var plug = mc.sidedNode(mc.facing().getOpposite());
+        helper.assertTrue(plug != null && plug.network() == capacitor.network(), "the microcontroller is not in the capacitor's network");
+        final String plugAddress = plug.address(), snooperAddress = mc.snooperNode.address();
+        helper.assertTrue(plugAddress != null && snooperAddress != null, "nodes without addresses");
+        // what ChunkMap.scheduleUnload does: the unload event, the save, then the removal of the block entities
+        mc.markUnloading();
+        final var saved = mc.saveWithoutMetadata();
+        helper.getLevel().removeBlockEntity(abs);
+        helper.runAfterDelay(3, () -> {
+          helper.assertTrue(capacitor.network().node(plugAddress) == null, "the unloaded microcontroller's plug is still in the capacitor's network");
+          helper.assertTrue(plug.network() == null, "the plug still has a network");
+          helper.assertTrue(!mc.machine().isRunning(), "the unloaded microcontroller's machine is still running");
+          // the chunk comes back: a fresh block entity loads the saved data
+          final var reloaded = (li.cil.oc.core.impl.common.blockentity.Microcontroller) helper.getLevel().getBlockEntity(abs);
+          helper.assertTrue(reloaded != null && reloaded != mc, "no fresh block entity after the removal");
+          reloaded.load(saved);
+          helper.runAfterDelay(40, () -> {
+            final var newPlug = reloaded.sidedNode(reloaded.facing().getOpposite());
+            helper.assertTrue(newPlug != null && plugAddress.equals(newPlug.address()), "the plug came back as " + (newPlug == null ? null : newPlug.address()) + " instead of " + plugAddress);
+            helper.assertTrue(capacitor.network().node(plugAddress) == newPlug, "the capacitor's network does not hold the reloaded plug under its address");
+            helper.assertTrue(snooperAddress.equals(reloaded.snooperNode.address()), "the microcontroller component came back as " + reloaded.snooperNode.address() + " instead of " + snooperAddress);
+            helper.assertTrue(reloaded.machine().isRunning(), "the reloaded machine did not resume: " + reloaded.machine().lastError());
+            helper.succeed();
+          });
+        });
+      });
+  }
 }
 
