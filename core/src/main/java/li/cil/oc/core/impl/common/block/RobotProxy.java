@@ -160,8 +160,19 @@ public abstract class RobotProxy extends RedstoneAware implements GUI, StateAwar
     return ItemStack.EMPTY;
   }
 
+  // Explosions, pistons and other mods remove the block through here; a player's break goes through
+  // onDestroyedByPlayer first and sets droppedAsItem. A moving robot swaps blocks and must not drop.
   @Override
   protected void onDropInventory(@NotNull BlockState state, @NotNull Level level, @NotNull BlockPos pos) {
+    if (level.isClientSide || li.cil.oc.core.impl.common.blockentity.RobotBase.movingRobot.get() != null) return;
+    if (level.getBlockEntity(pos) instanceof li.cil.oc.core.impl.common.blockentity.RobotProxy proxy && proxy.robot != null && !proxy.robot.droppedAsItem) {
+      var robot = proxy.robot;
+      robot.droppedAsItem = true;
+      if (robot.node != null) robot.node.remove();
+      robot.saveComponents(level.registryAccess());
+      net.minecraft.world.level.block.Block.popResource(level, pos, robot.info.createItemStack());
+      robot.dropInventorySlots();
+    }
   }
 
   @Override

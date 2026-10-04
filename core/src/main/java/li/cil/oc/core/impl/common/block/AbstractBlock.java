@@ -146,6 +146,7 @@ public abstract class AbstractBlock extends Block implements EntityBlock {
     if (te instanceof Colored colored && Color.isDye(stack)) {
       if (!level.isClientSide) {
         colored.color(Color.dyeColor(stack));
+        te.setChanged();
         if (colored.consumesDye() && !player.getAbilities().instabuild) {
           stack.shrink(1);
         }

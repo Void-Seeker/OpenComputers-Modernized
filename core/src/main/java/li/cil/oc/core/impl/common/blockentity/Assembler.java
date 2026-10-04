@@ -227,6 +227,7 @@ public class Assembler extends BlockEntity implements li.cil.oc.api.network.Envi
   @Override
   public void readFromNBTForServer(CompoundTag nbt) {
     super.readFromNBTForServer(nbt);
+    if (nbt.contains(OCSettings.namespace + "node")) node.load(nbt.getCompound(OCSettings.namespace + "node"), getEffectiveProvider());
     // Java interfaces cannot hook into the base class's NBT methods like the original Scala traits did,
     // so the inventory has to be loaded explicitly.
     var provider = getEffectiveProvider();
@@ -243,6 +244,9 @@ public class Assembler extends BlockEntity implements li.cil.oc.api.network.Envi
   @Override
   public void writeToNBTForServer(CompoundTag nbt) {
     super.writeToNBTForServer(nbt);
+    var nodeTag = new CompoundTag();
+    node.save(nodeTag, getEffectiveProvider());
+    nbt.put(OCSettings.namespace + "node", nodeTag);
     var provider = getEffectiveProvider();
     if (provider != null) save(nbt, provider);
     if (output != null && !output.isEmpty()) {
@@ -328,6 +332,10 @@ public class Assembler extends BlockEntity implements li.cil.oc.api.network.Envi
   public void dropAllSlots() {
     for (int i = 0; i < getContainerSize(); i++) {
       dropSlot(i);
+    }
+    if (output != null && !output.isEmpty()) { // the robot, drone or microcontroller being assembled
+      li.cil.oc.core.impl.util.InventoryUtils.spawnStackInWorld(position(), output, null, null);
+      output = null;
     }
   }
 

@@ -112,9 +112,6 @@ public class Hologram extends BlockEntity implements Environment, SidedEnvironme
     return worldPosition.getZ() + 0.5;
   }
 
-  @Override
-  public void markChanged() {
-  }
 
   @Override
   public boolean isConnected() {
@@ -286,6 +283,7 @@ public class Hologram extends BlockEntity implements Environment, SidedEnvironme
     dirtyUntilX = Math.max(dirtyUntilX, x + 1);
     dirtyFromZ = Math.min(dirtyFromZ, z);
     dirtyUntilZ = Math.max(dirtyUntilZ, z + 1);
+    markChanged();
     litRatio = -1;
   }
 

@@ -90,8 +90,8 @@ public class Analyzer extends DelegateItem {
         }
         player.sendSystemMessage(Component.translatable("gui.opencomputers.analyzer.totalenergy", String.format("%.2f/%.2f", connector.globalBuffer(), connector.globalBufferSize())));
       }
-      if (node instanceof Component component) {
-        player.sendSystemMessage(Component.translatable("gui.opencomputers.analyzer.componentname", component.getString()));
+      if (node instanceof li.cil.oc.api.network.Component component) {
+        player.sendSystemMessage(Component.translatable("gui.opencomputers.analyzer.componentname", component.name()));
       }
       String address = node.address();
       if (address != null && !address.isEmpty()) {

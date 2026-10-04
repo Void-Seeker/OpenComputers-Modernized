@@ -78,6 +78,9 @@ public class Disassembler extends SimpleBlock implements PowerAcceptor, GUI, Sta
 
   @Override
   public int getAnalogOutputSignal(@NotNull BlockState state, Level world, @NotNull BlockPos pos) {
+    if (world.getBlockEntity(pos) instanceof li.cil.oc.core.impl.common.blockentity.Disassembler disassembler) {
+      return (int) Math.round(disassembler.progress() / 100.0 * 15);
+    }
     return 0;
   }
 

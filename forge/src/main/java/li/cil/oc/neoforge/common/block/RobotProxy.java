@@ -139,6 +139,7 @@ public class RobotProxy extends li.cil.oc.core.impl.common.block.RobotProxy {
         return false;
       if (!world.isClientSide) {
         if (robot.player() == player) return false;
+        robot.droppedAsItem = true; // the block's removal must not drop it a second time
         if (robot.node != null) robot.node.remove();
         robot.saveComponents(world.registryAccess());
         Block.popResource(world, pos, robot.info.createItemStack());

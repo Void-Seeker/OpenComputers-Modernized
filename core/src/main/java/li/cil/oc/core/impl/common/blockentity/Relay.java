@@ -231,6 +231,7 @@ public class Relay extends HubBlockEntity implements ComponentInventory, PowerAc
   @Callback(doc = "function(strength:number):number -- Set the signal strength (range) used when relaying messages.")
   public synchronized Object[] setStrength(Context ignoredContext, Arguments args) {
     strength = MathCompat.clamp(args.checkDouble(0), 0, maxWirelessRange());
+    setChanged();
     return li.cil.oc.core.util.ResultWrapper.result(strength);
   }
 
@@ -242,6 +243,7 @@ public class Relay extends HubBlockEntity implements ComponentInventory, PowerAc
   @Callback(doc = "function(enabled:boolean):boolean -- Set whether the access point should act as a repeater.")
   public synchronized Object[] setRepeater(Context ignoredContext, Arguments args) {
     isRepeater = args.checkBoolean(0);
+    setChanged();
     return li.cil.oc.core.util.ResultWrapper.result(isRepeater);
   }
 

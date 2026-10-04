@@ -66,7 +66,7 @@ public class HoverBoots extends ArmorItem implements Chargeable {
   @Override
   public void inventoryTick(@NotNull ItemStack stack, @NotNull Level level, @NotNull Entity entity, int slotId, boolean isSelected) {
     super.inventoryTick(stack, level, entity, slotId, isSelected);
-    if (!level.isClientSide && entity instanceof LivingEntity living && slotId == EquipmentSlot.FEET.getIndex()) {
+    if (!level.isClientSide && entity instanceof LivingEntity living && living.getItemBySlot(EquipmentSlot.FEET) == stack) { // worn, not just in slot 0 of some compartment
       if (!OCSettings.get().ignorePower && getCharge(stack) == 0) {
         if (living.getEffect(MobEffects.MOVEMENT_SLOWDOWN) == null) {
           living.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, 20, 1, false, false));

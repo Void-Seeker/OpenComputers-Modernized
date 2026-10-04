@@ -97,6 +97,7 @@
   "block.opencomputers.powerconverter": "Power Converter",
   "block.opencomputers.powerdistributor": "Power Distributor",
   "block.opencomputers.print": "3D Print",
+  "block.opencomputers.beaconbaseprint": "3D Print (Beacon Base)",
   "block.opencomputers.printer": "3D Printer",
   "block.opencomputers.rack": "Rack",
   "block.opencomputers.raid": "Raid",

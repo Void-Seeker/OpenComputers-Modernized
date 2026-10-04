@@ -304,7 +304,8 @@ public class Robot extends DynamicGuiContainer<li.cil.oc.neoforge.common.contain
     scrollTo((int) Math.round((mouseY - topPos - scrollY + 1 - 6.5) * maxOffset() / (94 - 13.0)));
   }
 
-  public boolean mouseScrolled(double mouseX, double mouseY, double ignoredScrollX, double scrollY) {
+  @Override
+  public boolean mouseScrolled(double mouseX, double mouseY, double scrollY) {
     int mx = (int) mouseX - leftPos;
     int my = (int) mouseY - topPos;
     int scrollYPos = 155 - deltaY;

@@ -486,10 +486,6 @@ public class Printer extends BlockEntity implements li.cil.oc.api.network.Enviro
     items[slot] = stack;
   }
 
-  @Override
-  public boolean stillValid(@NotNull Player player) {
-    return true;
-  }
 
   @Override
   public void clearContent() {
@@ -546,7 +542,11 @@ public class Printer extends BlockEntity implements li.cil.oc.api.network.Enviro
 
   public void dropAllSlots() {
     for (int i = 0; i < getContainerSize(); i++) {
-      dropSlot(i);
+      dropSlot(i, getItem(i).getCount(), null);
+    }
+    if (output != null && !output.isEmpty()) {
+      li.cil.oc.core.impl.util.InventoryUtils.spawnStackInWorld(position(), output, null, null);
+      output = null;
     }
   }
 

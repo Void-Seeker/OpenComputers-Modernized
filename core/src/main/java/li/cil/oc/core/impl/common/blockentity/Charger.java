@@ -189,8 +189,6 @@ public class Charger extends BlockEntity implements li.cil.oc.api.network.Enviro
     }
   }
 
-  public void markChanged() {
-  }
 
   public boolean isConnected() {
     return node.address() != null && node.network() != null;
@@ -470,6 +468,7 @@ public class Charger extends BlockEntity implements li.cil.oc.api.network.Enviro
   @Override
   public void readFromNBTForServer(CompoundTag nbt) {
     super.readFromNBTForServer(nbt);
+    if (nbt.contains(OCSettings.namespace + "node")) node.load(nbt.getCompound(OCSettings.namespace + "node"), getEffectiveProvider());
     var loadProvider = getEffectiveProvider();
     if (loadProvider != null) load(nbt, loadProvider);
     if (nbt.contains(OCSettings.namespace + "chargeSpeed"))
@@ -489,6 +488,9 @@ public class Charger extends BlockEntity implements li.cil.oc.api.network.Enviro
   @Override
   public void writeToNBTForServer(CompoundTag nbt) {
     super.writeToNBTForServer(nbt);
+    var nodeTag = new CompoundTag();
+    node.save(nodeTag, getEffectiveProvider());
+    nbt.put(OCSettings.namespace + "node", nodeTag);
     var provider = getEffectiveProvider();
     if (provider != null) save(nbt, provider);
     nbt.putDouble(OCSettings.namespace + "chargeSpeed", chargeSpeed);

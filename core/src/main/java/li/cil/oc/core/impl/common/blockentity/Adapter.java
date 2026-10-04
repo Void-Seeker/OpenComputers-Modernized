@@ -109,9 +109,6 @@ public class Adapter extends BlockEntity implements li.cil.oc.api.network.Enviro
     return worldPosition.getZ() + 0.5;
   }
 
-  @Override
-  public void markChanged() {
-  }
 
   @Override
   public boolean isConnected() {
@@ -181,6 +178,7 @@ public class Adapter extends BlockEntity implements li.cil.oc.api.network.Enviro
   public void setSideOpen(Direction side, boolean value) {
     _openSides[side.ordinal()] = value;
     if (isServer()) {
+      setChanged();
       PacketSender.sendAdapterState(this, compressSides());
       level().playSeededSound(null, worldPosition.getX() + 0.5, worldPosition.getY() + 0.5, worldPosition.getZ() + 0.5,
         net.minecraft.sounds.SoundEvents.PISTON_EXTEND, net.minecraft.sounds.SoundSource.BLOCKS,

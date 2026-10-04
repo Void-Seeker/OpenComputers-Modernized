@@ -188,11 +188,21 @@ public class Print extends RedstoneAware implements CustomDrops<li.cil.oc.core.i
 
   @Override
   public void doCustomDrops(li.cil.oc.core.impl.common.blockentity.Print blockEntity, Player player, boolean willHarvest) {
+    blockEntity.droppedAsItem = true; // the removal that follows must not drop it again
     if (!player.getAbilities().instabuild) {
       var level = blockEntity.getLevel();
       if (level != null) {
         Block.popResource(level, blockEntity.getBlockPos(), blockEntity.data.createItemStack());
       }
+    }
+  }
+
+  // Explosions and other mods remove the block without a player: still drop the print itself (its loot table is empty).
+  @Override
+  protected void onDropInventory(@org.jetbrains.annotations.NotNull net.minecraft.world.level.block.state.BlockState state, @org.jetbrains.annotations.NotNull net.minecraft.world.level.Level level, @org.jetbrains.annotations.NotNull net.minecraft.core.BlockPos pos) {
+    if (!level.isClientSide && level.getBlockEntity(pos) instanceof li.cil.oc.core.impl.common.blockentity.Print print && !print.droppedAsItem) {
+      print.droppedAsItem = true;
+      Block.popResource(level, pos, print.data.createItemStack());
     }
   }
 }

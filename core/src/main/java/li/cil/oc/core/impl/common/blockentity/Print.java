@@ -33,6 +33,8 @@ public class Print extends BlockEntity implements RedstoneAware, Rotatable, Name
   public VoxelShape shapeOff = Shapes.create(ExtendedAABB.unitBounds());
   public VoxelShape shapeOn = Shapes.create(ExtendedAABB.unitBounds());
   public boolean state = false;
+  /** Set once the print has dropped as an item, so the block's removal does not drop it again. */
+  public boolean droppedAsItem = false;
   private boolean _isOutputEnabled;
   private Direction _facing = Direction.SOUTH;
   private Direction _pitch = Direction.NORTH;

@@ -59,7 +59,7 @@ public interface BundledRedstoneAware extends RedstoneAware {
   }
 
   default int[][] getBundledOutput() {
-    return bundledInput();
+    return bundledOutput();
   }
 
   default void setBundledOutput(Direction side, int color, int value) {

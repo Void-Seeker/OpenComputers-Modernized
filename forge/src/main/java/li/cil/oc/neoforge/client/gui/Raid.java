@@ -24,7 +24,7 @@ public class Raid extends DynamicGuiContainer<li.cil.oc.core.impl.common.contain
   protected void drawSecondaryForegroundLayer(GuiGraphics guiGraphics, int mouseX, int mouseY) {
     super.drawSecondaryForegroundLayer(guiGraphics, mouseX, mouseY);
     guiGraphics.drawString(font, Component.translatable(raid.getInventoryName()).getString(), 8, 6, 0x404040, false);
-    var lines = font.split(Component.literal(Component.translatable("gui.opencomputers.raid.warning").getString()), width - 16);
+    var lines = font.split(Component.literal(Component.translatable("gui.opencomputers.raid.warning").getString()), imageWidth - 16);
     int y = 46;
     for (var line : lines) {
       guiGraphics.drawString(font, line, 8, y, 0x404040, false);

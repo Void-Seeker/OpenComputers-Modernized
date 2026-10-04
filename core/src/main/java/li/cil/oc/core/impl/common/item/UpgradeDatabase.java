@@ -41,7 +41,7 @@ public class UpgradeDatabase extends DelegateItem implements ItemTier {
       player.swing(hand);
     } else {
       CustomData cd = CustomData.get(stack);
-      if (cd != null && !cd.isEmpty() && cd.copyTag().contains(OCSettings.namespace + "items")) {
+      if (cd != null && !cd.isEmpty() && (cd.copyTag().contains(OCSettings.namespace + "items") || cd.copyTag().getCompound(OCSettings.namespace + "data").contains(OCSettings.namespace + "items"))) {
         CustomData.set(stack, CustomData.EMPTY);
         player.swing(hand);
       }

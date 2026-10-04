@@ -112,11 +112,21 @@ public class Cable extends SimpleBlock implements CustomDrops<li.cil.oc.core.imp
 
   @Override
   public void doCustomDrops(li.cil.oc.core.impl.common.blockentity.Cable blockEntity, Player player, boolean willHarvest) {
+    blockEntity.droppedAsItem = true; // the removal that follows must not drop it again
     if (!player.getAbilities().instabuild) {
       var level = blockEntity.getLevel();
       if (level != null) {
         Block.popResource(level, blockEntity.getBlockPos(), blockEntity.createItemStack());
       }
+    }
+  }
+
+  // Explosions and other mods remove the block without a player: still drop the cable itself (its loot table is empty).
+  @Override
+  protected void onDropInventory(@org.jetbrains.annotations.NotNull net.minecraft.world.level.block.state.BlockState state, @org.jetbrains.annotations.NotNull net.minecraft.world.level.Level level, @org.jetbrains.annotations.NotNull net.minecraft.core.BlockPos pos) {
+    if (!level.isClientSide && level.getBlockEntity(pos) instanceof li.cil.oc.core.impl.common.blockentity.Cable cable && !cable.droppedAsItem) {
+      cable.droppedAsItem = true;
+      Block.popResource(level, pos, cable.createItemStack());
     }
   }
 }

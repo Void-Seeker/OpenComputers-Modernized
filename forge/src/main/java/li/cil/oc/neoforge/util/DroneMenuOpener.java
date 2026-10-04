@@ -19,7 +19,7 @@ public class DroneMenuOpener implements DroneMenuDelegate {
     net.minecraftforge.network.NetworkHooks.openScreen(serverPlayer, new net.minecraft.world.MenuProvider() {
       @Override
       public net.minecraft.network.chat.@NotNull Component getDisplayName() {
-        return net.minecraft.network.chat.Component.literal("Drone");
+        return net.minecraft.network.chat.Component.translatable("container.opencomputers.drone");
       }
 
       @Override

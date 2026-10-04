@@ -69,9 +69,6 @@ public class Capacitor extends BlockEntity implements Environment, DeviceInfo {
     return worldPosition.getZ() + 0.5;
   }
 
-  @Override
-  public void markChanged() {
-  }
 
   @Override
   public boolean isConnected() {

@@ -395,16 +395,13 @@ public class Rack extends HubBlockEntity implements PowerAcceptor, PowerBalancer
 
   @Override
   public void markChanged(int slot) {
+    // called from the servers' computer threads: updateEntity picks the flag up on the server thread
     synchronized (hasChanged) {
       hasChanged[slot] = true;
     }
-    setOutputEnabled(hasRedstoneCard());
+    markChanged();
   }
 
-  @Override
-  public void markChanged() {
-    super.setChanged();
-  }
 
   @Override
   public EnumSet<li.cil.oc.api.util.StateAware.State> getCurrentState() {

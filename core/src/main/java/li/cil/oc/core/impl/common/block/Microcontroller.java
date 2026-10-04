@@ -190,6 +190,7 @@ public class Microcontroller extends RedstoneAware implements PowerAcceptor, Sta
   public void doCustomDrops(li.cil.oc.core.impl.common.blockentity.Microcontroller blockEntity, Player player, boolean willHarvest) {
     if (blockEntity.droppedAsItem) return;
     blockEntity.droppedAsItem = true;
+    blockEntity.saveComponents(blockEntity.getEffectiveProvider()); // EEPROM contents, card settings
     blockEntity.info.storedEnergy = (int) ((li.cil.oc.api.network.Connector) blockEntity.snooperNode).localBuffer();
     var level = blockEntity.getLevel();
     if (level != null) {

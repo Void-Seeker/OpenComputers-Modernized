@@ -74,6 +74,7 @@ public class Charger extends RedstoneAware implements PowerAcceptor, GUI, StateA
         if (!world.isClientSide) {
           charger.invertSignal = !charger.invertSignal;
           charger.chargeSpeed = 1.0 - charger.chargeSpeed;
+          charger.setChanged();
           PacketSender.sendChargerState(charger, charger.chargeSpeed, charger.hasPower);
           Wrench.wrenchUsed(player, BlockPosition.apply(pos.getX(), pos.getY(), pos.getZ(), world));
         }

@@ -51,7 +51,7 @@ public final class DriverNoteBlock extends DriverSidedBlock {
       return 0;
     }
 
-    @Callback(direct = true, doc = "function():number -- Get the currently set pitch on this note block.")
+    @Callback(doc = "function():number -- Get the currently set pitch on this note block.")
     public Object[] getPitch(Context context, Arguments args) {
       return ResultWrapper.result(world.getBlockState(pos).getValue(NoteBlock.NOTE) + 1);
     }

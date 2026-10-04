@@ -71,9 +71,6 @@ public class PowerConverter extends BlockEntity implements PowerAcceptor, Enviro
     return worldPosition.getZ() + 0.5;
   }
 
-  @Override
-  public void markChanged() {
-  }
 
   @Override
   public boolean isConnected() {
@@ -163,5 +160,20 @@ public class PowerConverter extends BlockEntity implements PowerAcceptor, Enviro
   @Override
   public Node[] onAnalyze(net.minecraft.world.entity.player.Player player, Direction side, float hitX, float hitY, float hitZ) {
     return null;
+  }
+
+  // the node's address and energy buffer survive a reload
+  @Override
+  public void readFromNBTForServer(net.minecraft.nbt.CompoundTag nbt) {
+    super.readFromNBTForServer(nbt);
+    if (nbt.contains(li.cil.oc.core.impl.OCSettings.namespace + "node")) node.load(nbt.getCompound(li.cil.oc.core.impl.OCSettings.namespace + "node"), getEffectiveProvider());
+  }
+
+  @Override
+  public void writeToNBTForServer(net.minecraft.nbt.CompoundTag nbt) {
+    super.writeToNBTForServer(nbt);
+    var nodeTag = new net.minecraft.nbt.CompoundTag();
+    node.save(nodeTag, getEffectiveProvider());
+    nbt.put(li.cil.oc.core.impl.OCSettings.namespace + "node", nodeTag);
   }
 }

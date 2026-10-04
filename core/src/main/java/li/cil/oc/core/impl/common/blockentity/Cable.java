@@ -68,6 +68,9 @@ public class Cable extends BlockEntity implements Environment, NotAnalyzable, Co
     }
   }
 
+  /** Set once the cable has dropped as an item, so the block's removal does not drop it again. */
+  public boolean droppedAsItem = false;
+
   @Override
   public boolean isConnected() {
     return node.address() != null && node.network() != null;

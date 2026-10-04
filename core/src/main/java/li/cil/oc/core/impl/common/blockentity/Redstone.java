@@ -73,9 +73,6 @@ public class Redstone extends BlockEntity implements Environment, BundledRedston
     return worldPosition.getZ() + 0.5;
   }
 
-  @Override
-  public void markChanged() {
-  }
 
   @Override
   public boolean isConnected() {

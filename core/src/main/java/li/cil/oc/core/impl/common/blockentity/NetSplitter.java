@@ -236,6 +236,7 @@ public class NetSplitter extends BlockEntity implements Environment, OpenSides, 
   @Override
   public void readFromNBTForServer(CompoundTag nbt) {
     super.readFromNBTForServer(nbt);
+    if (nbt.contains(OCSettings.namespace + "node")) node.load(nbt.getCompound(OCSettings.namespace + "node"), getEffectiveProvider());
     isInverted = nbt.getBoolean(OCSettings.namespace + "isInverted");
     if (nbt.contains(OCSettings.namespace + "openSides")) {
       uncompressSides(nbt.getByte(OCSettings.namespace + "openSides"));
@@ -245,6 +246,9 @@ public class NetSplitter extends BlockEntity implements Environment, OpenSides, 
   @Override
   public void writeToNBTForServer(CompoundTag nbt) {
     super.writeToNBTForServer(nbt);
+    var nodeTag = new CompoundTag();
+    node.save(nodeTag, getEffectiveProvider());
+    nbt.put(OCSettings.namespace + "node", nodeTag);
     nbt.putBoolean(OCSettings.namespace + "isInverted", isInverted);
     nbt.putByte(OCSettings.namespace + "openSides", compressSides());
   }

@@ -79,9 +79,6 @@ public class Waypoint extends BlockEntity implements Environment, Rotatable, Red
     return worldPosition.getZ() + 0.5;
   }
 
-  @Override
-  public void markChanged() {
-  }
 
   @Override
   public boolean isConnected() {
@@ -145,6 +142,7 @@ public class Waypoint extends BlockEntity implements Environment, Rotatable, Red
   @SuppressWarnings("SameReturnValue")
   public Object[] setLabel(Context context, Arguments args) {
     label = args.checkString(0).substring(0, Math.min(32, args.checkString(0).length()));
+    setChanged();
     context.pause(0.5);
     return null;
   }
@@ -225,6 +223,7 @@ public class Waypoint extends BlockEntity implements Environment, Rotatable, Red
   @Override
   public void readFromNBTForServer(CompoundTag nbt) {
     super.readFromNBTForServer(nbt);
+    if (nbt.contains(OCSettings.namespace + "node")) node.load(nbt.getCompound(OCSettings.namespace + "node"), getEffectiveProvider());
     label = nbt.getString(OCSettings.namespace + "label");
     if (nbt.contains(OCSettings.namespace + "yaw")) {
       facing = Direction.from3DDataValue(nbt.getInt(OCSettings.namespace + "yaw"));
@@ -234,6 +233,9 @@ public class Waypoint extends BlockEntity implements Environment, Rotatable, Red
   @Override
   public void writeToNBTForServer(CompoundTag nbt) {
     super.writeToNBTForServer(nbt);
+    var nodeTag = new CompoundTag();
+    node.save(nodeTag, getEffectiveProvider());
+    nbt.put(OCSettings.namespace + "node", nodeTag);
     nbt.putString(OCSettings.namespace + "label", label);
     nbt.putInt(OCSettings.namespace + "yaw", facing.get3DDataValue());
   }

@@ -64,9 +64,6 @@ public class PowerDistributor extends BlockEntity implements Environment, PowerB
     return worldPosition.getZ() + 0.5;
   }
 
-  @Override
-  public void markChanged() {
-  }
 
   @Override
   public boolean isConnected() {

@@ -67,9 +67,6 @@ public class Keyboard extends BlockEntity implements Environment, Rotatable, Sid
     return worldPosition.getZ() + 0.5;
   }
 
-  @Override
-  public void markChanged() {
-  }
 
   @Override
   public boolean isConnected() {
@@ -144,6 +141,12 @@ public class Keyboard extends BlockEntity implements Environment, Rotatable, Sid
 
   @Override
   public void onRotationChanged() {
+    if (isServer()) {
+      li.cil.oc.core.impl.common.PacketSender.sendRotatableState(this, pitch(), yaw());
+    } else {
+      var level = getLevel();
+      if (level != null) level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 3);
+    }
   }
 
   @Override

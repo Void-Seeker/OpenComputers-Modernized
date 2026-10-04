@@ -214,7 +214,7 @@ public class DiskDrive extends BlockEntity implements Environment, EnvironmentHo
     double velocity = MathCompat.clamp(args.optDouble(0, 0), 0, 1);
     ItemStack stack = getItem(0);
     if (!stack.isEmpty()) {
-      var ejected = stack.split(1);
+      var ejected = removeItem(0, 1); // through the inventory, so the filesystem is unmounted and saved into the item
       if (!ejected.isEmpty()) {
         var entity = InventoryUtils.spawnStackInWorld(BlockPosition.apply(this), ejected, facing(), null);
         if (entity != null) {
@@ -295,6 +295,7 @@ public class DiskDrive extends BlockEntity implements Environment, EnvironmentHo
   @Override
   public void readFromNBTForServer(CompoundTag nbt) {
     super.readFromNBTForServer(nbt);
+    if (nbt.contains(OCSettings.namespace + "node")) node.load(nbt.getCompound(OCSettings.namespace + "node"), getEffectiveProvider());
     // Java interfaces cannot hook into the base class's NBT methods like the original Scala traits did,
     // so the inventory has to be loaded explicitly.
     var provider = getEffectiveProvider();
@@ -304,6 +305,9 @@ public class DiskDrive extends BlockEntity implements Environment, EnvironmentHo
   @Override
   public void writeToNBTForServer(CompoundTag nbt) {
     super.writeToNBTForServer(nbt);
+    var nodeTag = new CompoundTag();
+    node.save(nodeTag, getEffectiveProvider());
+    nbt.put(OCSettings.namespace + "node", nodeTag);
     var provider = getEffectiveProvider();
     if (provider != null) save(nbt, provider);
   }

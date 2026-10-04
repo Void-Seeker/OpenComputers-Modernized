@@ -47,7 +47,9 @@ public interface RedstoneAware extends RotationAware {
   }
 
   default int maxInput() {
-    return 0;
+    int max = 0;
+    for (int value : input()) max = Math.max(max, value);
+    return max;
   }
 
   default int getOutput(Direction side) {

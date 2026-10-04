@@ -2,6 +2,12 @@ package li.cil.oc.core.impl.common.blockentity.traits;
 
 
 public interface Inventory extends li.cil.oc.core.impl.common.inventory.Inventory {
+  /** Menus close when the player walks away or the block is gone, like vanilla containers. */
+  @Override
+  default boolean stillValid(net.minecraft.world.entity.player.@org.jetbrains.annotations.NotNull Player player) {
+    return this instanceof net.minecraft.world.level.block.entity.BlockEntity be && net.minecraft.world.Container.stillValidBlockEntity(be, player);
+  }
+
   @SuppressWarnings("unused")
   void readFromNBTForServer(net.minecraft.nbt.CompoundTag nbt);
 

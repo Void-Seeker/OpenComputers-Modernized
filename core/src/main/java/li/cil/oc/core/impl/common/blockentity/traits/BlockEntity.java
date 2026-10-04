@@ -66,6 +66,21 @@ public abstract class BlockEntity extends net.minecraft.world.level.block.entity
     unloading = true;
   }
 
+  private final java.util.concurrent.atomic.AtomicBoolean changeScheduled = new java.util.concurrent.atomic.AtomicBoolean();
+
+  /**
+   * Asks for this block entity to be saved. Components call this from the computer threads, where vanilla's
+   * setChanged() must not run (it touches the chunk), so the save mark is applied on the next server tick.
+   */
+  public void markChanged() {
+    if (!changeScheduled.getAndSet(true)) {
+      EventHandlerDelegate.get().scheduleServer(() -> {
+        changeScheduled.set(false);
+        if (!isRemoved() && getLevel() != null) setChanged();
+      });
+    }
+  }
+
   @Override
   public void setRemoved() {
     super.setRemoved();

@@ -26,6 +26,7 @@ public class Screen extends TextBuffer {
     boolean oldValue = screen.invertTouchMode;
     if (newValue != oldValue) {
       screen.invertTouchMode = newValue;
+      screen.setChanged();
       PacketSender.sendScreenTouchMode(screen, newValue);
     }
     return ResultWrapper.result(oldValue);
