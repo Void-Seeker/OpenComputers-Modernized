@@ -31,7 +31,7 @@ import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import org.jetbrains.annotations.NotNull;
 
-public class Microcontroller extends SimpleBlock implements PowerAcceptor, StateAware, CustomDrops<li.cil.oc.core.impl.common.blockentity.Microcontroller> {
+public class Microcontroller extends RedstoneAware implements PowerAcceptor, StateAware, CustomDrops<li.cil.oc.core.impl.common.blockentity.Microcontroller> {
   public static final DirectionProperty FACING = BlockStateProperties.HORIZONTAL_FACING;
 
   public static BlockEntityType<?> TYPE;

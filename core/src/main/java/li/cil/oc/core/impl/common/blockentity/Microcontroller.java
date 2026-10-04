@@ -159,6 +159,10 @@ public class Microcontroller extends BlockEntity implements PowerAcceptor, Hub, 
           li.cil.oc.api.Network.joinNewNetwork(machine().node());
         }
         machine().node().connect(snooperNode);
+        // Upstream only connected the parts from onPlugConnect, but this port's microcontroller has no plugs
+        // (createPlug returns null, canConnect is false), so its CPU, cards and EEPROM never joined the machine's
+        // network and every boot ended in "no bios found".
+        connectComponents();
       }
     }
   }
@@ -311,8 +315,92 @@ public class Microcontroller extends BlockEntity implements PowerAcceptor, Hub, 
     return new Node[]{machine().node()};
   }
 
+  // Redstone. Upstream left the RedstoneAware defaults here, which store nothing (output() returned a fresh array,
+  // isOutputEnabled() false), and the block was no signal source: a redstone card in a microcontroller did nothing.
+  // Same behaviour as the computer case; outputs are always enabled, as in the original mod.
+  private final int[] _rsInput = new int[]{-1, -1, -1, -1, -1, -1};
+  private final int[] _rsOutput = new int[6];
+
+  @Override
+  public boolean isOutputEnabled() {
+    return true;
+  }
+
+  @Override
+  public int[] input() {
+    return _rsInput;
+  }
+
+  @Override
+  public int getInput(Direction side) {
+    return Math.max(_rsInput[side.ordinal()], 0);
+  }
+
+  @Override
+  public void setInput(Direction side, int value) {
+    var ord = side.ordinal();
+    var old = _rsInput[ord];
+    _rsInput[ord] = value;
+    if (old >= 0 && old != value) {
+      onRedstoneInputChanged(ord, old, value);
+    }
+  }
+
+  @Override
+  public void setInput(int[] values) {
+    for (var side : Direction.values()) {
+      setInput(side, side.ordinal() < values.length ? values[side.ordinal()] : 0);
+    }
+  }
+
+  @Override
+  public int maxInput() {
+    int max = 0;
+    for (int v : _rsInput) max = Math.max(max, Math.max(v, 0));
+    return max;
+  }
+
+  @Override
+  public int[] output() {
+    return _rsOutput;
+  }
+
+  @Override
+  public int getOutput(Direction side) {
+    return _rsOutput[toLocal(side).ordinal()];
+  }
+
+  @Override
+  public void setOutput(Direction side, int value) {
+    var ord = toLocal(side).ordinal();
+    if (_rsOutput[ord] != value) {
+      _rsOutput[ord] = value;
+      onRedstoneOutputChanged(side);
+    }
+  }
+
+  @Override
+  public void setOutput(Map<?, ?> values) {
+    for (var side : Direction.values()) {
+      var key = Integer.valueOf(toLocal(side).ordinal());
+      if (values.containsKey(key) && values.get(key) instanceof Number num) {
+        setOutput(side, num.intValue());
+      }
+    }
+  }
+
   @Override
   public void checkRedstoneInputChanged() {
+    if (getLevel() != null && !getLevel().isClientSide) {
+      for (Direction side : Direction.values()) {
+        var oldValue = _rsInput[side.ordinal()];
+        var newValue = li.cil.oc.core.impl.integration.util.BundledRedstone.computeInput(position(), side);
+        if (oldValue != newValue) {
+          _rsInput[side.ordinal()] = newValue;
+          onRedstoneInputChanged(side.ordinal(), oldValue, newValue);
+        }
+      }
+    }
   }
 
   @Override
@@ -684,9 +772,11 @@ public class Microcontroller extends BlockEntity implements PowerAcceptor, Hub, 
     return null;
   }
 
+  // Every part of a microcontroller is a component (as in the original mod). This returned false, so no part
+  // ever got an environment: no EEPROM for the BIOS, no redstone or other cards.
   @Override
   public boolean isComponentSlot(int slot, ItemStack stack) {
-    return false;
+    return true;
   }
 
   @Override
