@@ -199,6 +199,7 @@ public final class OpenComputers {
     MinecraftForge.EVENT_BUS.addListener(this::serverStop);
 
     MinecraftForge.EVENT_BUS.register(SimpleComponentTickHandler.Instance);
+    MinecraftForge.EVENT_BUS.addListener(li.cil.oc.neoforge.util.FakePlayerClick::onEntityJoinLevel);
   }
 
   /**
