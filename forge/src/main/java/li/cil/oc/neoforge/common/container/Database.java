@@ -53,8 +53,14 @@ public class Database extends li.cil.oc.core.impl.common.container.Player {
         if (!player.level().isClientSide) broadcastChanges();
         return;
       }
+      return; // the ghost slots are copies: nothing may throw, gather or drag them
     }
     super.clicked(slotId, button, clickType, player);
+  }
+
+  @Override
+  public boolean canTakeItemForPickAll(@NotNull ItemStack stack, @NotNull Slot slot) {
+    return slot.index >= databaseSize && super.canTakeItemForPickAll(stack, slot);
   }
 
   @Override

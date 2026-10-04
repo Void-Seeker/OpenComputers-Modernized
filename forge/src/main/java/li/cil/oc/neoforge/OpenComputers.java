@@ -221,6 +221,9 @@ public final class OpenComputers {
 
     event.registerBlock(Capabilities.ItemHandler.BLOCK,
       (level, pos, state, blockEntity, side) -> {
+        if (blockEntity instanceof net.minecraft.world.WorldlyContainer worldly && side != null) {
+          return new net.minecraftforge.items.wrapper.SidedInvWrapper(worldly, side); // honours the block's side rules
+        }
         if (blockEntity instanceof net.minecraft.world.Container container && side != null) {
           return new net.minecraftforge.items.wrapper.InvWrapper(container);
         }

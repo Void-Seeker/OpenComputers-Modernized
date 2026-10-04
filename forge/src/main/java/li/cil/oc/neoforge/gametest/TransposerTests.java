@@ -159,6 +159,12 @@ public final class TransposerTests {
     // sides: down 0, up 1, north 2, south 3, west 4, east 5
     final String program = "local tp = component.proxy(component.list(\"transposer\")())\n"
       + "local function expect(what, want, got, why) if got ~= want then error(what .. \": \" .. tostring(got) .. \" \" .. tostring(why), 0) end end\n"
+      // the water first: its current would carry the dropped items off
+      + "local _, moved = tp.transferFluid(0, 3)\n"
+      + "expect(\"pour water\", 1000, moved)\n"
+      + "_, moved = tp.transferFluid(3, 0)\n"
+      + "expect(\"suck water\", 1000, moved)\n"
+      + "computer.pullSignal(2)\n"
       + "expect(\"drop 2 bone meal\", 2, tp.dropItem(2, 5, 2, 2))\n"
       + "local n, why = tp.dropItem(2, 1)\n"
       + "expect(\"drop into stone\", \"blocked\", why, n)\n"
@@ -167,20 +173,17 @@ public final class TransposerTests {
       + "expect(\"place onto stone\", \"blocked\", why, ok)\n"
       + "ok, why = tp.placeBlock(2, 3, 2)\n"
       + "expect(\"place bone meal\", \"not a block\", why, ok)\n"
-      + "local _, moved = tp.transferFluid(0, 3)\n"
-      + "expect(\"pour water\", 1000, moved)\n"
-      + "_, moved = tp.transferFluid(3, 0)\n"
-      + "expect(\"suck water\", 1000, moved)\n"
       + "while true do computer.pullSignal(1) end\n";
     TestMachines.runMicrocontroller(helper, pos, List.of(Constants.ItemName.CPUTier1, Constants.ItemName.RAMTier2, Constants.BlockName.Transposer), program, mc -> {
       helper.assertTrue(state(helper, place).is(net.minecraft.world.level.block.Blocks.STONE), "no stone was placed: " + state(helper, place));
       helper.assertTrue(box.getItem(0).is(Items.STONE) && box.getItem(0).getCount() == 1, "stone slot holds " + box.getItem(0));
       helper.assertTrue(box.getItem(1).is(Items.BONE_MEAL) && box.getItem(1).getCount() == 3, "bone meal slot holds " + box.getItem(1));
+      // anywhere in the test area: the test world is terrain, and water can push the item around
       int dropped = 0;
-      for (final ItemEntity item : helper.getLevel().getEntitiesOfClass(ItemEntity.class, new AABB(helper.absolutePos(drop)).expandTowards(0, -3, 0))) {
+      for (final ItemEntity item : helper.getLevel().getEntitiesOfClass(ItemEntity.class, new AABB(helper.absolutePos(BlockPos.ZERO), helper.absolutePos(new BlockPos(5, 5, 5))).inflate(6))) {
         if (item.getItem().is(Items.BONE_MEAL)) dropped += item.getItem().getCount();
       }
-      helper.assertTrue(dropped == 2, dropped + " bone meal lie in the drop column instead of 2");
+      helper.assertTrue(dropped == 2, dropped + " bone meal were dropped instead of 2");
       helper.assertTrue(state(helper, water).getValue(LayeredCauldronBlock.LEVEL) == 3, "the water did not come back into the cauldron");
       helper.assertTrue(!state(helper, pour).getFluidState().isSource(), "the poured water source is still there");
       helper.succeed();

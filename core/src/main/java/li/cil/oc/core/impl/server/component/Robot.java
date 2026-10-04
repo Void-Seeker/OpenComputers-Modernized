@@ -142,11 +142,4 @@ public class Robot extends li.cil.oc.core.impl.server.component.RobotBase {
     return player instanceof li.cil.oc.core.impl.server.agent.AgentPlayer ap && ap.useEquippedItem(duration);
   }
 
-  @Override
-  protected void beginConsumeDrops(Entity entity) {
-  }
-
-  @Override
-  protected void endConsumeDrops(Player player, Entity entity) {
-  }
 }

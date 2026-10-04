@@ -101,6 +101,12 @@ public final class PacketSender extends li.cil.oc.core.impl.common.PacketSender 
 
   @Override
   protected void sendFileSystemActivityImpl(Node node, EnvironmentHost host, String name) {
+    var level = host.level();
+    if (level != null && level.getServer() != null && !level.getServer().isSameThread()) {
+      // direct filesystem calls run on computer threads; events and the player list belong to the server thread
+      li.cil.oc.neoforge.common.EventHandler.scheduleServer(() -> sendFileSystemActivityImpl(node, host, name));
+      return;
+    }
     com.google.common.cache.Cache<String, Long> hostTimeouts;
     synchronized (fileSystemAccessTimeouts) {
       hostTimeouts = fileSystemAccessTimeouts.get(node);

@@ -214,7 +214,9 @@ public abstract class MachineBase extends AbstractManagedEnvironment implements 
 
   @Override
   public Map<String, String> components() {
-    return new LinkedHashMap<>(_components);
+    synchronized (_components) { // the server thread adds and removes while computer threads list
+      return new LinkedHashMap<>(_components);
+    }
   }
 
   @Override
@@ -615,7 +617,9 @@ public abstract class MachineBase extends AbstractManagedEnvironment implements 
     worldTime = host.level().getGameTime();
     uptime++;
     if (remainIdle > 0) remainIdle--;
-    callBudget = maxCallBudget;
+    synchronized (callBudgetLock) {
+      callBudget = maxCallBudget;
+    }
     if (host.level().getGameTime() % OCSettings.get().tickFrequency == 0) {
       synchronized (state) {
         State t = state.peek();

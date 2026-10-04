@@ -65,7 +65,8 @@ public class CallbackWrapper {
       new Class<?>[]{Callback.class},
       (proxy, method, args) -> switch (method.getName()) {
         case "value" -> name;
-        case "direct" -> true;
+        // Peripheral bridges (ComputerCraft, Mekanism) touch the world: on the server thread only.
+        case "direct" -> false;
         case "limit" -> 100;
         case "doc" -> doc;
         case "getter", "setter" -> false;

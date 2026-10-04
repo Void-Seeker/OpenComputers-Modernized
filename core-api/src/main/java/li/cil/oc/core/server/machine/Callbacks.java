@@ -17,7 +17,8 @@ import li.cil.oc.api.network.ManagedEnvironment;
 import li.cil.oc.api.network.ManagedPeripheral;
 
 public final class Callbacks {
-  private static final Map<Class<?>, Map<String, CallbackWrapper>> cache = new WeakHashMap<>();
+  // every computer thread reads this, and WeakHashMap reads modify the table
+  private static final Map<Class<?>, Map<String, CallbackWrapper>> cache = java.util.Collections.synchronizedMap(new WeakHashMap<>());
 
   private Callbacks() {
   }

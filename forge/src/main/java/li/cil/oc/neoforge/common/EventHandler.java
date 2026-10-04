@@ -248,8 +248,8 @@ public final class EventHandler {
   public static void onChunkUnload(ChunkEvent.Unload e) {
     if (!e.getLevel().isClientSide()) {
       var chunkPos = e.getChunk().getPos();
-      var chunkMin = new net.minecraft.core.BlockPos(chunkPos.getMinBlockX(), 0, chunkPos.getMinBlockZ());
-      var chunkMax = new net.minecraft.core.BlockPos(chunkPos.getMaxBlockX(), 255, chunkPos.getMaxBlockZ());
+      var chunkMin = new net.minecraft.core.BlockPos(chunkPos.getMinBlockX(), e.getLevel().getMinBuildHeight(), chunkPos.getMinBlockZ());
+      var chunkMax = new net.minecraft.core.BlockPos(chunkPos.getMaxBlockX(), e.getLevel().getMaxBuildHeight(), chunkPos.getMaxBlockZ());
       var aabb = new net.minecraft.world.phys.AABB(chunkMin.getX(), chunkMin.getY(), chunkMin.getZ(), chunkMax.getX(), chunkMax.getY(), chunkMax.getZ());
       for (var entity : e.getLevel().getEntities(null, aabb)) {
         if (entity instanceof MachineHost host) {

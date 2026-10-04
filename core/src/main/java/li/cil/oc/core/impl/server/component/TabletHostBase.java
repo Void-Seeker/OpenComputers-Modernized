@@ -315,9 +315,17 @@ public abstract class TabletHostBase implements ComponentInventory, MachineHost,
   public void player(Player p) {
   }
 
+  private final java.util.concurrent.atomic.AtomicBoolean changeScheduled = new java.util.concurrent.atomic.AtomicBoolean();
+
+  // called from the computer thread on every slice and GPU draw; the item's tag belongs to the server thread
   @Override
   public void markChanged() {
-    setChanged();
+    if (!changeScheduled.getAndSet(true)) {
+      li.cil.oc.core.impl.util.EventHandlerDelegate.get().scheduleServer(() -> {
+        changeScheduled.set(false);
+        setChanged();
+      });
+    }
   }
 
   @Override

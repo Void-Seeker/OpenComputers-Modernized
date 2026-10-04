@@ -63,7 +63,7 @@ public class InternetCard extends AbstractManagedEnvironment implements DeviceIn
   public final Node node = Network.newNode(this, Visibility.Network)
     .withComponent("internet", Visibility.Neighbors)
     .create();
-  protected final Set<Closable> connections = new HashSet<>();
+  protected final Set<Closable> connections = java.util.concurrent.ConcurrentHashMap.newKeySet(); // closed from Lua threads and GC
   private final Map<String, String> deviceInfo;
   protected Context owner = null;
 
