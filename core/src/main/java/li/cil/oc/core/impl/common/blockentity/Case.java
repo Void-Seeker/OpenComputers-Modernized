@@ -616,19 +616,6 @@ public class Case extends BlockEntity implements PowerAcceptor, Computer, Colore
   }
 
   @Override
-  public void setBundledInput(Direction side, int color, int value) {
-    _bundledInput[side.ordinal()][color] = Math.max(value, 0);
-  }
-
-  @Override
-  public void setBundledInput(Direction side, int[] values) {
-    var ord = side.ordinal();
-    for (int i = 0; i < 16; i++) {
-      _bundledInput[ord][i] = (values != null && i < values.length) ? Math.max(values[i], 0) : 0;
-    }
-  }
-
-  @Override
   public int[] getBundledOutput(Direction side) {
     return _bundledOutput[toLocal(side).ordinal()];
   }
@@ -651,13 +638,17 @@ public class Case extends BlockEntity implements PowerAcceptor, Computer, Colore
   @Override
   public void setBundledOutput(Direction side, Map<?, ?> values) {
     var ord = toLocal(side).ordinal();
-    for (int i = 0; i < 16; i++) _bundledOutput[ord][i] = 0;
-    for (var entry : values.entrySet()) {
-      if (entry.getKey() instanceof Number key && entry.getValue() instanceof Number val) {
-        var color = key.intValue();
-        if (color >= 0 && color < 16) _bundledOutput[ord][color] = val.intValue();
+    var changed = false;
+    for (int color = 0; color < 16; color++) {
+      var raw = values.get(color);
+      if (raw == null) raw = values.get((double) color); // Lua numbers arrive as doubles
+      var value = raw instanceof Number num ? num.intValue() : 0;
+      if (_bundledOutput[ord][color] != value) {
+        _bundledOutput[ord][color] = value;
+        changed = true;
       }
     }
+    if (changed) onRedstoneOutputChanged(side); // the bundled cable has to hear about it
   }
 
   @Override

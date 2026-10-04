@@ -136,6 +136,19 @@ public abstract class BlockEntity extends net.minecraft.world.level.block.entity
     if (this instanceof RedstoneAware ra) {
       ra.readRedstoneFromNBT(nbt);
     }
+    if (this instanceof BundledRedstoneAware bundled) {
+      readBundled(nbt, OCSettings.namespace + "rs.bundledInput", bundled.bundledInput());
+      readBundled(nbt, OCSettings.namespace + "rs.bundledOutput", bundled.bundledOutput());
+    }
+  }
+
+  private static void readBundled(CompoundTag nbt, String key, int[][] target) {
+    for (int side = 0; side < 6 && side < target.length; side++) {
+      if (nbt.contains(key + side)) {
+        int[] saved = nbt.getIntArray(key + side);
+        System.arraycopy(saved, 0, target[side], 0, Math.min(saved.length, target[side].length));
+      }
+    }
   }
 
   public void writeToNBTForServer(CompoundTag nbt) {
@@ -144,6 +157,12 @@ public abstract class BlockEntity extends net.minecraft.world.level.block.entity
     }
     if (this instanceof RedstoneAware ra) {
       ra.writeRedstoneToNBT(nbt);
+    }
+    if (this instanceof BundledRedstoneAware bundled) { // bundled outputs went to 0 after a reload
+      for (int side = 0; side < 6 && side < bundled.bundledInput().length; side++) {
+        nbt.putIntArray(OCSettings.namespace + "rs.bundledInput" + side, bundled.bundledInput()[side].clone());
+        nbt.putIntArray(OCSettings.namespace + "rs.bundledOutput" + side, bundled.bundledOutput()[side].clone());
+      }
     }
   }
 

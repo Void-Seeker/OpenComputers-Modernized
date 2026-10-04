@@ -3,6 +3,7 @@ package li.cil.oc.core.impl.common.blockentity;
 import li.cil.oc.compat.MathCompat;
 
 import java.util.ArrayList;
+import java.util.Map;
 import java.util.EnumSet;
 import java.util.Optional;
 import li.cil.oc.api.Driver;
@@ -49,6 +50,11 @@ public class Rack extends HubBlockEntity implements PowerAcceptor, PowerBalancer
   private ManagedEnvironment[] _components;
   private final ArrayList<ManagedEnvironment> updatingComponents = new ArrayList<>();
   protected boolean _isOutputEnabled = false;
+  // Redstone storage; the trait's defaults are throw-away arrays, so the rack never noticed inputs or kept outputs.
+  private final int[] _rsInput = new int[]{-1, -1, -1, -1, -1, -1};
+  private final int[] _rsOutput = new int[6];
+  private final int[][] _bundledInput = new int[6][16];
+  private final int[][] _bundledOutput = new int[6][16];
   private final ItemStack[] items = new ItemStack[getContainerSize()];
   private final ItemStack[] pendingRemovalItems = new ItemStack[items.length];
   private final ItemStack[] pendingAddItems = new ItemStack[items.length];
@@ -461,6 +467,93 @@ public class Rack extends HubBlockEntity implements PowerAcceptor, PowerBalancer
           new RedstoneAware.RedstoneChangedEventArgs(localSide, oldValue, newValue, color));
       }
     }
+  }
+
+  @Override
+  public int[] input() {
+    return _rsInput;
+  }
+
+  @Override
+  public int getInput(Direction side) {
+    return Math.max(_rsInput[side.ordinal()], 0);
+  }
+
+  @Override
+  public void setInput(Direction side, int value) {
+    var ord = side.ordinal();
+    var old = _rsInput[ord];
+    _rsInput[ord] = value;
+    if (old >= 0 && old != value) onRedstoneInputChanged(ord, old, value);
+  }
+
+  @Override
+  public void setInput(int[] values) {
+    for (var side : Direction.values()) setInput(side, side.ordinal() < values.length ? values[side.ordinal()] : 0);
+  }
+
+  @Override
+  public int maxInput() {
+    int max = 0;
+    for (int v : _rsInput) max = Math.max(max, v);
+    return max;
+  }
+
+  @Override
+  public int[] output() {
+    return _rsOutput;
+  }
+
+  @Override
+  public int getOutput(Direction side) {
+    return _rsOutput[toLocal(side).ordinal()];
+  }
+
+  @Override
+  public void setOutput(Direction side, int value) {
+    var ord = toLocal(side).ordinal();
+    if (_rsOutput[ord] != value) {
+      _rsOutput[ord] = value;
+      onRedstoneOutputChanged(side);
+    }
+  }
+
+  @Override
+  public void setOutput(Map<?, ?> values) {
+    for (var side : Direction.values()) {
+      var key = Integer.valueOf(toLocal(side).ordinal());
+      if (values.containsKey(key) && values.get(key) instanceof Number num) setOutput(side, num.intValue());
+    }
+  }
+
+  @Override
+  public int[][] bundledInput() {
+    return _bundledInput;
+  }
+
+  @Override
+  public int[][] bundledOutput() {
+    return _bundledOutput;
+  }
+
+  @Override
+  public void checkRedstoneInputChanged() {
+    if (getLevel() != null && !getLevel().isClientSide) {
+      for (Direction side : Direction.values()) {
+        var oldValue = _rsInput[side.ordinal()];
+        var newValue = li.cil.oc.core.impl.integration.util.BundledRedstone.computeInput(position(), side);
+        if (oldValue != newValue) {
+          _rsInput[side.ordinal()] = newValue;
+          onRedstoneInputChanged(side.ordinal(), oldValue, newValue);
+        }
+        setBundledInput(side, li.cil.oc.core.impl.integration.util.BundledRedstone.computeBundledInput(position(), side));
+      }
+    }
+  }
+
+  @Override
+  public void onRedstoneInputChanged(int side, int oldValue, int newValue) {
+    onRedstoneInputChanged(side, oldValue, newValue, -1); // the servers hear about it below
   }
 
   @Override

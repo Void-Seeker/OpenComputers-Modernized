@@ -521,6 +521,7 @@ public class Microcontroller extends BlockEntity implements PowerAcceptor, Hub, 
           _rsInput[side.ordinal()] = newValue;
           onRedstoneInputChanged(side.ordinal(), oldValue, newValue);
         }
+        setBundledInput(side, li.cil.oc.core.impl.integration.util.BundledRedstone.computeBundledInput(position(), side));
       }
     }
   }

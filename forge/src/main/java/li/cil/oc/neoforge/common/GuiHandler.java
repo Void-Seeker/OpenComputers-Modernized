@@ -164,6 +164,11 @@ public final class GuiHandler {
             }
 
             @Override
+            public boolean stillValid(@NotNull Player player) {
+              return player.getMainHandItem() == heldItem; // moved or thrown: the menu closes instead of editing a copy
+            }
+
+            @Override
             public ItemStack[] items() {
               return items;
             }
@@ -231,7 +236,7 @@ public final class GuiHandler {
 
             @Override
             public boolean stillValid(@NotNull Player player) {
-              return true;
+              return player.getMainHandItem() == heldItem; // moved or thrown: the menu closes instead of editing a copy
             }
           }, null, player);
         } else if (item instanceof li.cil.oc.core.impl.common.item.Tablet tablet && (id == GuiType.Tablet || id == GuiType.TabletInner)) {
@@ -282,7 +287,7 @@ public final class GuiHandler {
 
             @Override
             public boolean stillValid(@NotNull Player player) {
-              return true;
+              return player.getMainHandItem() == heldItem; // moved or thrown: the menu closes instead of editing a copy
             }
           });
         }

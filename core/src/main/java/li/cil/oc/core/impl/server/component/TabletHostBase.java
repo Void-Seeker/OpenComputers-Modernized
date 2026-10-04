@@ -47,6 +47,12 @@ public abstract class TabletHostBase implements ComponentInventory, MachineHost,
 
   public abstract ItemStack getStack();
 
+  /** The tablet's menus are valid while the tablet is the item in hand; moving or throwing it closes them. */
+  @Override
+  public boolean stillValid(net.minecraft.world.entity.player.@org.jetbrains.annotations.NotNull Player player) {
+    return player.getMainHandItem() == getStack();
+  }
+
   protected abstract CompoundTag loadMachineTag();
 
   protected abstract void saveMachineTag(CompoundTag nbt);

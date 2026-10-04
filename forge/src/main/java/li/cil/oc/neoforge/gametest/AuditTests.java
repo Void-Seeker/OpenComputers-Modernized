@@ -279,5 +279,41 @@ public final class AuditTests {
         });
       });
   }
+
+  /** A redstone card in a racked server drives the rack's redstone output. */
+  @GameTest(template = EMPTY, timeoutTicks = 400)
+  public static void rackedServerEmitsRedstone(final GameTestHelper helper) {
+    final BlockPos pos = new BlockPos(2, 2, 2);
+    helper.setBlock(pos, Blocks.RACK.get());
+    final BlockPos abs = helper.absolutePos(pos);
+    helper.runAfterDelay(5, () -> {
+      final var rack = (li.cil.oc.core.impl.common.blockentity.Rack) helper.getBlockEntity(pos);
+      rack.setItem(0, item(Constants.ItemName.ServerTier1));
+      final var server = (li.cil.oc.core.impl.server.component.ServerBase) rack.getMountable(0);
+      helper.assertTrue(server != null, "the rack made no server mountable");
+      final byte[] code = ("local rs = component.proxy(component.list(\"redstone\")())\n"
+        + "rs.setOutput(1, 15)\n"
+        + "while true do computer.pullSignal(1) end\n").getBytes(java.nio.charset.StandardCharsets.UTF_8);
+      for (final ItemStack part : List.of(item(Constants.ItemName.CPUTier1), item(Constants.ItemName.RAMTier2), item(Constants.ItemName.RedstoneCardTier1),
+        li.cil.oc.api.Items.registerEEPROM("rack test", code, null, false))) {
+        int slot = -1;
+        for (int i = 0; i < server.getContainerSize() && slot < 0; i++) {
+          if (server.getItem(i).isEmpty() && server.canPlaceItem(i, part)) slot = i;
+        }
+        helper.assertTrue(slot >= 0, "no server slot takes " + part);
+        server.setItem(slot, part);
+      }
+      helper.runAfterDelay(5, () -> {
+        ((li.cil.oc.api.network.Connector) server.machine().node()).changeBuffer(1000);
+        helper.assertTrue(server.machine().start(), "the server did not start: " + server.machine().lastError());
+        helper.runAfterDelay(100, () -> {
+          helper.assertTrue(server.machine().isRunning(), "the server program stopped: " + server.machine().lastError());
+          final int signal = helper.getLevel().getBestNeighborSignal(abs.above());
+          helper.assertTrue(signal == 15, "the rack emits " + signal + " above instead of 15 (output enabled: " + rack.isOutputEnabled() + ")");
+          helper.succeed();
+        });
+      });
+    });
+  }
 }
 

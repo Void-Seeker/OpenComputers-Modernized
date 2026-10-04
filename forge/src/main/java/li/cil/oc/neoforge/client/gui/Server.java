@@ -98,7 +98,7 @@ public class Server extends DynamicGuiContainer<li.cil.oc.core.impl.common.conta
 
   @Override
   public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-    if (keyCode == 81 && hoveredSlot != null && shouldSuppressClick(hoveredSlot)) {
+    if (minecraft != null && minecraft.options.keyDrop.matches(keyCode, scanCode) && hoveredSlot != null && shouldSuppressClick(hoveredSlot)) { // the drop key, whatever it is bound to
       return true;
     }
     return super.keyPressed(keyCode, scanCode, modifiers);

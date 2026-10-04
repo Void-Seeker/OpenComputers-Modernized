@@ -28,6 +28,34 @@ public final class DriverRedstoneCard extends Item implements HostAware {
     boolean isAdvanced = INSTANCE.tier(stack) == Tier.Two;
     boolean hasBundled = BundledRedstone.isAvailable() && isAdvanced;
     boolean hasWireless = WirelessRedstone.isAvailable() && isAdvanced;
+    // a racked server has no redstone of its own: its card drives the rack's, as in the original mod
+    if (host instanceof li.cil.oc.api.internal.Server server && server.rack() instanceof BundledRedstoneAware) {
+      final EnvironmentHost rackHost = server.rack();
+      if (hasBundled && hasWireless) return new li.cil.oc.core.impl.server.component.Redstone.BundledWireless(host) {
+        @Override
+        public EnvironmentHost redstone() {
+          return rackHost;
+        }
+      };
+      if (hasBundled) return new li.cil.oc.core.impl.server.component.Redstone.Bundled(host) {
+        @Override
+        public EnvironmentHost redstone() {
+          return rackHost;
+        }
+      };
+      if (hasWireless) return new li.cil.oc.core.impl.server.component.Redstone.VanillaWireless(host) {
+        @Override
+        public EnvironmentHost redstone() {
+          return rackHost;
+        }
+      };
+      return new li.cil.oc.core.impl.server.component.Redstone.Vanilla(host) {
+        @Override
+        public EnvironmentHost redstone() {
+          return rackHost;
+        }
+      };
+    }
     if (host instanceof BundledRedstoneAware && hasBundled) {
       if (hasWireless)
         return new li.cil.oc.core.impl.server.component.Redstone.BundledWireless(host);
