@@ -13,6 +13,8 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.ComposterBlock;
 import net.minecraft.world.level.block.HopperBlock;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.phys.AABB;
 import net.minecraftforge.gametest.GameTestHolder;
 import net.minecraftforge.gametest.PrefixGameTestTemplate;
 
@@ -56,5 +58,49 @@ public final class RedstoneTests {
     final Object composter = card.getComparatorInput(null, new li.cil.oc.core.impl.server.machine.ArgumentsImpl(new Object[]{0.0}))[0];
     helper.assertTrue(((Number) hopper).intValue() == 3 && ((Number) composter).intValue() == 8, "hopper reads " + hopper + ", composter " + composter);
     helper.succeed();
+  }
+
+  /** The front is closed to cables and power only: the redstone card and the transposer work through it. */
+  @GameTest(template = EMPTY, timeoutTicks = 200)
+  public static void microcontrollerUsesItsFront(final GameTestHelper helper) {
+    final BlockPos pos = new BlockPos(2, 2, 2);
+    final Direction[] front = new Direction[1];
+    TestMachines.runMicrocontroller(helper, pos,
+      List.of(Constants.ItemName.CPUTier1, Constants.ItemName.RAMTier2, Constants.ItemName.RedstoneCardTier1, Constants.BlockName.Transposer),
+      mc -> {
+        front[0] = mc.facing();
+        final Direction back = front[0].getOpposite();
+        helper.setBlock(pos.relative(back), Blocks.CHEST);
+        ((Container) helper.getBlockEntity(pos.relative(back))).setItem(0, new ItemStack(Items.STONE, 3));
+        helper.setBlock(pos.relative(front[0]), Blocks.CHEST);
+        final int f = front[0].get3DDataValue(), b = back.get3DDataValue();
+        // the transposer counts sides absolutely, the redstone card relative to the facing: 3 is sides.front
+        return "local tp = component.proxy(component.list(\"transposer\")())\n"
+          + "local rs = component.proxy(component.list(\"redstone\")())\n"
+          + "local function expect(what, want, got, why) if got ~= want then error(what .. \": \" .. tostring(got) .. \" \" .. tostring(why), 0) end end\n"
+          + "expect(\"into the chest in front\", true, tp.transferItem(" + b + ", " + f + ", 1))\n"
+          + "expect(\"out of the chest in front\", true, tp.transferItem(" + f + ", " + b + ", 1))\n"
+          + "expect(\"into the chest in front again\", true, tp.transferItem(" + b + ", " + f + ", 1))\n"
+          + "expect(\"drop to the front\", 1, tp.dropItem(" + b + ", " + f + ", 1))\n"
+          + "rs.setOutput(3, 15)\n"
+          + "while true do computer.pullSignal(1) end\n";
+      },
+      mc -> {
+        final BlockPos abs = helper.absolutePos(pos);
+        final StringBuilder signals = new StringBuilder();
+        for (final Direction d : Direction.values()) {
+          signals.append(d).append('=').append(helper.getLevel().getSignal(abs, d.getOpposite())).append(' ');
+        }
+        helper.assertTrue(helper.getLevel().getSignal(abs, front[0].getOpposite()) == 15 && helper.getLevel().getSignal(abs, front[0]) == 0,
+          "side 3 should power only the front (" + front[0] + "); outputs: " + signals);
+        final ItemStack inFront = ((Container) helper.getBlockEntity(pos.relative(front[0]))).getItem(0);
+        helper.assertTrue(inFront.is(Items.STONE) && inFront.getCount() == 1, "the chest in front holds " + inFront);
+        int dropped = 0;
+        for (final ItemEntity item : helper.getLevel().getEntitiesOfClass(ItemEntity.class, new AABB(abs.relative(front[0])).inflate(0.5))) {
+          dropped += item.getItem().getCount();
+        }
+        helper.assertTrue(dropped == 1, dropped + " items were dropped in front instead of 1");
+        helper.succeed();
+      });
   }
 }
