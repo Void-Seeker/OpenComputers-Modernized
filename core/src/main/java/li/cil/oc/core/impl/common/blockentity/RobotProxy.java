@@ -337,6 +337,72 @@ public class RobotProxy extends BlockEntity implements Computer, PowerInformatio
     return level.getBlockState(pos).getBlock() instanceof li.cil.oc.core.impl.common.block.RobotAfterimage;
   }
 
+  // Redstone lives on the robot; the world asks this block entity. Without these the defaults answered 0.
+  @Override
+  public int[] input() {
+    return robot.input();
+  }
+
+  @Override
+  public int getInput(Direction side) {
+    return robot.getInput(side);
+  }
+
+  @Override
+  public void setInput(Direction side, int value) {
+    robot.setInput(side, value);
+  }
+
+  @Override
+  public void setInput(int[] values) {
+    robot.setInput(values);
+  }
+
+  @Override
+  public int maxInput() {
+    return robot.maxInput();
+  }
+
+  @Override
+  public int[] output() {
+    return robot.output();
+  }
+
+  @Override
+  public int getOutput(Direction side) {
+    return robot.getOutput(side);
+  }
+
+  @Override
+  public void setOutput(Direction side, int value) {
+    robot.setOutput(side, value);
+  }
+
+  @Override
+  public void setOutput(java.util.Map<?, ?> values) {
+    robot.setOutput(values);
+  }
+
+  @Override
+  public boolean isOutputEnabled() {
+    return robot.isOutputEnabled();
+  }
+
+  @Override
+  public void setOutputEnabled(boolean value) {
+    robot.setOutputEnabled(value);
+  }
+
+  @Override
+  public int[][] bundledInput() {
+    return robot.bundledInput();
+  }
+
+  @Override
+  public int[][] bundledOutput() {
+    return robot.bundledOutput();
+  }
+
   @Override
   public void readFromNBTForServer(CompoundTag nbt) {
     super.readFromNBTForServer(nbt);

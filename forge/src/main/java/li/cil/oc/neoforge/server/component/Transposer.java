@@ -78,8 +78,8 @@ public final class Transposer {
       if (host instanceof li.cil.oc.core.impl.common.blockentity.Microcontroller mc) {
         for (int i = 0; i < mc.info.components.size(); i++) {
           ItemStack stack = mc.info.components.get(i);
-          if (stack != null && ItemStack.isSameItemSameTags(stack,
-            Items.get(Constants.BlockName.Transposer).createItemStack(1))) {
+          var part = stack != null ? Items.get(stack) : null;
+          if (part != null && Constants.BlockName.Transposer.equals(part.name())) { // the tag holds saved state, so no tag compare
             var customData = CustomData.get(stack);
             if (customData != null && !customData.isEmpty()) {
               CompoundTag _tag = customData.copyTag();

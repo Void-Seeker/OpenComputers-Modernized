@@ -224,6 +224,7 @@ public class Case extends BlockEntity implements PowerAcceptor, Computer, Colore
   @Override
   public boolean canInteract(String player) {
     if (player == null) return false;
+    if (isServer()) return machine().canInteract(player); // _users is only the client's copy of the list
     if (!OCSettings.get().canComputersBeOwned) return true;
     if (_users.isEmpty()) return true;
     return _users.contains(player);
@@ -666,6 +667,23 @@ public class Case extends BlockEntity implements PowerAcceptor, Computer, Colore
         var side = Direction.from3DDataValue(sideKey.intValue());
         setBundledOutput(side, sideMap);
       }
+    }
+  }
+
+
+  // Redstone input changes reach the redstone card as "redstone.changed", which it turns into the computer's
+  // redstone_changed signal (and a wake-up). Only the Redstone I/O block did this before.
+  @Override
+  public void onRedstoneInputChanged(int side, int oldValue, int newValue) {
+    onRedstoneInputChanged(side, oldValue, newValue, -1);
+  }
+
+  @Override
+  public void onRedstoneInputChanged(int side, int oldValue, int newValue, int color) {
+    var m = machine();
+    if (m != null && m.node() != null && m.node().network() != null) {
+      m.node().sendToNeighbors("redstone.changed", new li.cil.oc.core.impl.common.blockentity.traits.RedstoneAware.RedstoneChangedEventArgs(
+        toLocal(Direction.from3DDataValue(side)), oldValue, newValue, color));
     }
   }
 

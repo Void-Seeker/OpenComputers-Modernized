@@ -82,6 +82,8 @@ public abstract class RobotBase extends BlockEntity implements li.cil.oc.core.im
   public volatile boolean isRunning = false;
   public volatile boolean hasErrored = false;
   public boolean isOutputEnabled = false;
+  /** Set once the robot item has been dropped, so the block's removal does not drop it again. */
+  public boolean droppedAsItem = false;
   public boolean shouldUpdateInput = false;
 
   public RobotBase(BlockEntityType<?> type, BlockPos pos, BlockState state) {
@@ -356,13 +358,20 @@ public abstract class RobotBase extends BlockEntity implements li.cil.oc.core.im
   }
 
   public void setOutput(Direction side, int value) {
-    output[side.ordinal()] = value;
+    if (output[side.ordinal()] != value) {
+      output[side.ordinal()] = value;
+      onRedstoneOutputChanged(side); // the neighbours have to hear about it
+    }
   }
 
+  // from Lua: a table of local side number -> value, as for computer cases
   public void setOutput(java.util.Map<?, ?> values) {
-    for (var entry : values.entrySet()) {
-      if (entry.getKey() instanceof Direction side && entry.getValue() instanceof Number number) {
-        output[side.ordinal()] = number.intValue();
+    for (var side : Direction.values()) {
+      var key = Integer.valueOf(toLocal(side).ordinal());
+      if (values.containsKey(key) && values.get(key) instanceof Number number) {
+        setOutput(side, number.intValue());
+      } else if (values.containsKey(side) && values.get(side) instanceof Number number) {
+        setOutput(side, number.intValue());
       }
     }
   }
@@ -375,8 +384,9 @@ public abstract class RobotBase extends BlockEntity implements li.cil.oc.core.im
     return bundledOutput;
   }
 
+  // enabled while a redstone card is installed, like a computer case
   public boolean isOutputEnabled() {
-    return isOutputEnabled;
+    return isOutputEnabled || hasRedstoneCard();
   }
 
   public void setOutputEnabled(boolean value) {
@@ -395,6 +405,23 @@ public abstract class RobotBase extends BlockEntity implements li.cil.oc.core.im
 
   public void shouldUpdateInput(boolean value) {
     shouldUpdateInput = value;
+  }
+
+
+  // Redstone input changes reach the redstone card as "redstone.changed", which it turns into the computer's
+  // redstone_changed signal (and a wake-up). Only the Redstone I/O block did this before.
+  @Override
+  public void onRedstoneInputChanged(int side, int oldValue, int newValue) {
+    onRedstoneInputChanged(side, oldValue, newValue, -1);
+  }
+
+  @Override
+  public void onRedstoneInputChanged(int side, int oldValue, int newValue, int color) {
+    var m = machine();
+    if (m != null && m.node() != null && m.node().network() != null) {
+      m.node().sendToNeighbors("redstone.changed", new li.cil.oc.core.impl.common.blockentity.traits.RedstoneAware.RedstoneChangedEventArgs(
+        toLocal(Direction.from3DDataValue(side)), oldValue, newValue, color));
+    }
   }
 
   public void updateRedstoneInput(Direction side) {

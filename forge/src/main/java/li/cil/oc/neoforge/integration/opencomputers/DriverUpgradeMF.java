@@ -42,7 +42,16 @@ public final class DriverUpgradeMF extends Item implements HostAware {
     if (host.level() != null && !host.level().isClientSide()) {
       var customData = CustomData.get(stack);
       if (customData != null && !customData.isEmpty()) {
-        return new li.cil.oc.neoforge.server.component.UpgradeMF(host, BlockPosition.apply(0, 0, 0, host.level()), Direction.NORTH);
+        // written by UpgradeMF.onItemUseFirst: x, y, z, dimension hash, side
+        var coord = customData.copyTag().getIntArray(li.cil.oc.core.impl.OCSettings.namespace + "coord");
+        var server = host.level().getServer();
+        if (coord.length >= 5 && server != null) {
+          for (var level : server.getAllLevels()) {
+            if (level.dimension().location().hashCode() == coord[3]) {
+              return new li.cil.oc.neoforge.server.component.UpgradeMF(host, BlockPosition.apply(coord[0], coord[1], coord[2], level), Direction.from3DDataValue(coord[4]));
+            }
+          }
+        }
       }
     }
     return null;

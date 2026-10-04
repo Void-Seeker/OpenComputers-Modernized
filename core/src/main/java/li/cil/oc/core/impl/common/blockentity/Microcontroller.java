@@ -47,6 +47,8 @@ public class Microcontroller extends BlockEntity implements PowerAcceptor, Hub, 
   public final boolean[] outputSides = new boolean[6];
   public final Node snooperNode;
   public final Node[] componentNodes;
+  /** One plug per side but the front: the microcontroller's connection to cables, other blocks and OC power. */
+  public final Hub.Plug[] plugs = new Hub.Plug[6];
   private final Map<String, String> deviceInfo = Map.of(
     DeviceInfo.DeviceAttribute.Class, DeviceInfo.DeviceClass.System,
     DeviceInfo.DeviceAttribute.Description, "Microcontroller",
@@ -74,6 +76,7 @@ public class Microcontroller extends BlockEntity implements PowerAcceptor, Hub, 
         .withComponent("microcontroller")
         .create();
     }
+    for (var side : Direction.values()) plugs[side.ordinal()] = createPlug(side);
   }
 
   @Override
@@ -101,9 +104,6 @@ public class Microcontroller extends BlockEntity implements PowerAcceptor, Hub, 
     return worldPosition.getZ() + 0.5;
   }
 
-  @Override
-  public void markChanged() {
-  }
 
   @Override
   public boolean isConnected() {
@@ -159,9 +159,7 @@ public class Microcontroller extends BlockEntity implements PowerAcceptor, Hub, 
           li.cil.oc.api.Network.joinNewNetwork(machine().node());
         }
         machine().node().connect(snooperNode);
-        // Upstream only connected the parts from onPlugConnect, but this port's microcontroller has no plugs
-        // (createPlug returns null, canConnect is false), so its CPU, cards and EEPROM never joined the machine's
-        // network and every boot ended in "no bios found".
+        // Also done when a plug connects; a microcontroller without any neighbour still needs its parts.
         connectComponents();
       }
     }
@@ -217,9 +215,116 @@ public class Microcontroller extends BlockEntity implements PowerAcceptor, Hub, 
     checkRedstoneInputChanged();
   }
 
+  // The plugs are what HubBlockEntity has; the microcontroller is not one, as its node() is the machine's.
   @Override
   public Hub.Plug createPlug(Direction side) {
-    return null;
+    return new Hub.Plug() {
+      private final Node plugNode = createNode(this);
+
+      @Override
+      public Direction side() {
+        return side;
+      }
+
+      @Override
+      public Node node() {
+        return plugNode;
+      }
+
+      @Override
+      public boolean isPrimary() {
+        for (var other : plugs) {
+          if (other != null && other.node() != null && other.node().network() == plugNode.network()) {
+            return other == this;
+          }
+        }
+        return false;
+      }
+
+      @Override
+      public java.util.List<Hub.Plug> plugsInOtherNetworks() {
+        var result = new java.util.ArrayList<Hub.Plug>();
+        for (var other : plugs) {
+          if (other != null && other != this && other.node() != null && other.node().network() != plugNode.network()) {
+            result.add(other);
+          }
+        }
+        return result;
+      }
+
+      @Override
+      public boolean isConnected() {
+        return plugNode.address() != null && plugNode.network() != null;
+      }
+
+      @Override
+      public void initialize() {
+      }
+
+      @Override
+      public void dispose() {
+      }
+
+      @Override
+      public void readFromNBTForServer(CompoundTag nbt) {
+      }
+
+      @Override
+      public void writeToNBTForServer(CompoundTag nbt) {
+      }
+
+      @Override
+      public void readFromNBTForClient(CompoundTag nbt) {
+      }
+
+      @Override
+      public void writeToNBTForClient(CompoundTag nbt) {
+      }
+
+      @Override
+      public Object result(Object... args) {
+        return li.cil.oc.core.util.ResultWrapper.result(args);
+      }
+
+      public Level world() {
+        return getLevel();
+      }
+
+      @Override
+      public double xPosition() {
+        return worldPosition.getX() + 0.5;
+      }
+
+      @Override
+      public double yPosition() {
+        return worldPosition.getY() + 0.5;
+      }
+
+      @Override
+      public double zPosition() {
+        return worldPosition.getZ() + 0.5;
+      }
+
+      @Override
+      public void markChanged() {
+        Microcontroller.this.markChanged();
+      }
+
+      @Override
+      public void onConnect(Node node) {
+        onPlugConnect(this, node);
+      }
+
+      @Override
+      public void onDisconnect(Node node) {
+        onPlugDisconnect(this, node);
+      }
+
+      @Override
+      public void onMessage(Message message) {
+        if (isPrimary()) onPlugMessage(this, message);
+      }
+    };
   }
 
   @Override
@@ -238,12 +343,12 @@ public class Microcontroller extends BlockEntity implements PowerAcceptor, Hub, 
 
   @Override
   public boolean canConnect(Direction side) {
-    return false;
+    return side != facing();
   }
 
   @Override
   public Node sidedNode(Direction side) {
-    return null;
+    return side != facing() && plugs[side.ordinal()] != null ? plugs[side.ordinal()].node() : null;
   }
 
   protected boolean hasConnector(Direction side) {
@@ -389,6 +494,23 @@ public class Microcontroller extends BlockEntity implements PowerAcceptor, Hub, 
     }
   }
 
+
+  // Redstone input changes reach the redstone card as "redstone.changed", which it turns into the computer's
+  // redstone_changed signal (and a wake-up). Only the Redstone I/O block did this before.
+  @Override
+  public void onRedstoneInputChanged(int side, int oldValue, int newValue) {
+    onRedstoneInputChanged(side, oldValue, newValue, -1);
+  }
+
+  @Override
+  public void onRedstoneInputChanged(int side, int oldValue, int newValue, int color) {
+    var m = machine();
+    if (m != null && m.node() != null && m.node().network() != null) {
+      m.node().sendToNeighbors("redstone.changed", new li.cil.oc.core.impl.common.blockentity.traits.RedstoneAware.RedstoneChangedEventArgs(
+        toLocal(Direction.from3DDataValue(side)), oldValue, newValue, color));
+    }
+  }
+
   @Override
   public void checkRedstoneInputChanged() {
     if (getLevel() != null && !getLevel().isClientSide) {
@@ -478,6 +600,7 @@ public class Microcontroller extends BlockEntity implements PowerAcceptor, Hub, 
     var side = ExtendedArguments.checkSideExcept(args, 0, facing());
     boolean oldValue = outputSides[side.ordinal()];
     outputSides[side.ordinal()] = args.checkBoolean(1);
+    setChanged();
     return (Object[]) result(oldValue);
   }
 
@@ -544,8 +667,16 @@ public class Microcontroller extends BlockEntity implements PowerAcceptor, Hub, 
     if (node == plug.node()) disconnectComponents();
   }
 
+  // Network messages from a neighbouring network go to the parts inside (e.g. a network card); the reverse
+  // direction is onMessage above. Messages sent by our own plugs are not echoed back in.
   @Override
-  public void onPlugMessage(Plug ignoredPlug, Message ignoredMessage) {
+  public void onPlugMessage(Plug plug, Message message) {
+    if ("network.message".equals(message.name())) {
+      for (var other : plugs) {
+        if (other != null && other.node() == message.source()) return;
+      }
+      snooperNode.sendToReachable(message.name(), message.data());
+    }
   }
 
   @Override
@@ -560,6 +691,10 @@ public class Microcontroller extends BlockEntity implements PowerAcceptor, Hub, 
       if (provider != null) componentNodes[i].load(tagList.getCompound(i), provider);
     if (provider != null)
       snooperNode.load(nbt.getCompound(OCSettings.namespace + "snooper"), provider);
+    var plugList = nbt.getList(OCSettings.namespace + "plugs", Tag.TAG_COMPOUND);
+    for (int i = 0; i < Math.min(plugList.size(), plugs.length); i++) {
+      if (provider != null && plugs[i] != null && plugs[i].node() != null) plugs[i].node().load(plugList.getCompound(i), provider);
+    }
     super.readFromNBTForServer(nbt);
     if (nbt.contains(OCSettings.namespace + "computer")) {
       pendingMachineNbt = nbt.getCompound(OCSettings.namespace + "computer").copy();
@@ -573,7 +708,10 @@ public class Microcontroller extends BlockEntity implements PowerAcceptor, Hub, 
       var computerTag = new CompoundTag();
       _machine.save(computerTag, getEffectiveProvider());
       nbt.put(OCSettings.namespace + "computer", computerTag);
+    } else if (pendingMachineNbt != null) {
+      nbt.put(OCSettings.namespace + "computer", pendingMachineNbt.copy()); // saved before the machine was set up
     }
+    saveComponents(getEffectiveProvider()); // EEPROM contents, card settings
     ExtendedNBT.setNewCompoundTag(nbt, OCSettings.namespace + "info", t -> info.save(t, getEffectiveProvider()));
     byte[] outputBytes = new byte[outputSides.length];
     for (int i = 0; i < outputSides.length; i++) outputBytes[i] = (byte) (outputSides[i] ? 1 : 0);
@@ -586,18 +724,31 @@ public class Microcontroller extends BlockEntity implements PowerAcceptor, Hub, 
     }
     nbt.put(OCSettings.namespace + "componentNodes", tagList);
     ExtendedNBT.setNewCompoundTag(nbt, OCSettings.namespace + "snooper", t -> snooperNode.save(t, getEffectiveProvider()));
+    var plugList = new ListTag();
+    for (var plug : plugs) {
+      var tag = new CompoundTag();
+      if (plug != null && plug.node() != null) plug.node().save(tag, getEffectiveProvider());
+      plugList.add(tag);
+    }
+    nbt.put(OCSettings.namespace + "plugs", plugList);
   }
 
   @Override
   public void readFromNBTForClient(CompoundTag nbt) {
     var level = getLevel();
     if (level != null) info.load(nbt.getCompound("info"), level.registryAccess());
+    if (nbt.contains("isRunning")) {
+      _isRunning = nbt.getBoolean("isRunning");
+      _hasErrored = nbt.getBoolean("hasErrored");
+    }
     super.readFromNBTForClient(nbt);
   }
 
   @Override
   public void writeToNBTForClient(CompoundTag nbt) {
     super.writeToNBTForClient(nbt);
+    nbt.putBoolean("isRunning", _isRunning); // the light, for players loading the chunk
+    nbt.putBoolean("hasErrored", _hasErrored);
     var level = getLevel();
     if (level != null)
       ExtendedNBT.setNewCompoundTag(nbt, "info", t -> info.save(t, level.registryAccess()));
@@ -685,9 +836,25 @@ public class Microcontroller extends BlockEntity implements PowerAcceptor, Hub, 
     return true;
   }
 
+  private final java.util.ArrayList<li.cil.oc.api.network.ManagedEnvironment> _updatingComponents = new java.util.ArrayList<>();
+
   @Override
   public java.util.ArrayList<li.cil.oc.api.network.ManagedEnvironment> updatingComponents() {
-    return new java.util.ArrayList<>();
+    return _updatingComponents;
+  }
+
+  // bundled redstone needs real storage, the trait's defaults are throw-away arrays
+  private final int[][] _bundledInput = new int[6][16];
+  private final int[][] _bundledOutput = new int[6][16];
+
+  @Override
+  public int[][] bundledInput() {
+    return _bundledInput;
+  }
+
+  @Override
+  public int[][] bundledOutput() {
+    return _bundledOutput;
   }
 
   @Override
@@ -834,6 +1001,9 @@ public class Microcontroller extends BlockEntity implements PowerAcceptor, Hub, 
     if (isServer()) {
       for (var componentNode : componentNodes) {
         if (componentNode != null) componentNode.remove();
+      }
+      for (var plug : plugs) {
+        if (plug != null && plug.node() != null) plug.node().remove();
       }
       if (snooperNode != null) snooperNode.remove();
     }
