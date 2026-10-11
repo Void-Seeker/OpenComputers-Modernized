@@ -32,6 +32,19 @@ public final class ExtendedArguments {
     return checkSlot(args, inventory, index);
   }
 
+  public static int checkSlot(Arguments args, InventoryAccess inventory, int n) {
+    int slot = args.checkInteger(n) - 1;
+    if (slot < 0 || slot >= inventory.getSlots()) {
+      throw new IllegalArgumentException("invalid slot");
+    }
+    return slot;
+  }
+
+  public static int optSlot(Arguments args, InventoryAccess inventory, int index, int defaultVal) {
+    if (isUndefined(args, index)) return defaultVal;
+    return checkSlot(args, inventory, index);
+  }
+
   public static int checkTank(Arguments args, MultiTank multi, int n) {
     int tank = args.checkInteger(n) - 1;
     if (tank < 0 || tank >= multi.tankCount()) {

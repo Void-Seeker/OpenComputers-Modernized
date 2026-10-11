@@ -6,11 +6,11 @@ import li.cil.oc.api.machine.Context;
 import li.cil.oc.core.impl.util.BlockPosition;
 import li.cil.oc.core.impl.util.ExtendedArguments;
 import li.cil.oc.core.impl.util.FluidUtils;
+import li.cil.oc.core.impl.util.InventoryAccess;
 import li.cil.oc.core.impl.util.InventoryUtils;
 import net.minecraft.core.Direction;
 import java.util.function.Consumer;
 import net.minecraft.core.BlockPos;
-import net.minecraft.world.Container;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
@@ -34,20 +34,16 @@ public interface InventoryTransfer extends WorldAware, SideRestricted {
     int count = ExtendedArguments.optItemCount(args, 2, 64);
     String reason = onTransferContents();
     if (reason != null) return result(null, reason);
-    InventoryUtils.TransferExtractor extractor;
+    InventoryAccess sourceInv = InventoryUtils.inventoryAt(sourcePos, sourceSide.getOpposite());
+    InventoryAccess sinkInv = InventoryUtils.inventoryAt(sinkPos, sinkSide.getOpposite());
     if (args.count() > 3) {
-      Container sourceInv = InventoryUtils.inventoryAt(sourcePos);
-      if (sourceInv == null) throw new IllegalArgumentException("no inventory");
-      Container sinkInv = InventoryUtils.inventoryAt(sinkPos);
-      if (sinkInv == null) throw new IllegalArgumentException("no inventory");
+      if (sourceInv == null || sinkInv == null) throw new IllegalArgumentException("no inventory");
       int sourceSlot = ExtendedArguments.checkSlot(args, sourceInv, 3);
       int sinkSlot = ExtendedArguments.optSlot(args, sinkInv, 4, -1);
-      extractor = InventoryUtils.getTransferBetweenInventoriesSlotsAt(sourcePos, sourceSide.getOpposite(), sourceSlot, sinkPos, sinkSide.getOpposite(), sinkSlot < 0 ? null : sinkSlot, count);
-    } else {
-      extractor = InventoryUtils.getTransferBetweenInventoriesAt(sourcePos, sourceSide.getOpposite(), sinkPos, sinkSide.getOpposite(), count);
+      return result(InventoryUtils.transferBetweenInventoriesSlots(sourceInv, sourceSlot, sinkInv, sinkSlot < 0 ? null : sinkSlot, count) > 0);
     }
-    if (extractor != null) return result(extractor.extract() > 0);
-    return result(null, "no inventory");
+    if (sourceInv == null || sinkInv == null) return result(null, "no inventory");
+    return result(InventoryUtils.transferBetweenInventories(sourceInv, sinkInv, count) > 0);
   }
 
   @Callback(doc = "function(sourceSide:number, side:number[, count:number[, sourceSlot:number]]):number -- Drop items from an inventory into the block space on the given side, where they fall; never into an inventory there (that is transferItem). Returns how many were dropped.")
@@ -55,7 +51,7 @@ public interface InventoryTransfer extends WorldAware, SideRestricted {
     Direction sourceSide = checkSideForAction(args, 0);
     Direction side = checkSideForAction(args, 1);
     int count = ExtendedArguments.optItemCount(args, 2, 64);
-    Container source = InventoryUtils.inventoryAt(position().offset(sourceSide));
+    InventoryAccess source = InventoryUtils.inventoryAt(position().offset(sourceSide), sourceSide.getOpposite());
     if (source == null) return result(null, "no inventory");
     int slot = ExtendedArguments.isMissing(args, 3) ? -1 : ExtendedArguments.checkSlot(args, source, 3);
     Level level = level();
@@ -75,8 +71,8 @@ public interface InventoryTransfer extends WorldAware, SideRestricted {
       dropped[0] += stack.getCount();
       stack.setCount(0);
     };
-    if (slot >= 0) InventoryUtils.extractFromInventorySlot(drop, source, sourceSide.getOpposite(), slot, count);
-    else InventoryUtils.extractAnyFromInventory(drop, source, sourceSide.getOpposite(), count);
+    if (slot >= 0) InventoryUtils.extractFromInventorySlot(drop, source, slot, count);
+    else InventoryUtils.extractAnyFromInventory(drop, source, count);
     return result(dropped[0]);
   }
 
@@ -88,14 +84,14 @@ public interface InventoryTransfer extends WorldAware, SideRestricted {
     BlockPosition sinkPos = position().offset(sinkSide);
     String reason = onTransferContents();
     if (reason != null) return result(null, reason);
-    Container source = InventoryUtils.inventoryAt(sourcePos);
+    InventoryAccess source = InventoryUtils.inventoryAt(sourcePos, sourceSide.getOpposite());
     if (source == null) return result(null, "no inventory");
-    Container sink = InventoryUtils.inventoryAt(sinkPos);
+    InventoryAccess sink = InventoryUtils.inventoryAt(sinkPos, sinkSide.getOpposite());
     if (sink == null) return result(null, "no inventory");
     int sourceSlot = ExtendedArguments.checkSlot(args, source, 2);
     int sinkSlot = ExtendedArguments.checkSlot(args, sink, 3);
     boolean safe = args.optBoolean(4, false);
-    return result(InventoryUtils.swapBetweenInventoriesSlots(source, sourceSide.getOpposite(), sourceSlot, sink, sinkSide.getOpposite(), sinkSlot, safe));
+    return result(InventoryUtils.swapBetweenInventoriesSlots(source, sourceSlot, sink, sinkSlot, safe));
   }
 
   @Callback(doc = "function(sourceSide:number, sinkSide:number[, count:number [, sourceTank:number]]):boolean, number -- Transfer some fluid between two tanks. A source block or vanilla cauldron counts as a 1000 mB tank, and an empty side takes 1000 mB as a source block. Returns operation result and filled amount")

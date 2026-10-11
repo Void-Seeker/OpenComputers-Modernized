@@ -6,9 +6,9 @@ import li.cil.oc.api.machine.Context;
 import li.cil.oc.core.impl.OCSettings;
 import li.cil.oc.core.impl.util.BlockPosition;
 import li.cil.oc.core.impl.util.ExtendedArguments;
+import li.cil.oc.core.impl.util.InventoryAccess;
 import li.cil.oc.core.impl.util.InventoryUtils;
 import net.minecraft.core.Direction;
-import net.minecraft.world.Container;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 
@@ -27,7 +27,7 @@ public interface InventoryWorldControlMk2 extends InventoryAware, WorldAware, Si
     if (stack.getCount() > 0) {
       return withInventory(position().offset(facing), fromSide, inv -> {
         int slot = ExtendedArguments.checkSlot(args, inv, 1);
-        if (!InventoryUtils.insertIntoInventorySlot(stack, inv, fromSide, slot, count)) {
+        if (!InventoryUtils.insertIntoInventorySlot(stack, inv, slot, count)) {
           return result(false, "inventory full/invalid slot");
         } else if (stack.getCount() == 0) {
           inventory().setItem(selectedSlot(), ItemStack.EMPTY);
@@ -55,7 +55,7 @@ public interface InventoryWorldControlMk2 extends InventoryAware, WorldAware, Si
               break;
           }
         },
-        inv, fromSide, slot, count);
+        inv, slot, count);
       if (extracted > 0) {
         context.pause(OCSettings.get().suckDelay);
         return result(extracted);
@@ -64,8 +64,8 @@ public interface InventoryWorldControlMk2 extends InventoryAware, WorldAware, Si
     });
   }
 
-  default Object[] withInventory(BlockPosition blockPos, Direction fromSide, java.util.function.Function<Container, Object[]> f) {
-    Container inv = InventoryUtils.inventoryAt(blockPos);
+  default Object[] withInventory(BlockPosition blockPos, Direction fromSide, java.util.function.Function<InventoryAccess, Object[]> f) {
+    InventoryAccess inv = InventoryUtils.inventoryAt(blockPos, fromSide);
     if (inv != null && inv.stillValid(fakePlayer()) && mayInteract(blockPos, fromSide)) {
       return f.apply(inv);
     }

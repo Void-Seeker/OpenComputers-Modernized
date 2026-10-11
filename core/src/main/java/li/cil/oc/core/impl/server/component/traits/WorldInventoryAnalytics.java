@@ -8,12 +8,12 @@ import li.cil.oc.core.impl.OCSettings;
 import li.cil.oc.core.impl.util.BlockPosition;
 import li.cil.oc.core.impl.util.DatabaseAccess;
 import li.cil.oc.core.impl.util.ExtendedArguments;
+import li.cil.oc.core.impl.util.InventoryAccess;
 import li.cil.oc.core.impl.util.InventoryUtils;
 import li.cil.oc.core.server.component.traits.NetworkAware;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
-import net.minecraft.world.Container;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
@@ -24,14 +24,14 @@ public interface WorldInventoryAnalytics extends WorldAware, SideRestricted, Net
   @Callback(doc = "function(side:number):number -- Get the number of slots in the inventory on the specified side of the device.")
   default Object[] getInventorySize(Context context, Arguments args) {
     Direction facing = checkSideForAction(args, 0);
-    return withInventory(facing, inventory -> result(inventory.getContainerSize()));
+    return withInventory(facing, inventory -> result(inventory.getSlots()));
   }
 
   @Callback(doc = "function(side:number, slot:number):number -- Get number of items in the specified slot of the inventory on the specified side of the device.")
   default Object[] getSlotStackSize(Context context, Arguments args) {
     Direction facing = checkSideForAction(args, 0);
     return withInventory(facing, inventory -> {
-      ItemStack stack = inventory.getItem(ExtendedArguments.checkSlot(args, inventory, 1));
+      ItemStack stack = inventory.getStackInSlot(ExtendedArguments.checkSlot(args, inventory, 1));
       return result(stack.getCount());
     });
   }
@@ -40,7 +40,7 @@ public interface WorldInventoryAnalytics extends WorldAware, SideRestricted, Net
   default Object[] getSlotMaxStackSize(Context context, Arguments args) {
     Direction facing = checkSideForAction(args, 0);
     return withInventory(facing, inventory -> {
-      ItemStack stack = inventory.getItem(ExtendedArguments.checkSlot(args, inventory, 1));
+      ItemStack stack = inventory.getStackInSlot(ExtendedArguments.checkSlot(args, inventory, 1));
       return result(stack.getMaxStackSize());
     });
   }
@@ -49,8 +49,8 @@ public interface WorldInventoryAnalytics extends WorldAware, SideRestricted, Net
   default Object[] compareStacks(Context context, Arguments args) {
     Direction facing = checkSideForAction(args, 0);
     return withInventory(facing, inventory -> {
-      ItemStack stackA = inventory.getItem(ExtendedArguments.checkSlot(args, inventory, 1));
-      ItemStack stackB = inventory.getItem(ExtendedArguments.checkSlot(args, inventory, 2));
+      ItemStack stackA = inventory.getStackInSlot(ExtendedArguments.checkSlot(args, inventory, 1));
+      ItemStack stackB = inventory.getStackInSlot(ExtendedArguments.checkSlot(args, inventory, 2));
       return result(stackA == stackB || InventoryUtils.haveSameItemType(stackA, stackB, args.optBoolean(3, false)));
     });
   }
@@ -61,7 +61,7 @@ public interface WorldInventoryAnalytics extends WorldAware, SideRestricted, Net
     return withInventory(facing, inventory -> {
       int slot = ExtendedArguments.checkSlot(args, inventory, 1);
       String dbAddress = args.checkString(2);
-      ItemStack stack = inventory.getItem(slot);
+      ItemStack stack = inventory.getStackInSlot(slot);
       return DatabaseAccess.withDatabase(node(), dbAddress, database -> {
         int dbSlot = ExtendedArguments.checkSlot(args, database.data(), 3);
         ItemStack dbStack = database.getStackInSlot(dbSlot);
@@ -74,8 +74,8 @@ public interface WorldInventoryAnalytics extends WorldAware, SideRestricted, Net
   default Object[] areStacksEquivalent(Context context, Arguments args) {
     Direction facing = checkSideForAction(args, 0);
     return withInventory(facing, inventory -> {
-      ItemStack stackA = inventory.getItem(ExtendedArguments.checkSlot(args, inventory, 1));
-      ItemStack stackB = inventory.getItem(ExtendedArguments.checkSlot(args, inventory, 2));
+      ItemStack stackA = inventory.getStackInSlot(ExtendedArguments.checkSlot(args, inventory, 1));
+      ItemStack stackB = inventory.getStackInSlot(ExtendedArguments.checkSlot(args, inventory, 2));
       boolean eq;
       if (!stackA.isEmpty() && !stackB.isEmpty()) {
         eq = stackA.is(stackB.getItem());
@@ -94,12 +94,13 @@ public interface WorldInventoryAnalytics extends WorldAware, SideRestricted, Net
     Direction facing = checkSideForAction(args, 0);
     String label = args.checkString(2).trim();
     return withInventory(facing, inventory -> {
-      ItemStack stack = inventory.getItem(ExtendedArguments.checkSlot(args, inventory, 1));
+      ItemStack stack = inventory.getStackInSlot(ExtendedArguments.checkSlot(args, inventory, 1));
       if (stack.getCount() > 0) {
         if (!label.isEmpty())
           stack.setHoverName(Component.literal(label));
         else if (stack.hasCustomHoverName())
           stack.resetHoverName();
+        inventory.setChanged();
         return result(true);
       }
       return result(false);
@@ -110,7 +111,7 @@ public interface WorldInventoryAnalytics extends WorldAware, SideRestricted, Net
   default Object[] getStackInSlot(Context context, Arguments args) {
     if (OCSettings.get().allowItemStackInspection) {
       Direction facing = checkSideForAction(args, 0);
-      return withInventory(facing, inventory -> result(inventory.getItem(ExtendedArguments.checkSlot(args, inventory, 1))));
+      return withInventory(facing, inventory -> result(inventory.getStackInSlot(ExtendedArguments.checkSlot(args, inventory, 1))));
     }
     return result(null, "not enabled in config");
   }
@@ -120,9 +121,9 @@ public interface WorldInventoryAnalytics extends WorldAware, SideRestricted, Net
     if (OCSettings.get().allowItemStackInspection) {
       Direction facing = checkSideForAction(args, 0);
       return withInventory(facing, inventory -> {
-        ItemStack[] stacks = new ItemStack[inventory.getContainerSize()];
-        for (int i = 0; i < inventory.getContainerSize(); i++)
-          stacks[i] = inventory.getItem(i);
+        ItemStack[] stacks = new ItemStack[inventory.getSlots()];
+        for (int i = 0; i < inventory.getSlots(); i++)
+          stacks[i] = inventory.getStackInSlot(i);
         return result(new ItemStackArrayValue(stacks));
       });
     }
@@ -156,7 +157,7 @@ public interface WorldInventoryAnalytics extends WorldAware, SideRestricted, Net
     Direction facing = checkSideForAction(args, 0);
     String dbAddress = args.checkString(2);
     return withInventory(facing, inventory -> {
-      ItemStack stack = inventory.getItem(ExtendedArguments.checkSlot(args, inventory, 1));
+      ItemStack stack = inventory.getStackInSlot(ExtendedArguments.checkSlot(args, inventory, 1));
       return DatabaseAccess.withDatabase(node(), dbAddress, database -> {
         int dbSlot = ExtendedArguments.checkSlot(args, database.data(), 3);
         boolean nonEmpty = database.getStackInSlot(dbSlot) != null;
@@ -175,12 +176,12 @@ public interface WorldInventoryAnalytics extends WorldAware, SideRestricted, Net
   }
 
   private Object[] withInventorySource(Direction side, java.util.function.Function<InventoryUtils.InventorySource, Object[]> f) {
-    InventoryUtils.InventorySource is = InventoryUtils.inventorySourceAt(position().offset(side));
+    InventoryUtils.InventorySource is = InventoryUtils.inventorySourceAt(position().offset(side), side.getOpposite());
     if (is != null && mayInteract(side, is)) return f.apply(is);
     return result(null, "no inventory");
   }
 
-  private Object[] withInventory(Direction side, java.util.function.Function<Container, Object[]> f) {
+  private Object[] withInventory(Direction side, java.util.function.Function<InventoryAccess, Object[]> f) {
     return withInventorySource(side, is -> f.apply(is.inventory()));
   }
 }

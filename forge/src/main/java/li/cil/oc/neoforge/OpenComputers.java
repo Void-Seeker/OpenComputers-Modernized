@@ -82,6 +82,7 @@ public final class OpenComputers {
     li.cil.oc.core.impl.server.component.traits.WorldAction.setHandler(new li.cil.oc.neoforge.util.BlockInteractionHandlerImpl());
     li.cil.oc.core.util.Tasks.setScheduler(EventHandler::scheduleServer);
     li.cil.oc.core.impl.util.FluidUtils.setHandler(new li.cil.oc.neoforge.util.FluidTransferHandlerImpl());
+    li.cil.oc.core.impl.util.InventoryUtils.setItemHandlerLookup(li.cil.oc.neoforge.util.ItemHandlerAccess::lookup);
     li.cil.oc.core.util.ServerNetwork.setInstance(new li.cil.oc.core.impl.util.NeoServerNetwork());
     li.cil.oc.core.impl.util.SaveHandlerDelegate.setInstance(new li.cil.oc.core.impl.util.SaveHandlerDelegateImpl());
     li.cil.oc.core.util.MachineStateHelper.setInstance(new li.cil.oc.core.util.MachineStateHelper() {

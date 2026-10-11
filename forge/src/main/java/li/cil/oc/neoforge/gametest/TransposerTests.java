@@ -1,12 +1,19 @@
 package li.cil.oc.neoforge.gametest;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Consumer;
 import li.cil.oc.core.Constants;
 import li.cil.oc.core.impl.util.BlockPosition;
 import li.cil.oc.core.impl.util.FluidUtils;
+import li.cil.oc.core.impl.util.InventoryAccess;
+import li.cil.oc.core.impl.util.InventoryUtils;
 import li.cil.oc.neoforge.OpenComputers;
 import li.cil.oc.neoforge.util.FluidUtilsOriginal;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.world.Container;
@@ -16,18 +23,31 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.ComposterBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.LayeredCauldronBlock;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.EnchantmentTableBlockEntity;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.phys.AABB;
+import net.minecraftforge.common.ForgeHooks;
+import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.common.capabilities.Capability;
+import net.minecraftforge.common.capabilities.ForgeCapabilities;
+import net.minecraftforge.common.capabilities.ICapabilityProvider;
+import net.minecraftforge.common.util.LazyOptional;
+import net.minecraftforge.event.AttachCapabilitiesEvent;
 import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fluids.capability.IFluidHandler;
 import net.minecraftforge.fluids.capability.templates.FluidTank;
 import net.minecraftforge.gametest.GameTestHolder;
 import net.minecraftforge.gametest.PrefixGameTestTemplate;
+import net.minecraftforge.items.IItemHandler;
+import net.minecraftforge.items.ItemStackHandler;
+import org.jetbrains.annotations.Nullable;
 
 /**
- * Transposer fluid moves with vanilla blocks, and its right-click.
+ * Transposer fluid moves with vanilla blocks, its right-click, and item moves with inventories that are only Forge
+ * item handlers.
  */
 @GameTestHolder(OpenComputers.ID)
 @PrefixGameTestTemplate(false)
@@ -140,7 +160,9 @@ public final class TransposerTests {
         if (box.getItem(i).is(Items.BONE_MEAL)) boneMeal += box.getItem(i).getCount();
       }
       helper.assertTrue(boneMeal == 1, "the chest got " + boneMeal + " bone meal from the composter instead of 1");
-      final var loose = helper.getLevel().getEntitiesOfClass(ItemEntity.class, new AABB(helper.absolutePos(pos)).inflate(4));
+      // what the clicks made (the test framework's own buttons can drop nearby when neighbouring tests are cleared)
+      final var loose = helper.getLevel().getEntitiesOfClass(ItemEntity.class, new AABB(helper.absolutePos(pos)).inflate(4),
+        item -> item.getItem().is(Items.BUCKET) || item.getItem().is(Items.LAVA_BUCKET) || item.getItem().is(Items.BONE_MEAL));
       helper.assertTrue(loose.isEmpty(), "items were left lying around: " + loose);
       helper.succeed();
     });
@@ -186,6 +208,157 @@ public final class TransposerTests {
       helper.assertTrue(dropped == 2, dropped + " bone meal were dropped instead of 2");
       helper.assertTrue(state(helper, water).getValue(LayeredCauldronBlock.LEVEL) == 3, "the water did not come back into the cauldron");
       helper.assertTrue(!state(helper, pour).getFluidState().isSource(), "the poured water source is still there");
+      helper.succeed();
+    });
+  }
+
+  /**
+   * Like the Embers bore: nine slots, but everything inserted goes to the fuel slot (9th), which takes only fuel
+   * while empty; spent fuel (a bucket) comes out of it, burning fuel does not.
+   */
+  private static final class FuelSlotHandler extends ItemStackHandler {
+    FuelSlotHandler() {
+      super(9);
+    }
+
+    @Override
+    public ItemStack insertItem(final int slot, final ItemStack stack, final boolean simulate) {
+      if (getStackInSlot(8).isEmpty() && ForgeHooks.getBurnTime(stack, null) <= 0) return stack;
+      return super.insertItem(8, stack, simulate);
+    }
+
+    @Override
+    public ItemStack extractItem(final int slot, final int amount, final boolean simulate) {
+      if (slot == 8) {
+        final ItemStack fuel = getStackInSlot(8);
+        if (fuel.getCount() > 1 || ForgeHooks.getBurnTime(fuel, null) != 0) return ItemStack.EMPTY;
+      }
+      return super.extractItem(slot, amount, simulate);
+    }
+  }
+
+  /**
+   * Places an enchanting table (a block entity that is no Container) carrying the item handler as its Forge item
+   * capability on the given faces. The capability is attached only while this places it.
+   */
+  private static <H extends IItemHandler> H placeItemHandler(final GameTestHelper helper, final BlockPos pos, final H handler, final Direction... faces) {
+    final LazyOptional<IItemHandler> holder = LazyOptional.of(() -> handler);
+    final ICapabilityProvider provider = new ICapabilityProvider() {
+      @Override
+      public <T> LazyOptional<T> getCapability(final Capability<T> cap, final @Nullable Direction side) {
+        return cap == ForgeCapabilities.ITEM_HANDLER && (side == null || List.of(faces).contains(side)) ? holder.cast() : LazyOptional.empty();
+      }
+    };
+    final BlockPos abs = helper.absolutePos(pos);
+    final Consumer<AttachCapabilitiesEvent<BlockEntity>> attach = event -> {
+      if (event.getObject() instanceof EnchantmentTableBlockEntity && event.getObject().getBlockPos().equals(abs)) {
+        event.addCapability(new ResourceLocation(OpenComputers.ID, "test_item_handler"), provider);
+      }
+    };
+    MinecraftForge.EVENT_BUS.addGenericListener(BlockEntity.class, attach);
+    try {
+      helper.setBlock(pos, net.minecraft.world.level.block.Blocks.ENCHANTING_TABLE);
+    } finally {
+      MinecraftForge.EVENT_BUS.unregister(attach);
+    }
+    helper.assertTrue(helper.getBlockEntity(pos).getCapability(ForgeCapabilities.ITEM_HANDLER, faces[0]).isPresent(), "the test item handler was not attached");
+    return handler;
+  }
+
+  private static Map<String, Integer> count(final Container box) {
+    final Map<String, Integer> counts = new HashMap<>();
+    for (int i = 0; i < box.getContainerSize(); i++) {
+      if (!box.getItem(i).isEmpty()) counts.merge(box.getItem(i).getItem().toString(), box.getItem(i).getCount(), Integer::sum);
+    }
+    return counts;
+  }
+
+  @GameTest(template = EMPTY, timeoutTicks = 200)
+  public static void transposerMovesItemsThroughItemHandlersByTheirRules(final GameTestHelper helper) {
+    final BlockPos pos = new BlockPos(2, 2, 2);
+    final BlockPos bore = pos.below(), aside = pos.east(), chest = pos.north(), bucketHolder = pos.above(), lava = pos.south();
+    final FuelSlotHandler fuel = placeItemHandler(helper, bore, new FuelSlotHandler(), Direction.UP);
+    fuel.setStackInSlot(0, new ItemStack(Items.GLOWSTONE_DUST, 5));
+    fuel.setStackInSlot(8, new ItemStack(Items.BUCKET));
+    placeItemHandler(helper, aside, new FuelSlotHandler(), Direction.UP);
+    final ItemStackHandler plain = placeItemHandler(helper, bucketHolder, new ItemStackHandler(2), Direction.values());
+    plain.setStackInSlot(0, new ItemStack(Items.BUCKET));
+    helper.setBlock(lava, net.minecraft.world.level.block.Blocks.LAVA_CAULDRON);
+    helper.setBlock(chest, net.minecraft.world.level.block.Blocks.CHEST);
+    final Container box = (Container) helper.getBlockEntity(chest);
+    box.setItem(0, new ItemStack(Items.LAVA_BUCKET));
+    box.setItem(1, new ItemStack(Items.COBBLESTONE, 3));
+    // sides: down 0, up 1, north 2, south 3, west 4, east 5
+    final String program = "local tp = component.proxy(component.list(\"transposer\")())\n"
+      + "local function expect(what, want, got, why) if got ~= want then error(what .. \": \" .. tostring(got) .. \" \" .. tostring(why), 0) end end\n"
+      + "expect(\"slots seen from the top\", 9, tp.getInventorySize(0))\n"
+      + "expect(\"a face without the handler\", nil, tp.getInventorySize(5))\n"
+      + "expect(\"not fuel\", false, tp.transferItem(2, 0, 64, 2))\n"
+      + "expect(\"fuel onto the spent bucket\", false, tp.transferItem(2, 0, 64, 1))\n"
+      + "expect(\"the spent bucket out\", true, tp.transferItem(0, 2, 1, 9))\n"
+      + "expect(\"fuel in\", true, tp.transferItem(2, 0, 64, 1))\n"
+      + "expect(\"burning fuel out\", false, tp.transferItem(0, 2, 1, 9))\n"
+      + "expect(\"burning fuel swapped out\", false, tp.swap(0, 2, 9, 2))\n"
+      + "expect(\"the output out\", true, tp.transferItem(0, 2))\n"
+      + "expect(\"nothing else comes out\", false, tp.transferItem(0, 2))\n"
+      + "local seen = tp.getStackInSlot(0, 9)\n"
+      + "expect(\"the fuel seen\", \"minecraft:lava_bucket\", seen and seen.name)\n"
+      + "local _, moved = tp.transferFluidFromTankToContainer(3, 1, 1)\n"
+      + "expect(\"lava into the held bucket\", 1000, moved)\n"
+      + "computer.pullSignal(0.5)\n"
+      + "local held, cauldron = tp.getStackInSlot(1, 1), tp.getFluidInTank(3, 1)\n"
+      + "expect(\"the filled bucket in its slot\", \"minecraft:lava_bucket\", held and held.name, cauldron and (tostring(cauldron.name) .. \" \" .. tostring(cauldron.amount)))\n"
+      + "expect(\"the drained cauldron\", 0, cauldron and cauldron.amount or 0)\n"
+      + "_, moved = tp.transferFluidFromContainerToTank(1, 1, 3)\n"
+      + "expect(\"lava out of the held bucket\", 1000, moved)\n"
+      + "while true do computer.pullSignal(1) end\n";
+    TestMachines.runMicrocontroller(helper, pos, List.of(Constants.ItemName.CPUTier1, Constants.ItemName.RAMTier2, Constants.BlockName.Transposer), program, mc -> {
+      helper.assertTrue(fuel.getStackInSlot(8).is(Items.LAVA_BUCKET), "the fuel slot holds " + fuel.getStackInSlot(8));
+      for (int i = 0; i < 8; i++) helper.assertTrue(fuel.getStackInSlot(i).isEmpty(), "slot " + (i + 1) + " still holds " + fuel.getStackInSlot(i));
+      helper.assertTrue(count(box).equals(Map.of("bucket", 1, "cobblestone", 3, "glowstone_dust", 5)), "the chest holds " + count(box));
+      helper.assertTrue(plain.getStackInSlot(0).is(Items.BUCKET) && plain.getStackInSlot(0).getCount() == 1 && plain.getStackInSlot(1).isEmpty(),
+        "the bucket holder holds " + plain.getStackInSlot(0) + ", " + plain.getStackInSlot(1));
+      helper.assertTrue(state(helper, lava).is(net.minecraft.world.level.block.Blocks.LAVA_CAULDRON), "the lava did not come back: " + state(helper, lava));
+      helper.succeed();
+    });
+  }
+
+  @GameTest(template = EMPTY, timeoutTicks = 200)
+  public static void transposerKeepsItemsWithinOneInventoryFillsCompostersAndBuckets(final GameTestHelper helper) {
+    // a plain vanilla container (no item capability, like a modded block entity that is only a Container)
+    final var plain = new net.minecraft.world.SimpleContainer(4);
+    plain.setItem(0, new ItemStack(Items.PUMPKIN_PIE, 2));
+    plain.setItem(1, new ItemStack(Items.DIRT, 10));
+    final InventoryAccess access = InventoryAccess.of(plain, Direction.NORTH);
+    InventoryUtils.transferBetweenInventoriesSlots(access, 1, access, null, 64);
+    InventoryUtils.transferBetweenInventories(access, access, 64);
+    helper.assertTrue(count(plain).equals(Map.of("pumpkin_pie", 2, "dirt", 10)), "moving within a container left " + count(plain));
+
+    final BlockPos pos = new BlockPos(2, 2, 2);
+    final BlockPos chest = pos.north(), below = pos.below(), aside = pos.east();
+    helper.setBlock(chest, net.minecraft.world.level.block.Blocks.CHEST);
+    final Container box = (Container) helper.getBlockEntity(chest);
+    box.setItem(0, new ItemStack(Items.PUMPKIN_PIE, 2));
+    box.setItem(1, new ItemStack(Items.DIRT, 10));
+    box.setItem(2, new ItemStack(Items.BUCKET, 2));
+    final BlockPos water = pos.west();
+    helper.setBlock(water, net.minecraft.world.level.block.Blocks.WATER_CAULDRON.defaultBlockState().setValue(LayeredCauldronBlock.LEVEL, 3));
+    helper.setBlock(below, net.minecraft.world.level.block.Blocks.COMPOSTER);
+    helper.setBlock(aside, net.minecraft.world.level.block.Blocks.COMPOSTER);
+    final String program = "local tp = component.proxy(component.list(\"transposer\")())\n"
+      + "local function expect(what, want, got, why) if got ~= want then error(what .. \": \" .. tostring(got) .. \" \" .. tostring(why), 0) end end\n"
+      + "tp.transferItem(2, 2, 64, 2)\n"
+      + "tp.transferItem(2, 2)\n"
+      + "expect(\"a pie into the composter from above\", true, tp.transferItem(2, 0, 1, 1))\n"
+      + "expect(\"a pie into a composter from its side\", false, tp.transferItem(2, 5, 1, 1))\n"
+      + "local _, moved = tp.transferFluidFromTankToContainer(4, 2, 3)\n"
+      + "expect(\"water into a bucket in the chest\", 1000, moved)\n"
+      + "while true do computer.pullSignal(1) end\n";
+    TestMachines.runMicrocontroller(helper, pos, List.of(Constants.ItemName.CPUTier1, Constants.ItemName.RAMTier2, Constants.BlockName.Transposer), program, mc -> {
+      helper.assertTrue(count(box).equals(Map.of("pumpkin_pie", 1, "dirt", 10, "bucket", 1, "water_bucket", 1)), "the chest holds " + count(box));
+      helper.assertTrue(state(helper, water).is(net.minecraft.world.level.block.Blocks.CAULDRON), "the cauldron still holds water: " + state(helper, water));
+      helper.assertTrue(state(helper, below).getValue(ComposterBlock.LEVEL) == 1, "the composter below is at level " + state(helper, below).getValue(ComposterBlock.LEVEL));
+      helper.assertTrue(state(helper, aside).getValue(ComposterBlock.LEVEL) == 0, "the composter aside took the pie");
       helper.succeed();
     });
   }

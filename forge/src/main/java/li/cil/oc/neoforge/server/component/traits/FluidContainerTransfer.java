@@ -8,6 +8,7 @@ import li.cil.oc.api.machine.Context;
 import li.cil.oc.core.impl.server.component.traits.FluidContainerTransferBase;
 import li.cil.oc.core.impl.util.BlockPosition;
 import li.cil.oc.core.impl.util.ExtendedArguments;
+import li.cil.oc.core.impl.util.InventoryAccess;
 import li.cil.oc.core.impl.util.InventoryUtils;
 import li.cil.oc.neoforge.util.FluidContainerUtils;
 import li.cil.oc.neoforge.util.FluidUtilsOriginal;
@@ -121,11 +122,44 @@ public interface FluidContainerTransfer extends FluidContainerTransferBase {
     });
   }
 
-  private boolean syncResult(Container inventory, Direction inventorySide, int inventorySlot, Container output, Direction outputSide, Integer outputSlot, ItemStack result) {
+  private boolean syncResult(InventoryAccess inventory, Direction inventorySide, int inventorySlot, InventoryAccess output, Direction outputSide, Integer outputSlot, ItemStack result) {
     return syncResult(inventory, inventorySide, inventorySlot, output, outputSide, outputSlot, result, false);
   }
 
-  private boolean syncResult(Container inventory, Direction inventorySide, int inventorySlot, Container output, Direction outputSide, Integer outputSlot, ItemStack result, boolean simulate) {
+  /**
+   * Puts the container's result into the output (its slot, or anywhere) and takes one container out of the slot.
+   */
+  private boolean syncResult(InventoryAccess inventory, Direction inventorySide, int inventorySlot, InventoryAccess output, Direction outputSide, Integer outputSlot, ItemStack result, boolean simulate) {
+    if (result == null) return false;
+    if (inventory.container() != null && output.container() != null) {
+      return syncContainerResult(inventory.container(), inventorySide, inventorySlot, output, outputSide, outputSlot, result, simulate);
+    }
+    // an item handler: the container comes out first (its rules allowing), then the result goes in; if it does not,
+    // the container goes back
+    boolean sameSlot = inventorySide == outputSide && (outputSlot != null ? outputSlot : inventorySlot) == inventorySlot;
+    ItemStack held = inventory.getStackInSlot(inventorySlot);
+    if (held.isEmpty() || inventory.extractItem(inventorySlot, 1, true).isEmpty()) return false;
+    if (simulate) {
+      if (sameSlot && held.getCount() == 1) return true;
+      ItemStack copy = result.copy();
+      return copy.isEmpty() || (outputSlot != null
+        ? InventoryUtils.insertIntoInventorySlot(copy, output, outputSlot, 1, true)
+        : InventoryUtils.insertIntoInventory(copy, output, 1, true));
+    }
+    ItemStack taken = inventory.extractItem(inventorySlot, 1, false);
+    ItemStack stack = result.copy();
+    boolean done = stack.isEmpty() || (outputSlot != null
+      ? InventoryUtils.insertIntoInventorySlot(stack, output, outputSlot, 1)
+      : (sameSlot && InventoryUtils.insertIntoInventorySlot(stack, output, inventorySlot, 1)) || InventoryUtils.insertIntoInventory(stack, output, 1));
+    if (!done) {
+      ItemStack rest = inventory.insertItem(inventorySlot, taken, false);
+      if (!rest.isEmpty()) InventoryUtils.insertIntoInventory(rest, inventory, rest.getCount());
+      if (!rest.isEmpty()) InventoryUtils.spawnStackInWorld(position(), rest, inventorySide, null);
+    }
+    return done;
+  }
+
+  private boolean syncContainerResult(Container inventory, Direction inventorySide, int inventorySlot, InventoryAccess output, Direction outputSide, Integer outputSlot, ItemStack result, boolean simulate) {
     ItemStack stack = simulate ? result.copy() : result;
     java.util.function.Function<Boolean, Boolean> decrStackSizeIfInserted = inserted -> {
       if (inserted != null && inserted && !simulate) {
@@ -141,9 +175,9 @@ public interface FluidContainerTransfer extends FluidContainerTransferBase {
       return f.get();
     };
     if (outputSlot != null) {
-      return replaceOr.apply(() -> decrStackSizeIfInserted.apply(InventoryUtils.insertIntoInventorySlot(stack, output, outputSide.getOpposite(), outputSlot, 1, simulate)));
+      return replaceOr.apply(() -> decrStackSizeIfInserted.apply(InventoryUtils.insertIntoInventorySlot(stack, output, outputSlot, 1, simulate)));
     } else {
-      return replaceOr.apply(() -> decrStackSizeIfInserted.apply(InventoryUtils.insertIntoInventory(stack, output, outputSide.getOpposite(), 1, simulate)));
+      return replaceOr.apply(() -> decrStackSizeIfInserted.apply(InventoryUtils.insertIntoInventory(stack, output, 1, simulate)));
     }
   }
 
@@ -169,8 +203,8 @@ public interface FluidContainerTransfer extends FluidContainerTransferBase {
     return result(false, 0);
   }
 
-  private Object[] withInventory(Direction side, java.util.function.Function<Container, Object[]> f) {
-    Container inv = InventoryUtils.inventoryAt(position().offset(side));
+  private Object[] withInventory(Direction side, java.util.function.Function<InventoryAccess, Object[]> f) {
+    InventoryAccess inv = InventoryUtils.inventoryAt(position().offset(side), side.getOpposite());
     if (inv != null && inv.stillValid(fakePlayer()) && mayInteract(position().offset(side), side.getOpposite())) {
       return f.apply(inv);
     }

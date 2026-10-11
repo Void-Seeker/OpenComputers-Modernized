@@ -7,6 +7,7 @@ import li.cil.oc.api.machine.Context;
 import li.cil.oc.core.impl.OCSettings;
 import li.cil.oc.core.impl.util.BlockPosition;
 import li.cil.oc.core.impl.util.ExtendedArguments;
+import li.cil.oc.core.impl.util.InventoryAccess;
 import li.cil.oc.core.impl.util.InventoryUtils;
 import li.cil.oc.core.util.ResultWrapper;
 import net.minecraft.core.Direction;
@@ -21,8 +22,8 @@ public interface InventoryWorldControl extends InventoryAware, WorldAware, SideR
   @Override
   Player fakePlayer();
 
-  default net.minecraft.world.Container inventoryAtSide(BlockPosition pos, Direction side) {
-    return InventoryUtils.inventoryAt(pos);
+  default InventoryAccess inventoryAtSide(BlockPosition pos, Direction side) {
+    return InventoryUtils.inventoryAt(pos, side.getOpposite());
   }
 
   @Callback(doc = "function(side:number[, fuzzy:boolean=false]):boolean -- Compare the block on the specified side with the one in the selected slot. Returns true if equal.")
@@ -47,9 +48,9 @@ public interface InventoryWorldControl extends InventoryAware, WorldAware, SideR
     ItemStack stack = inventory().getItem(selectedSlot());
     if (!stack.isEmpty()) {
       BlockPosition blockPos = position().offset(facing);
-      net.minecraft.world.Container inv = inventoryAtSide(blockPos, facing);
+      InventoryAccess inv = inventoryAtSide(blockPos, facing);
       if (inv != null && inv.stillValid(fakePlayer()) && mayInteract(blockPos, facing.getOpposite())) {
-        if (!InventoryUtils.insertIntoInventory(stack, inv, facing.getOpposite(), count)) {
+        if (!InventoryUtils.insertIntoInventory(stack, inv, count)) {
           return ResultWrapper.result(false, "inventory full");
         } else if (stack.isEmpty()) {
           inventory().setItem(selectedSlot(), ItemStack.EMPTY);
@@ -94,7 +95,7 @@ public interface InventoryWorldControl extends InventoryAware, WorldAware, SideR
     int count = ExtendedArguments.optItemCount(args, 1, 64);
     BlockPosition blockPos = position().offset(facing);
     int extracted = 0;
-    net.minecraft.world.Container inv = inventoryAtSide(blockPos, facing);
+    InventoryAccess inv = inventoryAtSide(blockPos, facing);
     if (inv != null && inv.stillValid(fakePlayer()) && mayInteract(blockPos, facing.getOpposite())) {
       extracted = InventoryUtils.extractAnyFromInventory(
         stack -> {
@@ -102,7 +103,7 @@ public interface InventoryWorldControl extends InventoryAware, WorldAware, SideR
             if (InventoryUtils.insertIntoInventorySlot(stack, this.inventory(), null, slot, 64)) break;
           }
         },
-        inv, facing.getOpposite(), count);
+        inv, count);
     }
     if (extracted <= 0) {
       extracted = suckFromItems(facing);

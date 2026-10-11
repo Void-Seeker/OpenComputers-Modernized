@@ -12,7 +12,14 @@ import org.jetbrains.annotations.NotNull;
 public final class FluidContainerUtils {
 
   public static IFluidHandler fluidHandlerIn(Container inventory, int slot) {
-    ItemStack stack = inventory.getItem(slot);
+    return fluidHandlerIn(inventory.getItem(slot));
+  }
+
+  public static IFluidHandler fluidHandlerIn(li.cil.oc.core.impl.util.InventoryAccess inventory, int slot) {
+    return fluidHandlerIn(inventory.getStackInSlot(slot));
+  }
+
+  private static IFluidHandler fluidHandlerIn(ItemStack stack) {
     if (!stack.isEmpty()) {
       ItemStack oneSizedStack = stack.copy();
       oneSizedStack.setCount(1);
@@ -67,11 +74,13 @@ public final class FluidContainerUtils {
 
     @Override
     public @NotNull FluidStack drain(FluidStack resource, IFluidHandler.@NotNull FluidAction action) {
+      dirty = true;
       return fluidHandler.drain(resource.getAmount(), action);
     }
 
     @Override
     public @NotNull FluidStack drain(int maxDrain, IFluidHandler.@NotNull FluidAction action) {
+      dirty = true;
       return fluidHandler.drain(maxDrain, action);
     }
 
@@ -95,12 +104,17 @@ public final class FluidContainerUtils {
       return fluidHandler.isFluidValid(tank, stack);
     }
 
+    // the handler's container: a bucket's handler swaps in a new stack (empty bucket <-> filled bucket)
     @Override
     public ItemStack getResult() {
-      return dirty ? stack : null;
+      return dirty ? fluidHandler.getContainer() : null;
     }
   }
 
+  /**
+   * Forwards to the handler (only as a simulation, if so made) and records each call as it was asked for, so
+   * replaying it on the real handler does it for real.
+   */
   private static class ReplayableFluidHandler implements IFluidHandler {
     final IFluidHandler handler;
     final boolean simulate;
@@ -121,7 +135,7 @@ public final class FluidContainerUtils {
     public int fill(@NotNull FluidStack resource, IFluidHandler.@NotNull FluidAction action) {
       IFluidHandler.FluidAction realAction = (action == IFluidHandler.FluidAction.EXECUTE && !simulate)
         ? IFluidHandler.FluidAction.EXECUTE : IFluidHandler.FluidAction.SIMULATE;
-      actions.add(h -> h.fill(resource, realAction));
+      actions.add(h -> h.fill(resource, action));
       return handler.fill(resource, realAction);
     }
 
@@ -129,7 +143,7 @@ public final class FluidContainerUtils {
     public @NotNull FluidStack drain(@NotNull FluidStack resource, IFluidHandler.@NotNull FluidAction action) {
       IFluidHandler.FluidAction realAction = (action == IFluidHandler.FluidAction.EXECUTE && !simulate)
         ? IFluidHandler.FluidAction.EXECUTE : IFluidHandler.FluidAction.SIMULATE;
-      actions.add(h -> h.drain(resource, realAction));
+      actions.add(h -> h.drain(resource, action));
       return handler.drain(resource, realAction);
     }
 
@@ -137,7 +151,7 @@ public final class FluidContainerUtils {
     public @NotNull FluidStack drain(int maxDrain, IFluidHandler.@NotNull FluidAction action) {
       IFluidHandler.FluidAction realAction = (action == IFluidHandler.FluidAction.EXECUTE && !simulate)
         ? IFluidHandler.FluidAction.EXECUTE : IFluidHandler.FluidAction.SIMULATE;
-      actions.add(h -> h.drain(maxDrain, realAction));
+      actions.add(h -> h.drain(maxDrain, action));
       return handler.drain(maxDrain, realAction);
     }
 

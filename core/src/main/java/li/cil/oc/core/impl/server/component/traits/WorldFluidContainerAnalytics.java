@@ -8,12 +8,12 @@ import li.cil.oc.api.machine.Context;
 import li.cil.oc.core.impl.OCSettings;
 import li.cil.oc.core.impl.util.ExtendedArguments;
 import li.cil.oc.core.impl.util.FluidUtils;
+import li.cil.oc.core.impl.util.InventoryAccess;
 import li.cil.oc.core.impl.util.InventoryUtils;
 import li.cil.oc.core.server.component.traits.NetworkAware;
 import li.cil.oc.core.util.FluidHandler;
 import li.cil.oc.core.util.FluidStack;
 import net.minecraft.core.Direction;
-import net.minecraft.world.Container;
 import net.minecraft.world.item.ItemStack;
 import static li.cil.oc.core.util.ResultWrapper.result;
 
@@ -23,7 +23,7 @@ public interface WorldFluidContainerAnalytics extends WorldAware, SideRestricted
     if (OCSettings.get().allowItemStackInspection) {
       Direction facing = checkSideForAction(args, 0);
       return withInventory(facing, inventory -> {
-        ItemStack stack = inventory.getItem(ExtendedArguments.checkSlot(args, inventory, 1));
+        ItemStack stack = inventory.getStackInSlot(ExtendedArguments.checkSlot(args, inventory, 1));
         return withFluidInfo(stack, (fluid, capacity) -> result(capacity));
       });
     }
@@ -35,7 +35,7 @@ public interface WorldFluidContainerAnalytics extends WorldAware, SideRestricted
     if (OCSettings.get().allowItemStackInspection) {
       Direction facing = checkSideForAction(args, 0);
       return withInventory(facing, inventory -> {
-        ItemStack stack = inventory.getItem(ExtendedArguments.checkSlot(args, inventory, 1));
+        ItemStack stack = inventory.getStackInSlot(ExtendedArguments.checkSlot(args, inventory, 1));
         return withFluidInfo(stack, (fluid, capacity) -> result(fluid.amount()));
       });
     }
@@ -47,7 +47,7 @@ public interface WorldFluidContainerAnalytics extends WorldAware, SideRestricted
     if (OCSettings.get().allowItemStackInspection) {
       Direction facing = checkSideForAction(args, 0);
       return withInventory(facing, inventory -> {
-        ItemStack stack = inventory.getItem(ExtendedArguments.checkSlot(args, inventory, 1));
+        ItemStack stack = inventory.getStackInSlot(ExtendedArguments.checkSlot(args, inventory, 1));
         return withFluidInfo(stack, (fluid, capacity) -> result(fluid));
       });
     }
@@ -66,8 +66,8 @@ public interface WorldFluidContainerAnalytics extends WorldAware, SideRestricted
     return result(null, "item is not a fluid container");
   }
 
-  private Object[] withInventory(Direction side, Function<Container, Object[]> f) {
-    Container inv = InventoryUtils.inventoryAt(position().offset(side));
+  private Object[] withInventory(Direction side, Function<InventoryAccess, Object[]> f) {
+    InventoryAccess inv = InventoryUtils.inventoryAt(position().offset(side), side.getOpposite());
     if (inv != null && inv.stillValid(fakePlayer()) && mayInteract(position().offset(side), side.getOpposite())) {
       return f.apply(inv);
     }

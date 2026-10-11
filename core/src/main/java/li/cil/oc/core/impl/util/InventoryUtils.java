@@ -1,16 +1,21 @@
 package li.cil.oc.core.impl.util;
 
 import java.util.function.Consumer;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.Container;
 import net.minecraft.world.WorldlyContainer;
+import net.minecraft.world.WorldlyContainerHolder;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
+import org.jetbrains.annotations.Nullable;
 
 public final class InventoryUtils {
 
@@ -21,121 +26,140 @@ public final class InventoryUtils {
       (!checkNBT || ItemStack.isSameItemSameTags(stackA, stackB));
   }
 
-  public static InventorySource inventorySourceAt(BlockPosition position) {
-    if (position.level() != null) {
-      net.minecraft.world.level.Level world = position.level();
-      if (world.isLoaded(position.toBlockPos())) {
-        BlockEntity te = world.getBlockEntity(position.toBlockPos());
-        if (te instanceof Container inv) {
-          return new BlockInventorySource(position, inv);
-        }
-      }
+  /**
+   * The platform's item handler of a block entity, seen from a face (null: from inside), or null if it has none.
+   */
+  @FunctionalInterface
+  public interface ItemHandlerLookup {
+    @Nullable InventoryAccess itemHandler(BlockEntity blockEntity, @Nullable Direction face);
+  }
+
+  private static @Nullable ItemHandlerLookup itemHandlers;
+
+  public static void setItemHandlerLookup(ItemHandlerLookup lookup) {
+    itemHandlers = lookup;
+  }
+
+  /**
+   * The inventory at the position, seen from the given face of it: the platform's item handler (Forge's item
+   * capability) if the block entity has one there, else the block entity as a vanilla container, else the block's
+   * own container (a composter).
+   */
+  public static @Nullable InventorySource inventorySourceAt(BlockPosition position, @Nullable Direction face) {
+    Level world = position.level();
+    if (world == null) return null;
+    BlockPos pos = position.toBlockPos();
+    if (!world.isLoaded(pos)) return null;
+    BlockEntity te = world.getBlockEntity(pos);
+    if (te != null && itemHandlers != null) {
+      InventoryAccess handler = itemHandlers.itemHandler(te, face);
+      if (handler != null) return new BlockInventorySource(position, handler);
+    }
+    if (te instanceof Container inv) return new BlockInventorySource(position, InventoryAccess.of(inv, face));
+    BlockState state = world.getBlockState(pos);
+    if (state.getBlock() instanceof WorldlyContainerHolder holder) {
+      WorldlyContainer inv = holder.getContainer(state, world, pos);
+      if (inv != null) return new BlockInventorySource(position, InventoryAccess.of(inv, face));
     }
     return null;
   }
 
-  public static Container inventoryAt(BlockPosition position) {
-    InventorySource source = inventorySourceAt(position);
+  public static @Nullable InventoryAccess inventoryAt(BlockPosition position, @Nullable Direction face) {
+    InventorySource source = inventorySourceAt(position, face);
     return source != null ? source.inventory() : null;
   }
 
-  public static boolean insertIntoInventorySlot(ItemStack stack, Container inventory, Direction side, int slot, int limit, boolean simulate) {
+  /**
+   * Moves up to limit items of the stack into the slot; the stack shrinks by what went in (also when simulating).
+   */
+  public static boolean insertIntoInventorySlot(ItemStack stack, InventoryAccess inventory, int slot, int limit, boolean simulate) {
     if (stack == null || stack.isEmpty() || limit <= 0) return false;
+    int amount = Math.min(stack.getCount(), limit);
+    ItemStack rest = inventory.insertItem(slot, stack.copyWithCount(amount), simulate);
+    int inserted = amount - rest.getCount();
+    if (inserted <= 0) return false;
+    stack.shrink(inserted);
+    return true;
+  }
 
-    boolean isSideValidForSlot = true;
-    if (inventory instanceof WorldlyContainer sided && side != null) {
-      isSideValidForSlot = sided.canPlaceItemThroughFace(slot, stack, side);
-    }
+  public static boolean insertIntoInventorySlot(ItemStack stack, InventoryAccess inventory, int slot, int limit) {
+    return insertIntoInventorySlot(stack, inventory, slot, limit, false);
+  }
 
-    if (stack.getCount() > 0 && inventory.canPlaceItem(slot, stack) && isSideValidForSlot) {
-      int maxStackSize = Math.min(inventory.getMaxStackSize(), stack.getMaxStackSize());
-      ItemStack existing = inventory.getItem(slot);
-      boolean shouldMerge = !existing.isEmpty() && existing.getCount() < maxStackSize && ItemStack.isSameItem(existing, stack) && ItemStack.isSameItemSameTags(existing, stack);
-      if (shouldMerge) {
-        int space = maxStackSize - existing.getCount();
-        int amount = Math.min(space, Math.min(stack.getCount(), limit));
-        stack.shrink(amount);
-        if (!simulate) {
-          existing.grow(amount);
-          inventory.setChanged();
-        }
-        return amount > 0;
-      } else if (existing.isEmpty()) {
-        int amount = Math.min(maxStackSize, Math.min(stack.getCount(), limit));
-        ItemStack inserted = stack.split(amount);
-        if (!simulate) {
-          inventory.setItem(slot, inserted);
-        }
-        return amount > 0;
-      }
-    }
-    return false;
+  public static boolean insertIntoInventorySlot(ItemStack stack, Container inventory, Direction side, int slot, int limit, boolean simulate) {
+    return insertIntoInventorySlot(stack, InventoryAccess.of(inventory, side), slot, limit, simulate);
   }
 
   public static boolean insertIntoInventorySlot(ItemStack stack, Container inventory, Direction side, int slot, int limit) {
     return insertIntoInventorySlot(stack, inventory, side, slot, limit, false);
   }
 
-  public static int extractFromInventorySlot(Consumer<ItemStack> consumer, Container inventory, Direction side, int slot, int limit) {
-    ItemStack stack = inventory.getItem(slot);
+  /**
+   * Offers up to limit items from the slot to the consumer, which takes what it wants by shrinking the stack it is
+   * given; only that much leaves the slot. Returns how many did.
+   */
+  public static int extractFromInventorySlot(Consumer<ItemStack> consumer, InventoryAccess inventory, int slot, int limit) {
+    ItemStack stack = inventory.getStackInSlot(slot);
     if (stack.isEmpty() || limit <= 0) return 0;
-
-    if (inventory instanceof WorldlyContainer sided) {
-      if (!sided.canTakeItemThroughFace(slot, stack, side)) return 0;
-    }
-
-    int maxStackSize = Math.min(inventory.getMaxStackSize(), stack.getMaxStackSize());
+    int maxStackSize = Math.min(inventory.getSlotLimit(slot), stack.getMaxStackSize());
     int amount = Math.min(stack.getCount(), Math.min(limit, maxStackSize));
-    ItemStack extracted = stack.split(amount);
-    consumer.accept(extracted);
-    int count = Math.max(amount - extracted.getCount(), 0);
-    stack.grow(extracted.getCount());
-    if (stack.getCount() == 0) {
-      inventory.setItem(slot, ItemStack.EMPTY);
-    } else if (count > 0) {
-      inventory.setChanged();
+    ItemStack available = inventory.extractItem(slot, amount, true);
+    if (available.isEmpty()) return 0;
+    ItemStack offered = available.copy();
+    consumer.accept(offered);
+    int taken = available.getCount() - Math.max(offered.getCount(), 0);
+    if (taken <= 0) return 0;
+    ItemStack extracted = inventory.extractItem(slot, taken, false);
+    if (extracted.getCount() != taken) {
+      Log.get().warn("Inventory {} gave {} of the {} items it offered from slot {}", inventory, extracted.getCount(), taken, slot);
     }
-    return count;
+    return taken;
+  }
+
+  public static int extractFromInventorySlot(Consumer<ItemStack> consumer, Container inventory, Direction side, int slot, int limit) {
+    return extractFromInventorySlot(consumer, InventoryAccess.of(inventory, side), slot, limit);
   }
 
   @SuppressWarnings("unused")
   public static void insertIntoInventory(ItemStack stack, Container inventory, Direction side, int limit, boolean simulate, Iterable<Integer> slots) {
     if (stack == null || stack.isEmpty() || limit <= 0) return;
-    boolean success = false;
+    InventoryAccess access = InventoryAccess.of(inventory, side);
     int remaining = limit;
-
     for (int slot : slots) {
       int stackSize = stack.getCount();
-      if (insertIntoInventorySlot(stack, inventory, side, slot, remaining, simulate)) {
+      if (insertIntoInventorySlot(stack, access, slot, remaining, simulate)) {
         remaining -= stackSize - stack.getCount();
       }
     }
   }
 
-  @SuppressWarnings("unused")
-  public static boolean insertIntoInventory(ItemStack stack, Container inventory, Direction side, int limit, boolean simulate) {
+  /**
+   * Moves up to limit items of the stack into the inventory, onto matching stacks first, then into empty slots.
+   */
+  public static boolean insertIntoInventory(ItemStack stack, InventoryAccess inventory, int limit, boolean simulate) {
     if (stack == null || stack.isEmpty() || limit <= 0) return false;
     boolean success = false;
     int remaining = limit;
-
-    boolean shouldTryMerge = !stack.isDamageableItem() && stack.getMaxStackSize() > 1 && inventory.getMaxStackSize() > 1;
-    for (int slot = 0; slot < inventory.getContainerSize(); slot++) {
-      int stackSize = stack.getCount();
-      ItemStack existing = inventory.getItem(slot);
-      if (!existing.isEmpty() && insertIntoInventorySlot(stack, inventory, side, slot, remaining, simulate)) {
-        remaining -= stackSize - stack.getCount();
-        success = true;
-      }
-    }
-    for (int slot = 0; slot < inventory.getContainerSize(); slot++) {
-      int stackSize = stack.getCount();
-      ItemStack existing = inventory.getItem(slot);
-      if (existing.isEmpty() && insertIntoInventorySlot(stack, inventory, side, slot, remaining, simulate)) {
-        remaining -= stackSize - stack.getCount();
-        success = true;
+    for (int pass = 0; pass < 2; pass++) {
+      for (int slot = 0; slot < inventory.getSlots(); slot++) {
+        if (inventory.getStackInSlot(slot).isEmpty() != (pass == 1)) continue;
+        int stackSize = stack.getCount();
+        if (insertIntoInventorySlot(stack, inventory, slot, remaining, simulate)) {
+          remaining -= stackSize - stack.getCount();
+          success = true;
+        }
       }
     }
     return success;
+  }
+
+  public static boolean insertIntoInventory(ItemStack stack, InventoryAccess inventory, int limit) {
+    return insertIntoInventory(stack, inventory, limit, false);
+  }
+
+  @SuppressWarnings("unused")
+  public static boolean insertIntoInventory(ItemStack stack, Container inventory, Direction side, int limit, boolean simulate) {
+    return insertIntoInventory(stack, InventoryAccess.of(inventory, side), limit, simulate);
   }
 
   public static boolean insertIntoInventory(ItemStack stack, Container inventory, Direction side, int limit) {
@@ -146,17 +170,22 @@ public final class InventoryUtils {
     return insertIntoInventory(stack, inventory, side, 64, false);
   }
 
-  public static int extractAnyFromInventory(Consumer<ItemStack> consumer, Container inventory, Direction side, int limit) {
-    for (int slot = 0; slot < inventory.getContainerSize(); slot++) {
-      int extracted = extractFromInventorySlot(consumer, inventory, side, slot, limit);
+  public static int extractAnyFromInventory(Consumer<ItemStack> consumer, InventoryAccess inventory, int limit) {
+    for (int slot = 0; slot < inventory.getSlots(); slot++) {
+      int extracted = extractFromInventorySlot(consumer, inventory, slot, limit);
       if (extracted > 0) return extracted;
     }
     return 0;
   }
 
+  public static int extractAnyFromInventory(Consumer<ItemStack> consumer, Container inventory, Direction side, int limit) {
+    return extractAnyFromInventory(consumer, InventoryAccess.of(inventory, side), limit);
+  }
+
   public static ItemStack extractFromInventory(ItemStack stack, Container inventory, Direction side, boolean simulate, boolean exact) {
+    InventoryAccess access = InventoryAccess.of(inventory, side);
     ItemStack remaining = stack.copy();
-    for (int slot = 0; slot < inventory.getContainerSize() && remaining.getCount() > 0; slot++) {
+    for (int slot = 0; slot < access.getSlots() && remaining.getCount() > 0; slot++) {
       extractFromInventorySlot(stackInInv -> {
         if (stackInInv != null && !stackInInv.isEmpty() && remaining.getItem() == stackInInv.getItem() &&
           (!exact || haveSameItemType(remaining, stackInInv, true))) {
@@ -166,15 +195,15 @@ public final class InventoryUtils {
             stackInInv.shrink(transferred);
           }
         }
-      }, inventory, side, slot, remaining.getCount());
+      }, access, slot, remaining.getCount());
     }
     return remaining;
   }
 
   public static void insertIntoInventoryAt(ItemStack stack, BlockPosition position, Direction side, int limit, boolean simulate) {
-    Container inv = inventoryAt(position);
+    InventoryAccess inv = inventoryAt(position, side);
     if (inv != null) {
-      insertIntoInventory(stack, inv, side, limit, simulate);
+      insertIntoInventory(stack, inv, limit, simulate);
     }
   }
 
@@ -182,36 +211,66 @@ public final class InventoryUtils {
     insertIntoInventoryAt(stack, position, side, 64, false);
   }
 
-  public static int transferBetweenInventories(Container source, Direction sourceSide, Container sink, Direction sinkSide, int limit) {
+  public static int transferBetweenInventories(InventoryAccess source, InventoryAccess sink, int limit) {
     int[] transferred = {0};
     extractAnyFromInventory(stack -> {
       int before = stack.getCount();
-      insertIntoInventory(stack, sink, sinkSide, limit);
+      insertIntoInventory(stack, sink, limit);
       transferred[0] += before - stack.getCount();
-    }, source, sourceSide, limit);
+    }, source, limit);
     return transferred[0];
   }
 
-  @FunctionalInterface
-  public interface TransferExtractor {
-    int extract();
+  public static int transferBetweenInventoriesSlots(InventoryAccess source, int sourceSlot, InventoryAccess sink, @Nullable Integer sinkSlot, int limit) {
+    int[] transferred = {0};
+    extractFromInventorySlot(stack -> {
+      int before = stack.getCount();
+      if (sinkSlot != null) {
+        insertIntoInventorySlot(stack, sink, sinkSlot, limit);
+      } else {
+        insertIntoInventory(stack, sink, limit);
+      }
+      transferred[0] += before - stack.getCount();
+    }, source, sourceSlot, limit);
+    return transferred[0];
   }
 
-  public static TransferExtractor getTransferBetweenInventoriesAt(BlockPosition sourcePos, Direction sourceSide, BlockPosition sinkPos, Direction sinkSide, int count) {
-    Container source = inventoryAt(sourcePos);
-    Container sink = inventoryAt(sinkPos);
-    if (source == null || sink == null) return null;
-    return () -> transferBetweenInventories(source, sourceSide, sink, sinkSide, count);
+  /**
+   * Swaps two slots, or changes nothing. Two vanilla containers have their slots set directly (safe: only if both
+   * may hold the other stack). Otherwise both stacks have to come out whole and go into the other slot whole, by the
+   * inventories' own rules; if one does not go in, both go back.
+   */
+  public static boolean swapBetweenInventoriesSlots(InventoryAccess source, int sourceSlot, InventoryAccess sink, int sinkSlot, boolean safe) {
+    if (source instanceof InventoryAccess.ContainerAccess a && sink instanceof InventoryAccess.ContainerAccess b) {
+      return swapBetweenContainerSlots(a.container(), a.face(), sourceSlot, b.container(), b.face(), sinkSlot, safe);
+    }
+    int countA = source.getStackInSlot(sourceSlot).getCount();
+    int countB = sink.getStackInSlot(sinkSlot).getCount();
+    if (countA == 0 && countB == 0) return false;
+    if (source.extractItem(sourceSlot, countA, true).getCount() != countA) return false;
+    if (sink.extractItem(sinkSlot, countB, true).getCount() != countB) return false;
+    ItemStack stackA = source.extractItem(sourceSlot, countA, false);
+    ItemStack stackB = sink.extractItem(sinkSlot, countB, false);
+    if (source.insertItem(sourceSlot, stackB, true).isEmpty() && sink.insertItem(sinkSlot, stackA, true).isEmpty()) {
+      putBack(stackB, source, sourceSlot, sink);
+      putBack(stackA, sink, sinkSlot, source);
+      return true;
+    }
+    putBack(stackA, source, sourceSlot, sink);
+    putBack(stackB, sink, sinkSlot, source);
+    return false;
   }
 
-  public static TransferExtractor getTransferBetweenInventoriesSlotsAt(BlockPosition sourcePos, Direction sourceSide, int sourceSlot, BlockPosition sinkPos, Direction sinkSide, Integer sinkSlot, int count) {
-    Container source = inventoryAt(sourcePos);
-    Container sink = inventoryAt(sinkPos);
-    if (source == null || sink == null) return null;
-    return () -> transferBetweenInventoriesSlots(source, sourceSide, sourceSlot, sink, sinkSide, sinkSlot, count);
+  // Into the slot; whatever does not fit there into the rest of that inventory, then the other one, so nothing is
+  // lost; anything still left is logged (it cannot be dropped: the inventories have no position here).
+  private static void putBack(ItemStack stack, InventoryAccess inventory, int slot, InventoryAccess other) {
+    ItemStack rest = inventory.insertItem(slot, stack, false);
+    if (!rest.isEmpty()) insertIntoInventory(rest, inventory, rest.getCount());
+    if (!rest.isEmpty()) insertIntoInventory(rest, other, rest.getCount());
+    if (!rest.isEmpty()) Log.get().warn("Swapping slots left {} with nowhere to go", rest);
   }
 
-  public static boolean swapBetweenInventoriesSlots(Container source, Direction sourceSide, int sourceSlot, Container sink, Direction sinkSide, int sinkSlot, boolean safe) {
+  private static boolean swapBetweenContainerSlots(Container source, Direction sourceSide, int sourceSlot, Container sink, Direction sinkSide, int sinkSlot, boolean safe) {
     ItemStack stackA = source.getItem(sourceSlot).copy();
     ItemStack stackB = sink.getItem(sinkSlot).copy();
     if (stackA.isEmpty() && stackB.isEmpty()) return false;
@@ -227,20 +286,6 @@ public final class InventoryUtils {
     source.setChanged();
     sink.setChanged();
     return true;
-  }
-
-  private static int transferBetweenInventoriesSlots(Container source, Direction sourceSide, int sourceSlot, Container sink, Direction sinkSide, Integer sinkSlot, int limit) {
-    int[] transferred = {0};
-    extractFromInventorySlot(stack -> {
-      int before = stack.getCount();
-      if (sinkSlot != null) {
-        insertIntoInventorySlot(stack, sink, sinkSide, sinkSlot, limit);
-      } else {
-        insertIntoInventory(stack, sink, sinkSide, limit);
-      }
-      transferred[0] += before - stack.getCount();
-    }, source, sourceSide, sourceSlot, limit);
-    return transferred[0];
   }
 
   public static boolean dropSlot(BlockPosition position, Container inventory, int slot, int count, Direction direction) {
@@ -312,14 +357,14 @@ public final class InventoryUtils {
   }
 
   public interface InventorySource {
-    Container inventory();
+    InventoryAccess inventory();
   }
 
-  public record BlockInventorySource(BlockPosition position, Container inventory) implements InventorySource {
+  public record BlockInventorySource(BlockPosition position, InventoryAccess inventory) implements InventorySource {
   }
 
   @SuppressWarnings("unused")
-  public record EntityInventorySource(Entity entity, Container inventory) implements InventorySource {
+  public record EntityInventorySource(Entity entity, InventoryAccess inventory) implements InventorySource {
   }
 
 }

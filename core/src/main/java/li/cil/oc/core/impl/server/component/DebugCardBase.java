@@ -21,6 +21,7 @@ import li.cil.oc.core.impl.util.BlockPosition;
 import li.cil.oc.core.impl.util.ExtendedArguments;
 import li.cil.oc.core.impl.util.ExtendedNBT;
 import li.cil.oc.core.impl.util.FluidUtils;
+import li.cil.oc.core.impl.util.InventoryAccess;
 import li.cil.oc.core.impl.util.InventoryUtils;
 import li.cil.oc.core.impl.util.Log;
 import li.cil.oc.core.server.network.DebugNetwork;
@@ -600,13 +601,13 @@ public abstract class DebugCardBase extends AbstractManagedEnvironment implement
         }
       }
       BlockPosition position = BlockPosition.apply(args.checkDouble(4), args.checkDouble(5), args.checkDouble(6), world);
-      ExtendedArguments.checkSideAny(args, 7);
-      Container inventory = InventoryUtils.inventoryAt(position);
+      Direction side = ExtendedArguments.checkSideAny(args, 7);
+      InventoryAccess inventory = InventoryUtils.inventoryAt(position, side);
       if (inventory != null) {
         ItemStack stack = new ItemStack(item, count);
         if (damage > 0) stack.setDamageValue(damage);
         if (tag != null) CustomData.set(stack, CustomData.of(tag));
-        return ResultWrapper.result(InventoryUtils.insertIntoInventory(stack, inventory, null));
+        return ResultWrapper.result(InventoryUtils.insertIntoInventory(stack, inventory, 64));
       }
       return ResultWrapper.result(null, "no inventory");
     }
@@ -615,11 +616,12 @@ public abstract class DebugCardBase extends AbstractManagedEnvironment implement
     public Object[] removeItem(Context context, Arguments args) {
       checkAccess();
       BlockPosition position = BlockPosition.apply(args.checkDouble(0), args.checkDouble(1), args.checkDouble(2), world);
-      Container inventory = InventoryUtils.inventoryAt(position);
+      InventoryAccess inventory = InventoryUtils.inventoryAt(position, null);
       if (inventory != null) {
         int slot = ExtendedArguments.checkSlot(args, inventory, 3);
         int count = args.optInteger(4, 64);
-        ItemStack removed = inventory.removeItem(slot, count);
+        Container container = inventory.container();
+        ItemStack removed = container != null ? container.removeItem(slot, count) : inventory.extractItem(slot, count, false);
         if (removed.isEmpty()) return ResultWrapper.result(0);
         return ResultWrapper.result(removed.getCount());
       }

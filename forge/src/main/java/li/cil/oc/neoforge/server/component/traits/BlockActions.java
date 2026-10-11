@@ -9,13 +9,13 @@ import li.cil.oc.api.machine.Context;
 import li.cil.oc.core.impl.server.component.traits.SideRestricted;
 import li.cil.oc.core.impl.server.component.traits.WorldAware;
 import li.cil.oc.core.impl.util.ExtendedArguments;
+import li.cil.oc.core.impl.util.InventoryAccess;
 import li.cil.oc.core.impl.util.InventoryUtils;
 import li.cil.oc.neoforge.util.FakePlayerClick;
 import li.cil.oc.neoforge.util.FluidUtilsOriginal;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.Container;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.state.BlockState;
@@ -37,10 +37,10 @@ public interface BlockActions extends WorldAware, SideRestricted {
     Direction side = checkSideForAction(args, 0);
     Direction inventorySide = !ExtendedArguments.isMissing(args, 1) ? checkSideForAction(args, 1) : null;
     Direction tankSide = !ExtendedArguments.isMissing(args, 3) ? checkSideForAction(args, 3) : null;
-    Container inventory = null;
+    InventoryAccess inventory = null;
     int slot = -1;
     if (inventorySide != null) {
-      inventory = InventoryUtils.inventoryAt(position().offset(inventorySide));
+      inventory = InventoryUtils.inventoryAt(position().offset(inventorySide), inventorySide.getOpposite());
       if (inventory == null) return result(null, "no inventory");
       if (!ExtendedArguments.isMissing(args, 2)) slot = ExtendedArguments.checkSlot(args, inventory, 2);
     } else if (!ExtendedArguments.isMissing(args, 2)) {
@@ -60,7 +60,7 @@ public interface BlockActions extends WorldAware, SideRestricted {
       InventoryUtils.extractFromInventorySlot(stack -> {
         taken[0] = stack.copy();
         stack.setCount(0);
-      }, inventory, inventorySide.getOpposite(), slot, 64);
+      }, inventory, slot, 64);
       held = taken[0];
     }
 
@@ -68,7 +68,7 @@ public interface BlockActions extends WorldAware, SideRestricted {
     boolean acted = outcome.result().consumesAction();
     for (ItemStack stack : outcome.items()) {
       for (ItemStack rest : acted && tank != null ? emptyInto(tank, stack) : List.of(stack)) {
-        putBack(rest, inventory, inventorySide, slot);
+        putBack(rest, inventory, slot);
       }
     }
     return result(acted, outcome.result().name().toLowerCase(Locale.ROOT));
@@ -80,16 +80,16 @@ public interface BlockActions extends WorldAware, SideRestricted {
   default Object[] placeBlock(Context context, Arguments args) {
     Direction sourceSide = checkSideForAction(args, 0);
     Direction side = checkSideForAction(args, 1);
-    Container inventory = InventoryUtils.inventoryAt(position().offset(sourceSide));
+    InventoryAccess inventory = InventoryUtils.inventoryAt(position().offset(sourceSide), sourceSide.getOpposite());
     if (inventory == null) return result(null, "no inventory");
     int slot;
     if (!ExtendedArguments.isMissing(args, 2)) {
       slot = ExtendedArguments.checkSlot(args, inventory, 2);
-      if (!(inventory.getItem(slot).getItem() instanceof BlockItem)) return result(false, "not a block");
+      if (!(inventory.getStackInSlot(slot).getItem() instanceof BlockItem)) return result(false, "not a block");
     } else {
       slot = -1;
-      for (int i = 0; i < inventory.getContainerSize() && slot < 0; i++) {
-        if (inventory.getItem(i).getItem() instanceof BlockItem) slot = i;
+      for (int i = 0; i < inventory.getSlots() && slot < 0; i++) {
+        if (inventory.getStackInSlot(i).getItem() instanceof BlockItem) slot = i;
       }
       if (slot < 0) return result(false, "no blocks");
     }
@@ -103,19 +103,19 @@ public interface BlockActions extends WorldAware, SideRestricted {
     InventoryUtils.extractFromInventorySlot(stack -> {
       taken[0] = stack.copy();
       stack.setCount(0);
-    }, inventory, sourceSide.getOpposite(), slot, 64);
+    }, inventory, slot, 64);
     if (taken[0].isEmpty()) return result(false, "cannot take it out");
     FakePlayerClick.Outcome outcome = FakePlayerClick.place((ServerLevel) level(), position().toBlockPos(), side, taken[0]);
-    for (ItemStack rest : outcome.items()) putBack(rest, inventory, sourceSide, slot);
+    for (ItemStack rest : outcome.items()) putBack(rest, inventory, slot);
     boolean placed = outcome.result().consumesAction();
     return placed ? result(true) : result(false, "cannot place it there");
   }
 
   // Into the inventory, its slot first; dropped if it does not fit.
-  private void putBack(ItemStack stack, Container inventory, Direction inventorySide, int slot) {
+  private void putBack(ItemStack stack, InventoryAccess inventory, int slot) {
     if (inventory != null) {
-      if (slot >= 0) InventoryUtils.insertIntoInventorySlot(stack, inventory, inventorySide.getOpposite(), slot, stack.getCount());
-      if (!stack.isEmpty()) InventoryUtils.insertIntoInventory(stack, inventory, inventorySide.getOpposite(), stack.getCount());
+      if (slot >= 0) InventoryUtils.insertIntoInventorySlot(stack, inventory, slot, stack.getCount());
+      if (!stack.isEmpty()) InventoryUtils.insertIntoInventory(stack, inventory, stack.getCount());
     }
     if (!stack.isEmpty()) InventoryUtils.spawnStackInWorld(position(), stack, null, null);
   }
