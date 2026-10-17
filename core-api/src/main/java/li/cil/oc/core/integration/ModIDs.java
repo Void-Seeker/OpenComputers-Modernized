@@ -14,6 +14,7 @@ public final class ModIDs {
   public static final String AppliedEnergistics2 = "ae2";
   public static final String AppliedMekanistics = "appmek";
   public static final String ComputerCraft = "computercraft";
+  public static final String ComplicatedBees = "complicated_bees";
   public static final String Create = "create";
   public static final String EnderIO = "enderio";
   public static final String EnderStorage = "enderstorage";

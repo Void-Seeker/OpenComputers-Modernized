@@ -20,6 +20,7 @@ public final class Mods {
   public static final ModBase AppliedEnergistics2 = new SimpleMod(ModIDs.AppliedEnergistics2);
   public static final ModBase AppliedMekanistics = new SimpleMod(ModIDs.AppliedMekanistics);
   public static final ModBase ComputerCraft = new SimpleMod(ModIDs.ComputerCraft);
+  public static final ModBase ComplicatedBees = new SimpleMod(ModIDs.ComplicatedBees);
   public static final ModBase Create = new SimpleMod(ModIDs.Create);
   public static final ModBase Sable = new SimpleMod(ModIDs.Sable);
   public static final ModBase EnderIO = new SimpleMod(ModIDs.EnderIO);
@@ -45,6 +46,7 @@ public final class Mods {
     proxyOrNull("li.cil.oc.neoforge.integration.computercraft.ModComputerCraft"),
     proxyOrNull("li.cil.oc.neoforge.integration.sable.ModSable"),
     proxyOrNull("li.cil.oc.neoforge.integration.create.ModCreate"),
+    proxyOrNull("li.cil.oc.neoforge.integration.complicatedbees.ModComplicatedBees"),
     proxyOrNull("li.cil.oc.neoforge.integration.enderio.ModEnderIO"),
     proxyOrNull("li.cil.oc.neoforge.integration.enderstorage.ModEnderStorage"),
     proxyOrNull("li.cil.oc.neoforge.integration.cbmultipart.ModCBMultipart"),
@@ -105,6 +107,7 @@ public final class Mods {
     public static final String AppliedEnergistics2 = ModIDs.AppliedEnergistics2;
     public static final String AppliedMekanistics = ModIDs.AppliedMekanistics;
     public static final String ComputerCraft = ModIDs.ComputerCraft;
+    public static final String ComplicatedBees = ModIDs.ComplicatedBees;
     public static final String Create = ModIDs.Create;
     public static final String Sable = ModIDs.Sable;
     public static final String EnderIO = ModIDs.EnderIO;
