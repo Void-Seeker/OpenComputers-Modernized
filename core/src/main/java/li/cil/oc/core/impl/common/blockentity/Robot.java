@@ -639,10 +639,13 @@ public abstract class Robot extends RobotBase implements Computer, PowerInformat
     return Arrays.stream(getSlotsForFace(side)).anyMatch(s -> s == slot);
   }
 
-  private Direction _pitch = Direction.UP;
+  // Robots stand upright: they turn about the vertical axis only, so their pitch is always NORTH (the rotation
+  // helpers' "level"). A vertical pitch tipped a robot over - placed by a player looking down more than 45 degrees,
+  // its front was the ground and "up" was sideways.
+  private static final Direction UPRIGHT = Direction.NORTH;
 
   public Direction pitch() {
-    return _pitch;
+    return UPRIGHT;
   }
 
   public Direction yaw() {
@@ -650,67 +653,51 @@ public abstract class Robot extends RobotBase implements Computer, PowerInformat
   }
 
   public void yaw(Direction value) {
-    facing = value;
+    if (value.getAxis().isHorizontal()) facing = value;
     syncFacingToBlockState();
   }
 
   public void pitch(Direction value) {
-    _pitch = value;
     syncFacingToBlockState();
   }
 
   @Override
   public void facing(Direction value) {
-    super.facing(value);
+    if (value.getAxis().isHorizontal()) super.facing(value);
     syncFacingToBlockState();
   }
 
   public void setFromFacing(Direction value) {
-    if (value == Direction.DOWN || value == Direction.UP) {
-      _pitch = value;
-    } else {
-      _pitch = Direction.NORTH;
-      facing = value;
-    }
+    if (value.getAxis().isHorizontal()) facing = value;
     syncFacingToBlockState();
   }
 
+  /** Faces where the entity looks, levelled: up or down does not tip it over. */
   public void setFromEntityPitchAndYaw(net.minecraft.world.entity.Entity entity) {
-    Direction[] pitch2Direction = {Direction.UP, Direction.NORTH, Direction.DOWN};
     Direction[] yaw2Direction = {Direction.SOUTH, Direction.WEST, Direction.NORTH, Direction.EAST};
-    Direction newPitch = pitch2Direction[(int) Math.round(entity.getXRot() / 90.0) + 1];
-    Direction newYaw = yaw2Direction[Math.round(entity.getYRot() / 360 * 4) & 3];
-    _pitch = newPitch;
-    facing = newYaw;
+    facing = yaw2Direction[Math.round(entity.getYRot() / 360 * 4) & 3];
     syncFacingToBlockState();
   }
 
   public void invertRotation() {
-    Direction newPitch = (_pitch == Direction.DOWN || _pitch == Direction.UP) ? _pitch.getOpposite() : Direction.NORTH;
-    Direction newYaw = facing.getOpposite();
-    _pitch = newPitch;
-    facing = newYaw;
+    facing = facing.getOpposite();
     syncFacingToBlockState();
   }
 
   @Override
   public Direction toLocal(Direction value) {
-    return RotationHelper.toLocal(_pitch, facing, value);
+    return RotationHelper.toLocal(UPRIGHT, facing, value);
   }
 
   @Override
   public Direction toGlobal(Direction value) {
-    return RotationHelper.toGlobal(_pitch, facing, value);
+    return RotationHelper.toGlobal(UPRIGHT, facing, value);
   }
 
   public void syncFromBlockState(BlockState state) {
     if (state.hasProperty(BlockStateProperties.FACING)) {
       var blockFacing = state.getValue(BlockStateProperties.FACING);
-      if (blockFacing.getAxis().isVertical()) {
-        _pitch = blockFacing;
-      } else {
-        facing = blockFacing;
-      }
+      if (blockFacing.getAxis().isHorizontal()) facing = blockFacing;
     }
   }
 
@@ -719,27 +706,19 @@ public abstract class Robot extends RobotBase implements Computer, PowerInformat
     if (level == null) return;
     var pos = getBlockPos();
     var state = level.getBlockState(pos);
-    if (state.hasProperty(BlockStateProperties.FACING)) {
-      var current = state.getValue(BlockStateProperties.FACING);
-      var desired = _pitch.getAxis().isVertical() ? _pitch : facing;
-      if (current != desired) {
-        level.setBlock(pos, state.setValue(BlockStateProperties.FACING, desired), 3);
-      }
+    if (state.hasProperty(BlockStateProperties.FACING) && state.getValue(BlockStateProperties.FACING) != facing) {
+      level.setBlock(pos, state.setValue(BlockStateProperties.FACING, facing), 3);
     }
   }
 
+  /**
+   * Turns it about the vertical axis: anticlockwise (seen from above) for DOWN - robot.turnLeft() - and clockwise for
+   * anything else - robot.turnRight() (UP), a wrench. It used to turn clockwise both ways: turnLeft turned right.
+   */
   public void rotate(Direction axis) {
-    var level = getLevel();
-    if (level == null) return;
-    var state = getBlockState();
-    if (state.hasProperty(BlockStateProperties.FACING)) {
-      var blockFacing = state.getValue(BlockStateProperties.FACING);
-      var newBlockFacing = blockFacing.getClockWise(axis.getAxis());
-      if (newBlockFacing != blockFacing) {
-        level.setBlock(getBlockPos(), state.setValue(BlockStateProperties.FACING, newBlockFacing), 3);
-      }
-      syncFromBlockState(level.getBlockState(getBlockPos()));
-    }
+    if (getLevel() == null) return;
+    facing = axis == Direction.DOWN ? facing.getCounterClockWise() : facing.getClockWise();
+    syncFacingToBlockState();
   }
 
   @Override
@@ -846,9 +825,6 @@ public abstract class Robot extends RobotBase implements Computer, PowerInformat
     if (bot instanceof li.cil.oc.core.impl.server.component.Robot rb) {
       rb.load(nbt.getCompound(OCSettings.namespace + "robot"), provider);
     }
-    if (nbt.contains(OCSettings.namespace + "pitch")) {
-      _pitch = Direction.from3DDataValue(nbt.getInt(OCSettings.namespace + "pitch"));
-    }
     updateInventorySize();
     if (isServer()) {
       if (machine != null) {
@@ -864,7 +840,7 @@ public abstract class Robot extends RobotBase implements Computer, PowerInformat
     if (bot instanceof li.cil.oc.core.impl.server.component.Robot rb) {
       li.cil.oc.core.impl.util.ExtendedNBT.setNewCompoundTag(nbt, OCSettings.namespace + "robot", t -> rb.save(t, provider));
     }
-    nbt.putInt(OCSettings.namespace + "pitch", _pitch.get3DDataValue());
+    nbt.putInt(OCSettings.namespace + "pitch", UPRIGHT.get3DDataValue());
   }
 
   private static Consumer<Robot> clientDisposeCallback = robot -> {

@@ -49,7 +49,7 @@ public abstract class RobotProxy extends RedstoneAware implements GUI, StateAwar
 
   @Override
   public @Nullable BlockState getStateForPlacement(BlockPlaceContext context) {
-    return defaultBlockState().setValue(FACING, context.getNearestLookingDirection().getOpposite());
+    return defaultBlockState().setValue(FACING, context.getHorizontalDirection()); // upright, facing where the player looks
   }
 
   @Override
