@@ -588,7 +588,52 @@ public abstract class RobotBase extends BlockEntity implements li.cil.oc.core.im
           LOGGER.warn("Error updating redstone input for robot at {}: {}", worldPosition, t.toString());
         }
       }
+      tickTool();
     }
+  }
+
+  private boolean toolTickFailed = false;
+
+  /**
+   * Ticks the equipped tool like the item in a player's hand, the robot's inventory being what its holder carries.
+   * Tools that work off their holder's inventory then work in robots as they do for players: Embers' clockwork tools
+   * power on from ember cells in the robot and draw on them, Botania's mana tools mend from a mana tablet.
+   * OC's own items (a tablet would boot) are left alone.
+   */
+  public void tickTool() {
+    tickTool((tool, holder) -> tool.inventoryTick(holder.level(), holder, holder.getInventory().selected, true));
+  }
+
+  public void tickTool(java.util.function.BiConsumer<ItemStack, Player> tick) {
+    ItemStack tool = getItem(0);
+    if (tool.isEmpty() || level == null || level.isClientSide() || toolTickFailed) return;
+    if ("opencomputers".equals(net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(tool.getItem()).getNamespace())) return;
+    Player holder = player();
+    if (holder == null) return;
+    var carried = holder.getInventory().items;
+    int n = Math.min(carried.size(), mainInventory.getContainerSize());
+    for (int i = 0; i < n; i++) carried.set(i, mainInventory.getItem(i).copy());
+    ItemStack before = tool.copy();
+    try {
+      tick.accept(tool, holder);
+    } catch (Throwable t) {
+      toolTickFailed = true;
+      LOGGER.warn("Robot at {} stops ticking its tool {}, which failed: {}", worldPosition, tool, t.toString());
+      return;
+    }
+    boolean changed = !ItemStack.matches(before, tool);
+    for (int i = 0; i < n; i++) {
+      ItemStack now = carried.get(i), had = mainInventory.getItem(i);
+      if (ItemStack.matches(now, had)) continue;
+      if (!had.isEmpty() && ItemStack.isSameItem(now, had) && now.getCount() == had.getCount()) {
+        // only its data changed (an ember cell's charge): like a tool's wear, no inventory_changed for that
+        had.setTag(now.getTag() == null ? null : now.getTag().copy());
+        changed = true;
+      } else {
+        mainInventory.setItem(i, now.copy());
+      }
+    }
+    if (changed) setChanged();
   }
 
   @Override
