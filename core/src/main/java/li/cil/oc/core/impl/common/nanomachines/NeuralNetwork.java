@@ -124,6 +124,9 @@ public class NeuralNetwork implements Persistable {
         (java.util.function.Consumer<String>) LOGGER::info;
       log.accept(i + " -> " + behavior.behavior.getNameHint() + " (" + behavior.behavior.getClass() + ")");
     }
+    // as the other paths: without it the behaviors counted no inputs (potions at amplifier -1, magnets of range 0)
+    behaviorMap.clear();
+    for (var n : behaviors) behaviorMap.put(n.behavior, n);
   }
 
   public void print(Player player) {

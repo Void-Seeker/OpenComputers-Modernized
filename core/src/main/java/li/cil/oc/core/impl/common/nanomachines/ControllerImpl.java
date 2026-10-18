@@ -121,7 +121,7 @@ public class ControllerImpl implements Controller, WirelessEndpoint {
             case "getHunger" ->
               respond(sender, "hunger", player.getFoodData().getFoodLevel(), player.getFoodData().getSaturationLevel());
             case "getAge" ->
-              respond(sender, "age", player instanceof net.minecraft.server.level.ServerPlayer sp ? (int) ((System.currentTimeMillis() - sp.getLastActionTime()) / 1000) : player.tickCount / 20);
+              respond(sender, "age", player instanceof net.minecraft.server.level.ServerPlayer sp ? (int) ((net.minecraft.Util.getMillis() - sp.getLastActionTime()) / 1000) /* the clock it is kept in (currentTimeMillis gave ~1.7e9) */ : player.tickCount / 20);
             case "getName" -> respond(sender, "name", player.getDisplayName().getString());
             case "getExperience" -> respond(sender, "experience", player.experienceLevel);
             case "getTotalInputCount" -> respond(sender, "totalInputCount", getTotalInputCount());
@@ -281,6 +281,7 @@ public class ControllerImpl implements Controller, WirelessEndpoint {
         li.cil.oc.api.Network.leaveWirelessNetwork(this, previousDimension);
         li.cil.oc.api.Network.joinWirelessNetwork(this);
         previousDimension = currentDim;
+        hasSentConfiguration = false; // the client has a new player there: tell it all now, not at the next full sync
       } else {
         li.cil.oc.api.Network.updateWirelessNetwork(this);
       }
@@ -352,6 +353,7 @@ public class ControllerImpl implements Controller, WirelessEndpoint {
     if (isServer()) {
       configuration.debug();
       activeBehaviorsDirty = true;
+      hasSentConfiguration = false;
     }
   }
 

@@ -44,6 +44,7 @@ public final class ClientEventHandler {
   @SubscribeEvent
   @SuppressWarnings("unused")
   public static void clientLoggedIn(ClientPlayerNetworkEvent.LoggingIn e) {
+    li.cil.oc.neoforge.common.PlayerDataProvider.clearClientData(); // another world: what the last one said is gone
     PetRenderer.isInitialized = false;
     PetRenderer.hidden.clear();
     LootManager.disksForClient.clear();

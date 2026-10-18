@@ -81,9 +81,16 @@ public final class NanomachinesHandler {
     public static void onPlayerRespawn(PlayerEvent.PlayerRespawnEvent e) {
       Controller controller = li.cil.oc.api.Nanomachines.getController(e.getEntity());
       if (controller != null) {
-        controller.changeBuffer(-controller.getLocalBuffer());
+        // leaving the End is no death: it kept neither energy nor inputs (the exit portal respawns the player)
+        if (e.isEndConquered()) {
+          leftTheEnd.add(e.getEntity().getUUID());
+        } else {
+          controller.changeBuffer(-controller.getLocalBuffer());
+        }
       }
     }
+
+    private static final java.util.Set<java.util.UUID> leftTheEnd = java.util.concurrent.ConcurrentHashMap.newKeySet();
 
     @SuppressWarnings("unused")
     @SubscribeEvent
@@ -101,7 +108,10 @@ public final class NanomachinesHandler {
           Controller newCtrl = li.cil.oc.api.Nanomachines.installController(player);
           if (newCtrl instanceof ControllerImpl newController) {
             newController.load(nbt, player.level().registryAccess());
-            newController.reset();
+            // a new player object after death resets the inputs (OC); after leaving the End, or on the client after
+            // a dimension change (1.20.1 makes a new client player then), it is the same player going on
+            boolean sameLife = player.level().isClientSide ? controller.player.getHealth() > 0 : leftTheEnd.remove(player.getUUID());
+            if (!sameLife) newController.reset();
           }
         }
       }

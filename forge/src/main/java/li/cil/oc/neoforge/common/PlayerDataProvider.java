@@ -14,6 +14,11 @@ public final class PlayerDataProvider implements IPlayerDataProvider {
   private PlayerDataProvider() {
   }
 
+  /** Forgets the client's copies (world A's nanomachines showed in world B until the game restarted). */
+  public static void clearClientData() {
+    clientData.clear();
+  }
+
   @Override
   public CompoundTag getPersistentData(Player player) {
     if (player.level().isClientSide) {
