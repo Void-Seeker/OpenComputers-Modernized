@@ -440,11 +440,17 @@ public abstract class RobotBase extends BlockEntity implements li.cil.oc.core.im
     return max;
   }
 
+  /**
+   * The inventory's size from the inventory upgrades in component slots and in containers (it counted the containers
+   * themselves: an inventory upgrade in an upgrade container added nothing). When it shrinks, what was in the slots
+   * that are gone drops at the robot rather than stay hidden in it.
+   */
   public void updateInventorySize() {
+    int before = inventorySize;
     synchronized (this) {
       int totalCapacity = 0;
-      for (int i = 0; i < info.containers.size(); i++) {
-        var stack = info.containers.get(i);
+      for (int slot : containerSlots()) {
+        var stack = getItem(slot);
         if (!stack.isEmpty()) {
           var driver = hostClass != null ? li.cil.oc.api.API.driver.driverFor(stack, hostClass) : null;
           if (driver instanceof li.cil.oc.api.driver.item.Inventory inv) {
@@ -465,6 +471,17 @@ public abstract class RobotBase extends BlockEntity implements li.cil.oc.core.im
         }
       }
       inventorySize = Math.min(maxInventorySize(), totalCapacity);
+    }
+    selectedSlot = MathCompat.clamp(selectedSlot, 0, Math.max(0, mainInventory.getContainerSize() - 1));
+    if (before > inventorySize && isServer()) {
+      var position = BlockPosition.apply(worldPosition.getX(), worldPosition.getY(), worldPosition.getZ(), getLevel());
+      int start = equipmentInventory.getContainerSize();
+      for (int i = start + Math.max(0, inventorySize); i < Math.min(start + before, inventory.length); i++) {
+        if (inventory[i] != null && !inventory[i].isEmpty()) {
+          li.cil.oc.core.impl.util.InventoryUtils.spawnStackInWorld(position, inventory[i], null, null);
+          inventory[i] = ItemStack.EMPTY;
+        }
+      }
     }
   }
 
@@ -674,8 +691,8 @@ public abstract class RobotBase extends BlockEntity implements li.cil.oc.core.im
     if (nbt.contains(OCSettings.namespace + "owner")) ownerName = nbt.getString(OCSettings.namespace + "owner");
     if (nbt.contains(OCSettings.namespace + "ownerUuid"))
       ownerUUID = UUID.fromString(nbt.getString(OCSettings.namespace + "ownerUuid"));
-    if (inventorySize > 0)
-      selectedSlot = MathCompat.clamp(nbt.getInt(OCSettings.namespace + "selectedSlot"), 0, Math.max(0, mainInventory.getContainerSize() - 1));
+    // as saved: the inventory's size is not known yet here (it always came back as slot 1); updateInventorySize clamps it
+    selectedSlot = Math.max(0, nbt.getInt(OCSettings.namespace + "selectedSlot"));
     selectedTank = nbt.getInt(OCSettings.namespace + "selectedTank");
     animationTicksTotal = nbt.getInt(OCSettings.namespace + "animationTicksTotal");
     animationTicksLeft = nbt.getInt(OCSettings.namespace + "animationTicksLeft");
@@ -1088,6 +1105,8 @@ public abstract class RobotBase extends BlockEntity implements li.cil.oc.core.im
       inventory[slot] = stack;
     }
     setChanged();
+    // an inventory upgrade put into or taken out of a container while the robot stands (not while it loads)
+    if (isContainerSlot(slot) && getLevel() != null && isServer()) updateInventorySize();
   }
 
   @Override

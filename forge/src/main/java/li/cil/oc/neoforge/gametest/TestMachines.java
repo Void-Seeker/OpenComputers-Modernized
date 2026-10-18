@@ -48,4 +48,49 @@ final class TestMachines {
       });
     });
   }
+
+  /**
+   * Places a robot facing south (as placed by a player looking south) with a tier 1 CPU, two tier 1 RAM, the given
+   * parts and the program as its EEPROM, then boots it. After delay ticks the check gets the robot and what the program
+   * reported: a program reports by ending with error("done:" .. result) (the machine stops with that error); null if it
+   * had not.
+   */
+  static void runRobot(final GameTestHelper helper, final BlockPos pos, final List<String> parts, final String program, final int delay,
+                       final java.util.function.BiConsumer<li.cil.oc.core.impl.common.blockentity.Robot, String> check) {
+    runRobot(helper, pos, parts, robot -> {
+    }, program, delay, check);
+  }
+
+  /** The same, with setup given the robot before it boots (its tool, its inventory). */
+  static void runRobot(final GameTestHelper helper, final BlockPos pos, final List<String> parts,
+                       final Consumer<li.cil.oc.core.impl.common.blockentity.Robot> setup, final String program, final int delay,
+                       final java.util.function.BiConsumer<li.cil.oc.core.impl.common.blockentity.Robot, String> check) {
+    final var data = new li.cil.oc.core.impl.common.item.data.RobotData();
+    data.name = "tester";
+    for (final String part : List.of(li.cil.oc.core.Constants.ItemName.CPUTier1, li.cil.oc.core.Constants.ItemName.RAMTier1, li.cil.oc.core.Constants.ItemName.RAMTier1)) {
+      data.components.add(li.cil.oc.api.Items.get(part).createItemStack(1));
+    }
+    for (final String part : parts) {
+      data.components.add(li.cil.oc.api.Items.get(part).createItemStack(1));
+    }
+    data.components.add(li.cil.oc.api.Items.registerEEPROM("robot test", program.getBytes(StandardCharsets.UTF_8), null, false));
+    helper.setBlock(pos, Blocks.ROBOT.get());
+    final BlockPos abs = helper.absolutePos(pos);
+    final var placer = FakePlayerFactory.getMinecraft(helper.getLevel());
+    placer.setYRot(0);
+    placer.setXRot(0);
+    Blocks.ROBOT.get().setPlacedBy(helper.getLevel(), abs, helper.getLevel().getBlockState(abs), placer, data.createItemStack());
+    final var robot = ((li.cil.oc.core.impl.common.blockentity.RobotProxy) helper.getLevel().getBlockEntity(abs)).robot;
+    setup.accept(robot);
+    helper.runAfterDelay(5, () -> {
+      ((li.cil.oc.api.network.Connector) robot.machine().node()).changeBuffer(20000);
+      helper.assertTrue(robot.machine().start(), "the robot did not start: " + robot.machine().lastError());
+      helper.runAfterDelay(delay, () -> {
+        final String error = robot.machine().lastError();
+        final int at = error == null ? -1 : error.indexOf("done:");
+        helper.assertTrue(error == null || at >= 0, "the program failed: " + error);
+        check.accept(robot, at >= 0 ? error.substring(at + 5) : null);
+      });
+    });
+  }
 }

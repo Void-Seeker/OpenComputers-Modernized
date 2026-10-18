@@ -1,12 +1,16 @@
 package li.cil.oc.core.impl.util;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 import net.minecraft.core.NonNullList;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.Container;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 
 /**
@@ -86,6 +90,74 @@ public final class CarriedInventory {
       }
     }
     return changed;
+  }
+
+  /**
+   * What the holder got where nothing of the robot's is carried - past the robot's slots, or in the slot left out -
+   * as vanilla code gives a player items (a bucket of milk, an empty bottle): taken out, for the robot to get.
+   */
+  public List<ItemStack> extras() {
+    var result = new ArrayList<ItemStack>();
+    for (int i = offset; i < carried.size(); i++) {
+      int slot = i - offset;
+      if (slot < n && slot != skip) continue;
+      ItemStack now = carried.get(i);
+      if (!now.isEmpty() && !ItemStack.matches(now, previously[i])) {
+        result.add(now);
+        carried.set(i, previously[i]);
+      }
+    }
+    return result;
+  }
+
+  /**
+   * Runs f with the agent's inventory carried by its player (in the player's own slots), for vanilla code that gives a
+   * player items, takes them or reads its inventory; afterwards what changed goes back into the agent, and what the
+   * player got anywhere else goes into the agent or, when it is full, onto the ground.
+   */
+  public static <T> T withAgentInventory(li.cil.oc.api.internal.Agent agent, Player player, Supplier<T> f) {
+    var carried = carry(agent.mainInventory(), player.getInventory().items, 0, -1);
+    try {
+      return f.get();
+    } finally {
+      if (carried.bringBack(1, manaItems, player.getRandom())) agent.mainInventory().setChanged();
+      for (ItemStack extra : carried.extras()) giveToAgent(agent, extra);
+      carried.restore();
+    }
+  }
+
+  /**
+   * Moves what it can of the stack into the agent's inventory as a robot picks things up: the selected slot first,
+   * onto matching stacks before empty slots. The stack keeps what did not fit; whether anything went in.
+   */
+  public static boolean insertIntoAgent(li.cil.oc.api.internal.Agent agent, ItemStack stack) {
+    if (stack.isEmpty()) return false;
+    Container inventory = agent.mainInventory();
+    int size = inventory.getContainerSize(), selected = Math.max(0, agent.selectedSlot()), before = stack.getCount();
+    for (int pass = 0; pass < 2 && !stack.isEmpty(); pass++) {
+      for (int k = 0; k < size && !stack.isEmpty(); k++) {
+        int slot = (selected + k) % size;
+        ItemStack there = inventory.getItem(slot);
+        int max = Math.min(stack.getMaxStackSize(), inventory.getMaxStackSize());
+        if (pass == 0 && !there.isEmpty() && ItemStack.isSameItemSameTags(there, stack) && there.getCount() < max) {
+          int moved = Math.min(stack.getCount(), max - there.getCount());
+          there.grow(moved);
+          inventory.setItem(slot, there);
+          stack.shrink(moved);
+        } else if (pass == 1 && there.isEmpty() && inventory.canPlaceItem(slot, stack)) {
+          inventory.setItem(slot, stack.split(Math.min(stack.getCount(), max)));
+        }
+      }
+    }
+    return stack.getCount() < before;
+  }
+
+  /**
+   * Gives the agent the stack: into its inventory, what does not fit onto the ground at it.
+   */
+  public static void giveToAgent(li.cil.oc.api.internal.Agent agent, ItemStack stack) {
+    insertIntoAgent(agent, stack);
+    if (!stack.isEmpty()) InventoryUtils.spawnStackInWorld(BlockPosition.apply(agent), stack, null, null);
   }
 
   /**

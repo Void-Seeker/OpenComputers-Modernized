@@ -64,6 +64,11 @@ public abstract class Agent extends AgentBase {
   }
 
   @Override
+  protected boolean playerInteractEntity(@NotNull Player player, @NotNull Entity entity) {
+    return ((li.cil.oc.neoforge.server.agent.Player) player).interactWithEntity(entity);
+  }
+
+  @Override
   protected boolean playerUseEquippedItem(@NotNull Player player, double duration) {
     return ((li.cil.oc.neoforge.server.agent.Player) player).useEquippedItem(duration);
   }

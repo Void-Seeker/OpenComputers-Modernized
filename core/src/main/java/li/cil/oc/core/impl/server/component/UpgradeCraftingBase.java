@@ -77,50 +77,53 @@ public abstract class UpgradeCraftingBase extends AbstractManagedEnvironment imp
       }, 3, 3);
     }
 
+    /**
+     * Crafts from the top left 3x3 of the robot's inventory, into the robot (outside that grid first), what does not
+     * fit onto the ground. (It read and filled the fake player's own inventory, which is scratch: it crafted nothing.)
+     */
     Object[] craft(int wantedCount) {
       Player player = host.player();
-      load(player.getInventory());
-      int countCrafted = 0;
+      Container inventory = host.mainInventory();
       var level = host.level();
-      var input = this;
-      var recipeOpt = level.getRecipeManager().getRecipeFor(RecipeType.CRAFTING, input, level);
-      if (recipeOpt.isEmpty()) {
+      load(inventory);
+      var recipeOpt = level.getRecipeManager().getRecipeFor(RecipeType.CRAFTING, this, level);
+      if (recipeOpt.isEmpty() || recipeOpt.get().assemble(this, level.registryAccess()).isEmpty()) {
         return new Object[]{false, 0};
       }
-      var originalHolder = recipeOpt.get();
-      ItemStack originalCraft = originalHolder.assemble(input, level.registryAccess());
-      if (originalCraft.isEmpty()) {
-        return new Object[]{false, 0};
-      }
+      var original = recipeOpt.get();
+      int countCrafted = 0;
       while (countCrafted < wantedCount) {
-        var currentInput = this;
-        var currentRecipeOpt = level.getRecipeManager().getRecipeFor(RecipeType.CRAFTING, currentInput, level);
-        if (currentRecipeOpt.isEmpty()) break;
-        if (currentRecipeOpt.get() != originalHolder) break;
-        ItemStack result = currentRecipeOpt.get().assemble(currentInput, level.registryAccess());
+        var current = level.getRecipeManager().getRecipeFor(RecipeType.CRAFTING, this, level);
+        if (current.isEmpty() || current.get() != original) break;
+        ItemStack result = current.get().assemble(this, level.registryAccess());
         if (result.isEmpty()) break;
         countCrafted += result.getCount();
         postItemCraftedEvent(player, result, this);
+        // what the recipe leaves (an empty bucket, a damaged tool) stays in the grid where it can, as for a player
+        var remaining = current.get().getRemainingItems(this);
         List<ItemStack> surplus = new ArrayList<>();
         for (int slot = 0; slot < getContainerSize(); slot++) {
-          ItemStack stack = getItem(slot);
-          if (!stack.isEmpty()) {
-            removeItem(slot, 1);
-            Item containerItem = stack.getItem().getCraftingRemainingItem();
-            ItemStack container = containerItem != null ? containerItem.getDefaultInstance() : ItemStack.EMPTY;
-            if (!container.isEmpty()) {
-              surplus.add(container);
-            }
-          }
+          if (!getItem(slot).isEmpty()) removeItem(slot, 1);
+          ItemStack rest = remaining.get(slot);
+          if (rest.isEmpty()) continue;
+          if (getItem(slot).isEmpty()) setItem(slot, rest);
+          else surplus.add(rest);
         }
-        save(player.getInventory());
-        InventoryUtils.addToPlayerInventory(result, player);
-        for (ItemStack stack : surplus) {
-          InventoryUtils.addToPlayerInventory(stack, player);
-        }
-        load(player.getInventory());
+        save(inventory);
+        give(inventory, result);
+        for (ItemStack stack : surplus) give(inventory, stack);
+        load(inventory);
       }
       return new Object[]{true, countCrafted};
+    }
+
+    private void give(Container inventory, ItemStack stack) {
+      List<Integer> outside = new ArrayList<>();
+      for (int slot = 0; slot < inventory.getContainerSize(); slot++) {
+        if (slot >= 12 || slot % 4 == 3) outside.add(slot);
+      }
+      InventoryUtils.insertIntoInventory(stack, inventory, null, 64, false, outside);
+      if (!stack.isEmpty()) li.cil.oc.core.impl.util.CarriedInventory.giveToAgent(host, stack);
     }
 
     void load(Container inventory) {

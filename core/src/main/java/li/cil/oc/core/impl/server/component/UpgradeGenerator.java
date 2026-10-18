@@ -103,7 +103,7 @@ public class UpgradeGenerator extends AbstractManagedEnvironment implements Devi
 
     if (!container.isEmpty()) {
       container.grow(fuelToInsert.getCount() - 1);
-      if (!host.player().getInventory().add(container)) {
+      if (!li.cil.oc.core.impl.util.CarriedInventory.insertIntoAgent(host, container)) {   // the robot's, not its player's scratch
         host.mainInventory().setItem(host.selectedSlot(), previousSelectedFuel);
         return ResultWrapper.result(false, "no space in inventory for fuel containers");
       } else if (container.getCount() > 0) {
@@ -168,7 +168,7 @@ public class UpgradeGenerator extends AbstractManagedEnvironment implements Devi
       }
     }
 
-    if (!host.player().getInventory().add(forUser)) {
+    if (!li.cil.oc.core.impl.util.CarriedInventory.insertIntoAgent(host, forUser)) {
       host.mainInventory().setItem(host.selectedSlot(), previousSelectedItem);
       inventory = previousQueue;
       return ResultWrapper.result(false, "no inventory space available for fuel");

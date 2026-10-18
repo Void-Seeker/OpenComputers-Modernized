@@ -88,7 +88,15 @@ public class UpgradeTractorBeam {
 
     @Override
     protected void collectItem(ItemEntity item) {
-      item.playerTouch(player.get());
+      if (owner instanceof li.cil.oc.api.internal.Agent agent) {
+        // straight into the robot: the fake player's own inventory is scratch, the items vanished
+        ItemStack stack = item.getItem().copy();
+        li.cil.oc.core.impl.util.CarriedInventory.insertIntoAgent(agent, stack);
+        if (stack.isEmpty()) item.discard();
+        else item.setItem(stack);
+      } else {
+        item.playerTouch(player.get());
+      }
     }
   }
 

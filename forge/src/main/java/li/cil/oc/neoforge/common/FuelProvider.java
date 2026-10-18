@@ -10,13 +10,15 @@ public class FuelProvider implements UpgradeGenerator.IFuelProvider {
   private FuelProvider() {
   }
 
+  // 1.20.1: ItemStack.getBurnTime is only an item's own override (-1 for every vanilla fuel - the generator took no
+  // coal, no lava); the furnace's burn time, with vanilla's table and Forge's event, is ForgeHooks.getBurnTime
   @Override
   public boolean isFuel(ItemStack stack) {
-    return stack.getBurnTime(null) > 0;
+    return getBurnTime(stack) > 0;
   }
 
   @Override
   public int getBurnTime(ItemStack stack) {
-    return stack.getBurnTime(RecipeType.SMELTING);
+    return net.minecraftforge.common.ForgeHooks.getBurnTime(stack, RecipeType.SMELTING);
   }
 }

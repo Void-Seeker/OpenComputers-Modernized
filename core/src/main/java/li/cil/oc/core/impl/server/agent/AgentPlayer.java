@@ -13,6 +13,9 @@ public interface AgentPlayer {
 
   double clickBlock(int x, int y, int z, int side);
 
+  /** A right click on the entity with the tool, as a player's; whether it did something. */
+  boolean interactWithEntity(net.minecraft.world.entity.Entity entity);
+
   void attackTargetEntityWithCurrentItem(Entity target);
 
   boolean placeBlock(int slot, int x, int y, int z, int side, float hitX, float hitY, float hitZ);

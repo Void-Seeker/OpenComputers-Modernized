@@ -61,8 +61,8 @@ public interface InventoryWorldControl extends InventoryAware, WorldAware, SideR
         ItemStack dropped = inventory().removeItem(selectedSlot(), count);
         if (!dropped.isEmpty()) {
           ItemEntity entity = InventoryUtils.spawnStackInWorld(position(), dropped, facing, null);
-          if (entity == null) {
-            fakePlayer().getInventory().add(dropped);
+          if (entity == null) {   // could not be dropped: back where it came from
+            InventoryUtils.insertIntoInventorySlot(dropped, inventory(), null, selectedSlot(), 64);
           }
         }
       }
@@ -116,7 +116,20 @@ public interface InventoryWorldControl extends InventoryAware, WorldAware, SideR
     }
   }
 
+  /**
+   * Picks the item up into the inventory, selected slot first, onto matching stacks first; the entity keeps what does
+   * not fit. (It used to be handed to the fake player, whose own inventory is scratch: the items vanished.)
+   */
   default void onSuckCollect(ItemEntity entity) {
-    entity.playerTouch(fakePlayer());
+    ItemStack stack = entity.getItem();
+    for (int pass = 0; pass < 2 && !stack.isEmpty(); pass++) {
+      for (int slot : insertionSlots()) {
+        if (stack.isEmpty()) break;
+        ItemStack there = inventory().getItem(slot);
+        if ((pass == 0) != there.isEmpty()) InventoryUtils.insertIntoInventorySlot(stack, inventory(), null, slot, 64);
+      }
+    }
+    if (stack.isEmpty()) entity.discard();
+    else entity.setItem(stack);
   }
 }

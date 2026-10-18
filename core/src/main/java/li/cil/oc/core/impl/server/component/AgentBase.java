@@ -118,9 +118,11 @@ public abstract class AgentBase extends AbstractManagedEnvironment implements
       var itemsAfter = entity.level().getEntitiesOfClass(ItemEntity.class, entity.getBoundingBox().inflate(2, 2, 2));
       for (ItemEntity drop : itemsAfter) {
         if (!capturedDropsBefore.contains(drop) && !drop.isRemoved()) {
-          ItemStack stack = drop.getItem();
-          li.cil.oc.core.impl.util.InventoryUtils.addToPlayerInventory(stack, player, false);
-          drop.discard();
+          // into the agent; what does not fit stays on the ground (it went into the fake player's scratch inventory)
+          ItemStack stack = drop.getItem().copy();
+          li.cil.oc.core.impl.util.CarriedInventory.insertIntoAgent(agent(), stack);
+          if (stack.isEmpty()) drop.discard();
+          else drop.setItem(stack);
         }
       }
       capturedDropsBefore = null;
@@ -243,6 +245,11 @@ public abstract class AgentBase extends AbstractManagedEnvironment implements
 
   protected abstract int playerActivateBlockOrUseItem(Player player, int x, int y, int z, int side, float hitX, float hitY, float hitZ, double duration);
 
+  /** A right click on an entity with the agent's tool. */
+  protected boolean playerInteractEntity(Player player, net.minecraft.world.entity.Entity entity) {
+    return entity.interact(player, InteractionHand.MAIN_HAND).consumesAction();
+  }
+
   protected abstract boolean playerUseEquippedItem(Player player, double duration);
 
   @Callback(doc = "function(side:number[, face:number=side[, sneaky:boolean=false]]):boolean -- Place a block towards the specified side. The `face' allows a more precise click calibration, and is relative to the targeted blockspace.")
@@ -345,7 +352,7 @@ public abstract class AgentBase extends AbstractManagedEnvironment implements
         Entity entity = ((EntityHitResult) hit).getEntity();
         beginConsumeDrops(entity);
         try {
-          if (entity.interact(player, InteractionHand.MAIN_HAND).consumesAction()) {
+          if (playerInteractEntity(player, entity)) {
             success = true;
             what = "item_interacted";
           }

@@ -131,6 +131,12 @@ public class Player extends FakePlayer implements li.cil.oc.core.impl.server.age
     player.moveTo(player.agent.xPosition(), player.agent.yPosition(), player.agent.zPosition(), yaw, pitch);
     player.xRotO = player.getXRot();
     player.yRotO = player.getYRot();
+    // vanilla takes "where the player looks" from the head (BlockPlaceContext.getNearestLookingDirection: pistons,
+    // observers, dispensers): it kept the random yaw it was made with, south
+    player.setYHeadRot(yaw);
+    player.yHeadRotO = yaw;
+    player.yBodyRot = yaw;
+    player.yBodyRotO = yaw;
   }
 
   public static void setInventoryPlayerItems(Player player) {
@@ -174,6 +180,24 @@ public class Player extends FakePlayer implements li.cil.oc.core.impl.server.age
     return level().getEntitiesOfClass(ItemEntity.class, BlockPosition.apply(agent).bounds().inflate(2, 2, 2));
   }
 
+  /**
+   * Uses the tool on an entity as a player's right click would (milks, shears, names, saddles; Forge's entity
+   * interaction event first), with the robot's inventory carried, so that what comes of it is the robot's.
+   */
+  @Override
+  public boolean interactWithEntity(Entity entity) {
+    return callUsingItemInSlot(agent.equipmentInventory(), stack -> interactOn(entity, InteractionHand.OFF_HAND).consumesAction());
+  }
+
+  /**
+   * The robot's "eyes" are in its middle: what vanilla traces from a player's eyes (buckets, bottles) and where it
+   * spawns what a player shoots starts there, not 1.62 blocks up (in the block above the robot).
+   */
+  @Override
+  public float getStandingEyeHeight(@NotNull net.minecraft.world.entity.Pose pose, @NotNull net.minecraft.world.entity.EntityDimensions dimensions) {
+    return 0;
+  }
+
   @Override
   public void attackTargetEntityWithCurrentItem(Entity entity) {
     callUsingItemInSlot(agent.equipmentInventory(), stack -> {
@@ -183,6 +207,8 @@ public class Player extends FakePlayer implements li.cil.oc.core.impl.server.age
       RobotAttackEntityEvent.Pre event = new RobotAttackEntityEvent.Pre(agent, entity);
       MinecraftForge.EVENT_BUS.post(event);
       if (!event.isCanceled()) {
+        // a fake player does not tick, so its attack never recharged: every hit did a fifth of the damage
+        attackStrengthTicker = 1000;
         super.attack(entity);
         MinecraftForge.EVENT_BUS.post(new RobotAttackEntityEvent.Post(agent, entity));
       }
@@ -203,7 +229,9 @@ public class Player extends FakePlayer implements li.cil.oc.core.impl.server.age
 
       if (!stack.isEmpty()) {
         var context = new UseOnContext(level(), this, InteractionHand.OFF_HAND, stack, blockHit);
-        if (stack.useOn(context).consumesAction()) {
+        // as a player's click: the item may take it first only through Forge's onItemUseFirst, then the block is used,
+        // then the item (it used to be useOn first: a robot holding a block placed it rather than flip a lever)
+        if (stack.onItemUseFirst(context).consumesAction()) {
           return ActivationType.ItemUsed;
         }
       }
@@ -243,13 +271,14 @@ public class Player extends FakePlayer implements li.cil.oc.core.impl.server.age
       return false;
     }
 
-    double oldX = getX();
-    double oldZ = getZ();
-    setPos(getX() + facing.getStepX() / 2.0, getY(), getZ() + facing.getStepZ() / 2.0);
+    // from just outside the robot towards the target (up and down too), so that what the item traces or shoots does
+    // not hit the robot itself
+    double oldX = getX(), oldY = getY(), oldZ = getZ();
+    setPos(getX() + facing.getStepX() * 0.6, getY() + facing.getStepY() * 0.6, getZ() + facing.getStepZ() * 0.6);
     try {
       return useItemWithHand(duration, stack);
     } finally {
-      setPos(oldX, getY(), oldZ);
+      setPos(oldX, oldY, oldZ);
     }
   }
 
@@ -320,13 +349,11 @@ public class Player extends FakePlayer implements li.cil.oc.core.impl.server.age
       setPos(getX(), getY() - fakeEyeHeight, getZ());
     }
     try {
-      setInventoryPlayerItems(this);
       var blockHit = new net.minecraft.world.phys.BlockHitResult(
         new Vec3(pos.getX() + hitX, pos.getY() + hitY, pos.getZ() + hitZ),
         side, pos, false);
       var context = new net.minecraft.world.item.context.UseOnContext(level(), this, InteractionHand.OFF_HAND, stack, blockHit);
       var didPlace = stack.useOn(context);
-      detectInventoryPlayerChanges(this);
 
       if (didPlace == InteractionResult.SUCCESS) {
         MinecraftForge.EVENT_BUS.post(new RobotPlaceBlockEvent.Post(agent, stack, level(), pos));
@@ -537,6 +564,8 @@ public class Player extends FakePlayer implements li.cil.oc.core.impl.server.age
       if (carried.bringBack(manaKept, li.cil.oc.core.impl.util.CarriedInventory.manaItems, getRandom())) {
         agent.mainInventory().setChanged();
       }
+      // what vanilla code gave the player beyond the robot's slots (a milk bucket, an empty bottle) is the robot's
+      var extras = carried.extras();
       carried.restore();
       getInventory().selected = oldSelected;
       if (inventory != agent.mainInventory()) {
@@ -570,6 +599,7 @@ public class Player extends FakePlayer implements li.cil.oc.core.impl.server.age
       if (!getInventory().offhand.get(0).isEmpty()) {
         getInventory().offhand.set(0, ItemStack.EMPTY);
       }
+      for (ItemStack extra : extras) li.cil.oc.core.impl.util.CarriedInventory.giveToAgent(agent, extra);
     }
   }
 
@@ -585,18 +615,7 @@ public class Player extends FakePlayer implements li.cil.oc.core.impl.server.age
 
   private ItemStack addToAgentInventory(ItemStack stack) {
     ItemStack remainder = stack.copy();
-    for (int j = 0; j < agent.mainInventory().getContainerSize() && !remainder.isEmpty(); j++) {
-      ItemStack slot = agent.mainInventory().getItem(j);
-      if (slot.isEmpty()) {
-        agent.mainInventory().setItem(j, remainder.copy());
-        remainder.setCount(0);
-      } else if (ItemStack.isSameItemSameTags(slot, remainder) && slot.getCount() < slot.getMaxStackSize()) {
-        int transfer = Math.min(remainder.getCount(), slot.getMaxStackSize() - slot.getCount());
-        slot.grow(transfer);
-        agent.mainInventory().setItem(j, slot);
-        remainder.shrink(transfer);
-      }
-    }
+    li.cil.oc.core.impl.util.CarriedInventory.insertIntoAgent(agent, remainder);
     return remainder;
   }
 

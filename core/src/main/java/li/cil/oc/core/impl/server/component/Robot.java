@@ -133,6 +133,11 @@ public class Robot extends li.cil.oc.core.impl.server.component.RobotBase {
   }
 
   @Override
+  protected boolean playerInteractEntity(Player player, Entity entity) {
+    return player instanceof li.cil.oc.core.impl.server.agent.AgentPlayer ap ? ap.interactWithEntity(entity) : super.playerInteractEntity(player, entity);
+  }
+
+  @Override
   protected int playerActivateBlockOrUseItem(Player player, int x, int y, int z, int side, float hitX, float hitY, float hitZ, double duration) {
     return player instanceof li.cil.oc.core.impl.server.agent.AgentPlayer ap ? ap.activateBlockOrUseItem(x, y, z, side, hitX, hitY, hitZ, duration) : li.cil.oc.core.server.agent.ActivationType.None;
   }
