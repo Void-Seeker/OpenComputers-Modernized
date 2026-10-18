@@ -276,7 +276,7 @@ public final class PacketHandler extends li.cil.oc.neoforge.common.PacketHandler
     boolean enabled = p.readBoolean();
     if (p.player instanceof ServerPlayer player) {
       if (player.containerMenu instanceof li.cil.oc.core.impl.common.container.Rack container && container.rack == entity) {
-        entity.isRelayEnabled = enabled;
+        entity.setRelayEnabled(enabled);
       } else {
         logForgedPacket(player);
       }
@@ -352,6 +352,7 @@ public final class PacketHandler extends li.cil.oc.neoforge.common.PacketHandler
       if (dx * dx + dy * dy + dz * dz <= 64) {
         if (!label.equals(entity.label)) {
           entity.label = label;
+          entity.setChanged(); // saved (it reverted after a restart)
           PacketSender.sendWaypointLabel(entity);
         }
       }

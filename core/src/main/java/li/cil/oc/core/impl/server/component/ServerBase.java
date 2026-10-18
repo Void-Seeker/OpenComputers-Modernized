@@ -281,8 +281,10 @@ public abstract class ServerBase implements ComponentInventory, MachineHost, Ser
   @Override
   public abstract int tier();
 
+  // only while this is still the rack's server in its slot: taken out (by another player, a hopper), its menu could
+  // take the parts the item already holds (dupe) and lose what was put in
   public boolean isUseableByPlayer(Player player) {
-    return rack.stillValid(player);
+    return rack.getMountable(slot) == this && rack.stillValid(player);
   }
 
   @Override

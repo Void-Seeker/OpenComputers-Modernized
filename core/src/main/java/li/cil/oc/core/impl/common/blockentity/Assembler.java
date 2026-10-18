@@ -147,12 +147,14 @@ public class Assembler extends BlockEntity implements li.cil.oc.api.network.Envi
     return template != null && !isAssembling() && output == null && template.validate(this).valid();
   }
 
+  // also an instant (creative) build waiting for its tick: it needs no energy, and its case slot took a new case
+  // that the finished build then overwrote
   public boolean isAssembling() {
-    return requiredEnergy > 0;
+    return requiredEnergy > 0 || output != null;
   }
 
   public double progress() {
-    return (1 - requiredEnergy / totalRequiredEnergy) * 100;
+    return totalRequiredEnergy > 0 ? (1 - requiredEnergy / totalRequiredEnergy) * 100 : 100;
   }
 
   public int timeRemaining() {

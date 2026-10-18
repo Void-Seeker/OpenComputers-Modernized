@@ -308,12 +308,17 @@ public class Rack extends HubBlockEntity implements PowerAcceptor, PowerBalancer
     return tryChangeBuffer(side, amount, true);
   }
 
+  // as the other power acceptors: up to the rack's rate and what the network can take, and only when it is not a
+  // simulation (Forge's simulate added the energy too - mods that simulate first paid once and delivered twice)
   @Override
   public double tryChangeBuffer(Direction side, double amount, boolean doReceive) {
+    if (isClient() || OCSettings.get().ignorePower) return 0;
     var c = connector(side);
     if (c.isPresent()) {
       var conn = c.get();
-      if (conn.tryChangeBuffer(amount)) return amount;
+      double capped = MathCompat.clamp(amount, 0, Math.min(energyThroughput(), conn.globalBufferSize() - conn.globalBuffer()));
+      if (doReceive) return capped - conn.changeBuffer(capped);
+      return capped;
     }
     return 0;
   }
@@ -425,9 +430,74 @@ public class Rack extends HubBlockEntity implements PowerAcceptor, PowerBalancer
     return facing;
   }
 
+  /** The relay switch from the GUI, saved (it was set and not saved: it reverted after a restart). */
+  public void setRelayEnabled(boolean value) {
+    if (isRelayEnabled != value) {
+      isRelayEnabled = value;
+      setChanged();
+    }
+  }
+
+  // The rack's facing is its block state's: turning the field alone (the wrench did) left the model, shape and save
+  // behind, and the plugs wired to the old sides.
   @Override
   public void facing(Direction value) {
+    var level = getLevel();
+    var state = getBlockState();
+    if (level != null && value.getAxis().isHorizontal() && state.hasProperty(net.minecraft.world.level.block.state.properties.BlockStateProperties.HORIZONTAL_FACING)
+      && state.getValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.HORIZONTAL_FACING) != value) {
+      level.setBlock(getBlockPos(), state.setValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.HORIZONTAL_FACING, value), 3);
+    } else {
+      applyFacing(value);
+    }
+  }
+
+  @SuppressWarnings("deprecation")
+  @Override
+  public void setBlockState(net.minecraft.world.level.block.state.BlockState state) {
+    super.setBlockState(state);
+    if (state.hasProperty(net.minecraft.world.level.block.state.properties.BlockStateProperties.HORIZONTAL_FACING)) {
+      applyFacing(state.getValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.HORIZONTAL_FACING));
+    }
+  }
+
+  private void applyFacing(Direction value) {
+    if (value == facing || !value.getAxis().isHorizontal()) return;
+    var level = getLevel();
+    boolean live = level != null && !level.isClientSide && !isRemoved();
+    if (live) {
+      // the mountables leave the plugs of the old sides...
+      for (int slot = 0; slot < getContainerSize(); slot++) {
+        var mountable = getMountable(slot);
+        var side = nodeMapping[slot][0];
+        if (mountable != null && mountable.node() != null && side != null) {
+          var plug = sidedNode(toGlobal(side));
+          if (plug != null) mountable.node().disconnect(plug);
+        }
+      }
+    }
     facing = value;
+    if (live) {
+      // ...the new front connects to nothing outside...
+      var front = plugs[facing.ordinal()] != null ? plugs[facing.ordinal()].node() : null;
+      if (front != null) {
+        var outside = new java.util.ArrayList<Node>();
+        for (var neighbor : front.neighbors()) outside.add(neighbor);
+        for (var neighbor : outside) front.disconnect(neighbor);
+      }
+      // ...and the mountables join the plugs of their sides as they are now
+      for (int slot = 0; slot < getContainerSize(); slot++) {
+        var mountable = getMountable(slot);
+        var side = nodeMapping[slot][0];
+        if (mountable != null && mountable.node() != null && side != null) {
+          var plug = sidedNode(toGlobal(side));
+          if (plug != null) mountable.node().connect(plug);
+        }
+      }
+      Network.joinOrCreateNetwork(this);
+      setChanged();
+      onRotationChanged();
+    }
   }
 
   @Override

@@ -166,7 +166,7 @@ public abstract class DiskDriveMountableBase extends AbstractManagedEnvironment 
 
   @Override
   public boolean stillValid(@NotNull Player player) {
-    return rack.stillValid(player);
+    return rack.getMountable(slot) == this && rack.stillValid(player); // as ServerBase: not once it left the rack
   }
 
   @Override

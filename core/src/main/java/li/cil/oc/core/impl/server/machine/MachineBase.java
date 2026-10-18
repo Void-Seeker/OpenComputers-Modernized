@@ -781,7 +781,9 @@ public abstract class MachineBase extends AbstractManagedEnvironment implements 
   @Override
   public void onDisconnect(Node node) {
     if (node == this.node) {
-      close();
+      // a computer busy in a call cannot close now: the scheduled closes try again each tick (a server taken out of
+      // its rack mid-slice kept its Lua state forever - nothing updates a removed machine)
+      if (!close()) platformScheduleClose();
       if (tmp != null) tmp.node().remove();
     } else if (node instanceof Component) removeComponent((Component) node);
     host.onMachineDisconnect(node);
@@ -1043,18 +1045,19 @@ public abstract class MachineBase extends AbstractManagedEnvironment implements 
 
   public boolean tryClose() {
     if (isExecuting()) return false;
-    close();
+    if (!close()) return false; // retried next tick (it counted as closed, and the Lua state was never let go)
     if (tmp != null) tmp.node().remove();
     if (node.network() != null && tmp != null) node.connect(tmp.node());
     node.sendToReachable("computer.stopped");
     return true;
   }
 
-  private void close() {
+  /** Whether it is closed: not while the computer thread holds the lock. */
+  private boolean close() {
     synchronized (state) {
-      if (!state.isEmpty() && state.peek() == State.Stopped) return;
+      if (!state.isEmpty() && state.peek() == State.Stopped) return true;
     }
-    if (!lockForServer("closing")) return;
+    if (!lockForServer("closing")) return false;
     try {
       synchronized (state) {
         state.clear();
@@ -1070,6 +1073,7 @@ public abstract class MachineBase extends AbstractManagedEnvironment implements 
       executionLock.unlock();
     }
     host.markChanged();
+    return true;
   }
 
   private void saveTmp(CompoundTag nbt, li.cil.oc.api.network.ManagedEnvironment fs) {

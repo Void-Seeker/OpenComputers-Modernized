@@ -258,18 +258,12 @@ public final class EventHandler {
       }
       var chunk = e.getChunk();
       if (chunk instanceof net.minecraft.world.level.chunk.LevelChunk levelChunk) {
-        // Block entities dispose themselves when the chunk removes them, after it has been saved. Racks are block
-        // entities, so this is where their servers' machines stop (upstream looked for them among the entities).
+        // Block entities dispose themselves when the chunk removes them, after it has been saved; their machines
+        // (a rack's servers too) close then. Nothing may stop here: Forge posts this event before the chunk is saved,
+        // and racked servers were saved stopped (they came back off after every unload).
         for (var be : levelChunk.getBlockEntities().values()) {
           if (be instanceof li.cil.oc.core.impl.common.blockentity.traits.BlockEntity te) {
             te.markUnloading();
-          }
-          if (be instanceof Rack rack) {
-            for (int i = 0; i < rack.getContainerSize(); i++) {
-              if (rack.getMountable(i) instanceof Server server && server.machine() != null) {
-                server.machine().stop();
-              }
-            }
           }
         }
       }

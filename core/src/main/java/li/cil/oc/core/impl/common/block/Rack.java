@@ -83,6 +83,19 @@ public class Rack extends RedstoneAware implements PowerAcceptor, GUI, StateAwar
     setFacing(world, pos, state.getValue(FACING));
   }
 
+  // turnable (the wrench, structures): the block entity follows its state
+  @SuppressWarnings("deprecation")
+  @Override
+  public @NotNull BlockState rotate(@NotNull BlockState state, net.minecraft.world.level.block.@NotNull Rotation rotation) {
+    return state.setValue(FACING, rotation.rotate(state.getValue(FACING)));
+  }
+
+  @SuppressWarnings("deprecation")
+  @Override
+  public @NotNull BlockState mirror(@NotNull BlockState state, net.minecraft.world.level.block.@NotNull Mirror mirror) {
+    return state.rotate(mirror.getRotation(state.getValue(FACING)));
+  }
+
   @Override
   public boolean useShapeForLightOcclusion(@NotNull BlockState state) {
     return false;

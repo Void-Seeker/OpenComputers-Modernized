@@ -101,6 +101,14 @@ public class TerminalServer implements Environment, EnvironmentHost, Analyzable,
       var tag = cd.copyTag();
       var key = tag.getString(OCSettings.namespace + "key");
       if (key.isEmpty()) return false;
+      // in range, here too: only the client checked it, and a modified one typed from anywhere in the dimension
+      if (self.rack != null) {
+        if (self.rack.world() != player.level()) return false;
+        double dx = self.rack.xPosition() - player.getX();
+        double dy = self.rack.yPosition() - player.getY();
+        double dz = self.rack.zPosition() - player.getZ();
+        if (dx * dx + dy * dy + dz * dz > self.range * self.range) return false;
+      }
       return self.sidedKeys().contains(key);
     });
     keyboard = created;

@@ -49,6 +49,9 @@ public class Disassembler extends BlockEntity implements li.cil.oc.api.network.E
   public double totalRequiredEnergy = 0;
   public double buffer = 0;
   public boolean disassembleNextInstantly = false;
+  // the job under way was a creative player's: no part breaks (the flag above is gone by then - taking the item out
+  // of the slot clears it - and creative disassembly lost parts to the break chance)
+  public boolean instantJob = false;
   private final ItemStack[] _items = new ItemStack[getContainerSize()];
 
   public Disassembler(BlockPos pos, BlockState state) {
@@ -209,7 +212,7 @@ public class Disassembler extends BlockEntity implements li.cil.oc.api.network.E
         while (buffer >= OCSettings.get().disassemblerItemCost && !queue.isEmpty()) {
           buffer -= OCSettings.get().disassemblerItemCost;
           var stack = queue.remove(0);
-          if (disassembleNextInstantly || level.random.nextDouble() >= OCSettings.get().disassemblerBreakChance) {
+          if (instantJob || level.random.nextDouble() >= OCSettings.get().disassemblerBreakChance) {
             drop(stack);
           }
           setChanged();   // saved as it goes (a reload after an autosave handed out the parts since then again)
@@ -217,8 +220,18 @@ public class Disassembler extends BlockEntity implements li.cil.oc.api.network.E
       }
       // creative's instant work lasts for its one item (this made every item after the first instant: the break
       // chance never applied)
-      if (queue.isEmpty()) disassembleNextInstantly = false;
+      if (queue.isEmpty()) {
+        disassembleNextInstantly = false;
+        instantJob = false;
+      }
     }
+  }
+
+  // one item at a time, as each recipe slot was: ingredients come merged (4 nuggets as one stack), and one roll of the
+  // break chance lost them all, for the energy of one
+  private void enqueue(ItemStack part) {
+    if (part == null || part.isEmpty()) return;
+    for (int i = 0; i < part.getCount(); i++) queue.add(part.copyWithCount(1));
   }
 
   public void disassemble(ItemStack stack, boolean instant) {
@@ -227,13 +240,14 @@ public class Disassembler extends BlockEntity implements li.cil.oc.api.network.E
       var template = DisassemblerTemplates.select(stack);
       if (template != null) {
         var result = template.disassemble(stack, ingredients);
-        if (result[0] != null) for (var part : (ItemStack[]) result[0]) if (part != null && !part.isEmpty()) queue.add(part);
+        if (result[0] != null) for (var part : (ItemStack[]) result[0]) enqueue(part);
         if (result[1] != null) for (var drop : (ItemStack[]) result[1]) if (drop != null && !drop.isEmpty()) drop(drop);
       } else {
-        for (var part : ingredients) if (part != null && !part.isEmpty()) queue.add(part);
+        for (var part : ingredients) enqueue(part);
       }
       setChanged();
       totalRequiredEnergy = queue.size() * OCSettings.get().disassemblerItemCost;
+      instantJob = instant;
       if (instant) buffer = totalRequiredEnergy;
     } else {
       drop(stack);
@@ -312,6 +326,7 @@ public class Disassembler extends BlockEntity implements li.cil.oc.api.network.E
     }
     buffer = nbt.getDouble(OCSettings.namespace + "buffer");
     totalRequiredEnergy = nbt.getDouble(OCSettings.namespace + "total");
+    instantJob = nbt.getBoolean(OCSettings.namespace + "instant");
     isActive = !queue.isEmpty();
   }
 
@@ -328,6 +343,7 @@ public class Disassembler extends BlockEntity implements li.cil.oc.api.network.E
     nbt.put(OCSettings.namespace + "queue", tagList);
     nbt.putDouble(OCSettings.namespace + "buffer", buffer);
     nbt.putDouble(OCSettings.namespace + "total", totalRequiredEnergy);
+    nbt.putBoolean(OCSettings.namespace + "instant", instantJob);
   }
 
   @Override
