@@ -38,22 +38,6 @@ import org.jetbrains.annotations.NotNull;
 import org.joml.Quaternionf;
 
 public class RobotRenderer implements BlockEntityRenderer<RobotProxy> {
-  private static final RenderType LABEL_PLATE = RenderType.create(
-    "oc_robot_label_plate",
-    DefaultVertexFormat.POSITION_COLOR_LIGHTMAP,
-    VertexFormat.Mode.QUADS,
-    1536, false, true,
-    RenderType.CompositeState.builder()
-      .setShaderState(RenderStateShard.RENDERTYPE_TEXT_BACKGROUND_SHADER)
-      .setTextureState(RenderStateShard.NO_TEXTURE)
-      .setTransparencyState(RenderStateShard.TRANSLUCENT_TRANSPARENCY)
-      .setLightmapState(RenderStateShard.LIGHTMAP)
-      .setDepthTestState(RenderStateShard.LEQUAL_DEPTH_TEST)
-      .setWriteMaskState(RenderStateShard.COLOR_WRITE)
-      .setCullState(RenderStateShard.NO_CULL)
-      .createCompositeState(false)
-  );
-
   public static final ResourceLocation TEXTURE = new ResourceLocation(OCSettings.resourceDomain, "textures/model/robot.png");
 
   private static float tintR = 1.0f, tintG = 1.0f, tintB = 1.0f;
@@ -189,11 +173,13 @@ public class RobotRenderer implements BlockEntityRenderer<RobotProxy> {
       poseStack.mulPose(new Quaternionf().rotateY((float) Math.toRadians(angle * robot.turnAxis)));
     }
 
+    // The model's front (its visor, the BottomFront mount point) is +z: turn +z to where the robot faces (as OC 1.12
+    // did). It was turned the other way round, visor and front upgrades on the robot's back.
     Direction yaw = robot.yaw();
     switch (yaw) {
-      case SOUTH -> poseStack.mulPose(new Quaternionf().rotateY((float) Math.toRadians(180)));
-      case WEST -> poseStack.mulPose(new Quaternionf().rotateY((float) Math.toRadians(90)));
-      case EAST -> poseStack.mulPose(new Quaternionf().rotateY((float) Math.toRadians(-90)));
+      case NORTH -> poseStack.mulPose(new Quaternionf().rotateY((float) Math.toRadians(180)));
+      case EAST -> poseStack.mulPose(new Quaternionf().rotateY((float) Math.toRadians(90)));
+      case WEST -> poseStack.mulPose(new Quaternionf().rotateY((float) Math.toRadians(-90)));
       default -> {
       }
     }
@@ -504,7 +490,9 @@ public class RobotRenderer implements BlockEntityRenderer<RobotProxy> {
     poseStack.pushPose();
     poseStack.translate(0, 0.8, 0);
     poseStack.mulPose(Minecraft.getInstance().getEntityRenderDispatcher().cameraOrientation());
-    poseStack.scale(0.025f, -0.025f, 0.025f);
+    // 1.20.1 (as its EntityRenderer.renderNameTag): the camera looks along +z here, 1.21 turned it around - its +x
+    // scale mirrored the text and turned it away from the camera, so it was culled and only the dark plate showed
+    poseStack.scale(-0.025f, -0.025f, 0.025f);
 
     Font font = Minecraft.getInstance().font;
     String displayName = (EventHandler.isItTime() ? "§k" : "") + name;
@@ -514,20 +502,8 @@ public class RobotRenderer implements BlockEntityRenderer<RobotProxy> {
     float f1 = Minecraft.getInstance().options.getBackgroundOpacity(0.25F);
     int j = (int) (f1 * 255.0F) << 24;
 
-    if (j != 0) {
-      int width = font.width(displayName);
-      float x0 = f2 - 1.0f;
-      float x1 = f2 + width + 1.0f;
-      int alpha = j >>> 24;
-      var plateMatrix = poseStack.last().pose();
-      VertexConsumer plate = buffer.getBuffer(LABEL_PLATE);
-      plate.vertex(plateMatrix, x0, -1.0f, -0.02f).color(0, 0, 0, alpha).uv2(LightTexture.FULL_BRIGHT).endVertex();
-      plate.vertex(plateMatrix, x1, -1.0f, -0.02f).color(0, 0, 0, alpha).uv2(LightTexture.FULL_BRIGHT).endVertex();
-      plate.vertex(plateMatrix, x1, 9.0f, -0.02f).color(0, 0, 0, alpha).uv2(LightTexture.FULL_BRIGHT).endVertex();
-      plate.vertex(plateMatrix, x0, 9.0f, -0.02f).color(0, 0, 0, alpha).uv2(LightTexture.FULL_BRIGHT).endVertex();
-    }
-
-    font.drawInBatch(displayName, f2, 0, -1, false, matrix, buffer, Font.DisplayMode.NORMAL, 0, LightTexture.FULL_BRIGHT);
+    // the font draws the background plate just behind the text
+    font.drawInBatch(displayName, f2, 0, -1, false, matrix, buffer, Font.DisplayMode.NORMAL, j, LightTexture.FULL_BRIGHT);
 
     poseStack.popPose();
   }
