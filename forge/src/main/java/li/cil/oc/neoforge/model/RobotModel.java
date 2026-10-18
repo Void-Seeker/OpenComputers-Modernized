@@ -148,7 +148,7 @@ public class RobotModel implements IDynamicBakedModel {
 
     @Override
     public @NotNull List<BakedQuad> getQuads(@Nullable BlockState state, @Nullable Direction side, @NotNull RandomSource rand, @NotNull ModelData data, @Nullable RenderType renderType) {
-      return quads;
+      return side == null ? quads : List.of();   // unculled: once, not once per side as well
     }
 
     @Override
@@ -193,13 +193,13 @@ public class RobotModel implements IDynamicBakedModel {
 
     @Override
     public @NotNull List<RenderType> getRenderTypes(@NotNull ItemStack itemStack, boolean fabulous) {
-      return List.of(RenderType.cutout());
+      return List.of(net.minecraftforge.client.RenderTypeHelper.getEntityRenderType(RenderType.cutout(), fabulous));   // shaded as items are
     }
 
     @Override
     public @NotNull BakedModel applyTransform(@NotNull ItemDisplayContext transformType, @NotNull PoseStack poseStack, boolean applyLeftHandTransform) {
       switch (transformType) {
-        case THIRD_PERSON_RIGHT_HAND ->
+        case THIRD_PERSON_RIGHT_HAND, THIRD_PERSON_LEFT_HAND ->   // the left mirrored (it had none)
           new ItemTransform(new Vector3f(75, 45, 0), new Vector3f(0, 0.15625f, 0), new Vector3f(0.375f, 0.375f, 0.375f)).apply(applyLeftHandTransform, poseStack);
         case FIRST_PERSON_LEFT_HAND ->
           new ItemTransform(new Vector3f(0, 225, 0), new Vector3f(0, 0, 0), new Vector3f(0.4f, 0.4f, 0.4f)).apply(applyLeftHandTransform, poseStack);
@@ -265,6 +265,6 @@ public class RobotModel implements IDynamicBakedModel {
 
   @Override
   public @NotNull List<RenderType> getRenderTypes(@NotNull ItemStack itemStack, boolean fabulous) {
-    return List.of(RenderType.cutout());
+    return List.of(net.minecraftforge.client.RenderTypeHelper.getEntityRenderType(RenderType.cutout(), fabulous));   // shaded as items are
   }
 }

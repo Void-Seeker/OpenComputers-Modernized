@@ -29,6 +29,7 @@ import org.joml.Matrix4f;
 public class Drone extends DynamicGuiContainer<li.cil.oc.core.impl.common.container.Drone> implements li.cil.oc.core.impl.client.gui.traits.DisplayBuffer {
   public final li.cil.oc.core.impl.common.entity.Drone drone;
   private final TextBuffer buffer = new TextBuffer(20, 2, new PackedColor.SingleBitFormat(0x33FF33));
+  private String shownStatus = null;
   private final TextBufferRenderData bufferRenderer = new TextBufferRenderData() {
     private boolean _dirty = true;
 
@@ -99,11 +100,17 @@ public class Drone extends DynamicGuiContainer<li.cil.oc.core.impl.common.contai
   @Override
   public void render(@NotNull GuiGraphics guiGraphics, int mouseX, int mouseY, float dt) {
     powerButton.toggled = drone.isRunning();
-    var lines = drone.statusText().split("\n");
-    for (int i = 0; i < lines.length; i++) {
-      buffer.set(0, i, lines[i], false);
+    // only when it changed, and on a cleared buffer (a shorter text left the old one's end showing)
+    String status = drone.statusText();
+    if (!status.equals(shownStatus)) {
+      shownStatus = status;
+      buffer.fill(0, 0, buffer.width, buffer.height, ' ');
+      var lines = status.split("\n");
+      for (int i = 0; i < lines.length; i++) {
+        buffer.set(0, i, lines[i], false);
+      }
+      bufferRenderer.setDirty(true);
     }
-    bufferRenderer.setDirty(lines.length > 0);
     super.render(guiGraphics, mouseX, mouseY, dt);
   }
 
@@ -129,6 +136,12 @@ public class Drone extends DynamicGuiContainer<li.cil.oc.core.impl.common.contai
 
   @Override
   public double changeSize(double ignoredW, double ignoredH, boolean ignoredRecompile) {
+    return 2.0;
+  }
+
+  // the status text is drawn at twice the size (DisplayBuffer's default scale is 0: the text was never visible)
+  @Override
+  public double scale() {
     return 2.0;
   }
 
