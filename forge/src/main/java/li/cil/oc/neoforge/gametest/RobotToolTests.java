@@ -77,6 +77,10 @@ public final class RobotToolTests {
     helper.assertTrue(saw[0], "the tool did not see the robot's inventory as its holder's");
     helper.assertTrue(robot.mainInventory().getItem(1) == cell && cell.getTag().getInt("ember") == 95, "the cell was not drawn on in place: " + robot.mainInventory().getItem(1).getTag());
     helper.assertTrue(robot.mainInventory().getItem(2).getCount() == 4, "the coal count did not come back: " + robot.mainInventory().getItem(2));
+    // and the holder carries nothing afterwards: a robot action must not find copies to draw on for free (a mana
+    // tool paying its wear from a copied mana tablet)
+    helper.assertTrue(robot.player().getInventory().items.stream().allMatch(ItemStack::isEmpty),
+      "the robot's fake player still carries copies after the tick: " + robot.player().getInventory().items);
 
     // OC's own items are left alone (a tablet would boot in the robot's hand)
     robot.equipmentInventory().setItem(0, li.cil.oc.api.Items.get(Constants.BlockName.Cable).createItemStack(1));
