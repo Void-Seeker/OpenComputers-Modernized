@@ -49,7 +49,7 @@ public class MicrocontrollerData extends ItemData {
       }
     }
     if (!hasEeprom) {
-      components.add(null);
+      components.add(ItemStack.EMPTY);   // no EEPROM (null broke saving a disassembler working on it: the chunk did not save)
     }
   }
 

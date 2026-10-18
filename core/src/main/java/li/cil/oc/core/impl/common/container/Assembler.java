@@ -64,7 +64,7 @@ public class Assembler extends Player {
       var tplSlot = AssemblerTemplates.NoSlot;
       if (index >= 1 && index < 4) tplSlot = template.containerSlots()[index - 1];
       else if (index >= 4 && index < 13) tplSlot = template.upgradeSlots()[index - 4];
-      else if (index >= 13 && index < 21) tplSlot = template.componentSlots()[index - 13];
+      else if (index >= 13 && index < 13 + template.componentSlots().length) tplSlot = template.componentSlots()[index - 13];
       return new InventorySlot(tplSlot.kind(), tplSlot.tier());
     }
     return new InventorySlot(Slot.None, Tier.None);

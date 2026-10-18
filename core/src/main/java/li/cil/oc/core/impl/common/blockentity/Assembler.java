@@ -168,7 +168,9 @@ public class Assembler extends BlockEntity implements li.cil.oc.api.network.Envi
         if (!canPlaceItem(slot, stack)) return false;
       }
       var result = template.assemble(this);
-      output = (ItemStack) result[0];
+      // a template that failed keeps the parts where they are (they were cleared and the assembler stuck)
+      if (result == null || !(result[0] instanceof ItemStack made) || made.isEmpty()) return false;
+      output = made;
       double energy = (double) result[1];
       totalRequiredEnergy = finishImmediately ? 0 : Math.max(1, energy);
       requiredEnergy = totalRequiredEnergy;
@@ -298,7 +300,7 @@ public class Assembler extends BlockEntity implements li.cil.oc.api.network.Envi
     var tplSlot = AssemblerTemplates.NoSlot;
     if (slot >= 1 && slot < 4) tplSlot = template.containerSlots()[slot - 1];
     else if (slot >= 4 && slot < 13) tplSlot = template.upgradeSlots()[slot - 4];
-    else if (slot >= 13 && slot < 21) tplSlot = template.componentSlots()[slot - 13];
+    else if (slot >= 13 && slot < 13 + template.componentSlots().length) tplSlot = template.componentSlots()[slot - 13];   // up to 21 (the 9th never took anything)
     return tplSlot.validate(this, slot, stack);
   }
 

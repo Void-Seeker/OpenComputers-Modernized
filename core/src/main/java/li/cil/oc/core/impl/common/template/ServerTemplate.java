@@ -22,16 +22,7 @@ public final class ServerTemplate {
   @SuppressWarnings("unused")
 
   public static Object[] disassemble(ItemStack stack, ItemStack[] ingredients) {
-    var info = new ServerInventory() {
-      @Override
-      public ItemStack container() {
-        return stack;
-      }
-
-      @Override
-      public void updateItems(int slot, ItemStack stack) {
-      }
-    };
+    var info = new li.cil.oc.core.impl.common.inventory.ItemServerInventory(stack);
     var drops = new ArrayList<ItemStack>();
     for (int i = 0; i < info.getContainerSize(); i++) {
       var item = info.getItem(i);

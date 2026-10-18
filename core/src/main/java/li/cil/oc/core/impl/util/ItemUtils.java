@@ -69,9 +69,23 @@ public final class ItemUtils {
               }
             }
           }
-          if (!blacklisted) {
-            return stacks.toArray(new ItemStack[0]);
+          if (blacklisted) continue;
+          // one item's share of what the recipe takes (it gave the whole recipe for each: 8x for a transistor), and
+          // never a recipe that takes the item itself (an EEPROM copy recipe made 2 out of 1)
+          if (stacks.stream().anyMatch(s -> ItemStack.isSameItem(s, stack))) continue;
+          List<ItemStack> merged = new ArrayList<>();
+          for (var s : stacks) {
+            var same = merged.stream().filter(m -> ItemStack.isSameItemSameTags(m, s)).findFirst();
+            if (same.isPresent()) same.get().grow(s.getCount());
+            else merged.add(s.copy());
           }
+          int made = Math.max(1, result.getCount());
+          List<ItemStack> share = new ArrayList<>();
+          for (var m : merged) {
+            int n = m.getCount() / made;
+            if (n > 0) share.add(m.copyWithCount(n));
+          }
+          return share.toArray(new ItemStack[0]);
         }
       }
       return new ItemStack[0];

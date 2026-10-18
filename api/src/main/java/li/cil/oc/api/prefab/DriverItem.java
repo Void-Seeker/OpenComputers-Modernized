@@ -47,17 +47,11 @@ public abstract class DriverItem implements li.cil.oc.api.driver.DriverItem {
 
   @Override
   public CompoundTag dataTag(final ItemStack stack) {
-    CustomData customData = CustomData.get(stack);
-    CompoundTag nbt;
-    if (customData != null && !customData.isEmpty()) {
-      nbt = customData.copyTag();
-    } else {
-      nbt = new CompoundTag();
-      CustomData.set(stack, CustomData.of(nbt));
-    }
+    // The item's own tag, so that what is written into it stays (it was a copy whenever the item had a tag).
+    CompoundTag nbt = stack.getOrCreateTag();
     // This is the suggested key under which to store item component data.
     // You are free to change this as you please.
-    if (!nbt.contains("oc:data")) {
+    if (!nbt.contains("oc:data", net.minecraft.nbt.Tag.TAG_COMPOUND)) {
       nbt.put("oc:data", new CompoundTag());
     }
     return nbt.getCompound("oc:data");

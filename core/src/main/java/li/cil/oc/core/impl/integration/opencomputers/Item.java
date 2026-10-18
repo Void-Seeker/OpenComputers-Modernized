@@ -12,16 +12,13 @@ import net.minecraft.world.item.ItemStack;
 
 @SuppressWarnings("unused")
 public abstract class Item implements DriverItem {
+  /**
+   * The item's own "oc:data" tag (made if missing): what is written into it stays (it was a copy whenever the item
+   * already had a tag - a crafted linked card's tunnel was never stored, every pair shared the "creative" one).
+   */
   public static CompoundTag getDataTag(ItemStack stack) {
-    var customData = CustomData.get(stack);
-    CompoundTag nbt;
-    if (customData != null && !customData.isEmpty()) {
-      nbt = customData.copyTag();
-    } else {
-      nbt = new CompoundTag();
-      CustomData.set(stack, li.cil.oc.compat.CustomData.of(nbt));
-    }
-    if (!nbt.contains(OCSettings.namespace + "data")) {
+    CompoundTag nbt = stack.getOrCreateTag();
+    if (!nbt.contains(OCSettings.namespace + "data", net.minecraft.nbt.Tag.TAG_COMPOUND)) {
       nbt.put(OCSettings.namespace + "data", new CompoundTag());
     }
     return nbt.getCompound(OCSettings.namespace + "data");

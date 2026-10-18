@@ -212,9 +212,12 @@ public class Disassembler extends BlockEntity implements li.cil.oc.api.network.E
           if (disassembleNextInstantly || level.random.nextDouble() >= OCSettings.get().disassemblerBreakChance) {
             drop(stack);
           }
+          setChanged();   // saved as it goes (a reload after an autosave handed out the parts since then again)
         }
       }
-      disassembleNextInstantly = !queue.isEmpty();
+      // creative's instant work lasts for its one item (this made every item after the first instant: the break
+      // chance never applied)
+      if (queue.isEmpty()) disassembleNextInstantly = false;
     }
   }
 
@@ -224,11 +227,12 @@ public class Disassembler extends BlockEntity implements li.cil.oc.api.network.E
       var template = DisassemblerTemplates.select(stack);
       if (template != null) {
         var result = template.disassemble(stack, ingredients);
-        if (result[0] != null) queue.addAll(java.util.Arrays.asList((ItemStack[]) result[0]));
-        if (result[1] != null) for (var drop : (ItemStack[]) result[1]) drop(drop);
+        if (result[0] != null) for (var part : (ItemStack[]) result[0]) if (part != null && !part.isEmpty()) queue.add(part);
+        if (result[1] != null) for (var drop : (ItemStack[]) result[1]) if (drop != null && !drop.isEmpty()) drop(drop);
       } else {
-        queue.addAll(java.util.Arrays.asList(ingredients));
+        for (var part : ingredients) if (part != null && !part.isEmpty()) queue.add(part);
       }
+      setChanged();
       totalRequiredEnergy = queue.size() * OCSettings.get().disassemblerItemCost;
       if (instant) buffer = totalRequiredEnergy;
     } else {

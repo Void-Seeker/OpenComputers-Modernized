@@ -16,25 +16,16 @@ public final class InventoryProviderServer implements InventoryProvider {
 
   @Override
   public Container getInventory(ItemStack stack, Player player) {
-    return new ServerInventory() {
-      private final ItemStack container = stack;
-
-      @Override
-      public ItemStack container() {
-        return container;
-      }
-
-      @Override
-      public void updateItems(int slot, ItemStack stack) {
-      }
-
+    // the server's parts as they are in the item, changes written back into it (it could not hold them at all)
+    return new li.cil.oc.core.impl.common.inventory.ItemServerInventory(stack) {
       @Override
       public boolean stillValid(@NotNull Player player) {
         return true;
       }
 
       @Override
-      public void clearContent() {
+      public void setChanged() {
+        setChanged(player.level().registryAccess());
       }
     };
   }

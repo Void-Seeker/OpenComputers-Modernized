@@ -49,18 +49,19 @@ public final class TabletTemplate {
 
   @SuppressWarnings("unused")
   public static Object[] assemble(Container inventory) {
-    java.util.List<ItemStack> items = new java.util.ArrayList<>();
-    for (int i = 1; i < inventory.getContainerSize(); i++) {
-      var stack = inventory.getItem(i);
-      if (!stack.isEmpty()) items.add(stack);
-    }
     var data = new TabletData();
     data.tier = li.cil.oc.core.impl.util.ItemUtils.caseTier(inventory.getItem(0));
-    data.container = items.isEmpty() ? null : items.get(0);
+    // the container is what sits in the container slot (slot 1; tier 1 has none), the parts are everything else (the
+    // first non-empty part became the container: tier 1 tablets got it twice, tier 2 ones lost it when no container
+    // was put in)
+    boolean hasContainer = data.tier != Tier.One;
+    ItemStack container = hasContainer ? inventory.getItem(1) : ItemStack.EMPTY;
+    data.container = container.isEmpty() ? null : container;
     java.util.List<ItemStack> itemList = new java.util.ArrayList<>();
     itemList.add(li.cil.oc.api.Items.get(Constants.BlockName.ScreenTier1).createItemStack(1));
-    for (int i = (data.tier == Tier.One ? 0 : 1); i < items.size(); i++) {
-      itemList.add(items.get(i));
+    for (int i = hasContainer ? 2 : 1; i < inventory.getContainerSize(); i++) {
+      var stack = inventory.getItem(i);
+      if (!stack.isEmpty()) itemList.add(stack);
     }
     data.items = itemList;
     data.energy = OCSettings.get().bufferTablet;
