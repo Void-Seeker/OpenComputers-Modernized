@@ -134,6 +134,12 @@ public class ClientTerminalHelper {
       public boolean charTyped(char codePoint, int modifiers) {
         return inner.handleCharTyped(codePoint, modifiers) || super.charTyped(codePoint, modifiers);
       }
+
+      @Override
+      public void removed() {
+        inner.onGuiClosed(); // the keys held are let go (the terminal's screen never did)
+        super.removed();
+      }
     });
   }
 }

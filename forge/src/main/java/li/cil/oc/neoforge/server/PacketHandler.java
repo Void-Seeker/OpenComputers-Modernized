@@ -336,6 +336,7 @@ public final class PacketHandler extends li.cil.oc.neoforge.common.PacketHandler
           nbt.putInt("viewportWidth", buffer.getViewportWidth());
           nbt.putInt("viewportHeight", buffer.getViewportHeight());
           PacketSender.sendTextBufferInit(address, nbt, entity);
+          buffer.sendRamPagesTo(entity);
         }
       }
     }

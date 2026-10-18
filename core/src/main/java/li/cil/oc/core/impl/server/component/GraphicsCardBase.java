@@ -161,10 +161,11 @@ public class GraphicsCardBase extends AbstractManagedEnvironment implements Devi
     buffers.clear();
   }
 
-  private boolean resolveInvokeCosts(int idx, Context context, double budgetCost, int units, double factor) {
+  private boolean resolveInvokeCosts(int idx, Context context, double budgetCost, long units, double factor) {
     if (idx == 0) {
       context.consumeCallBudget(budgetCost);
-      return node.tryChangeBuffer(-units * factor);
+      // never a gain: a negative or overflowing width times height made the cost negative, and the card gave energy
+      return node.tryChangeBuffer(-Math.max(0L, units) * factor);
     }
     return true;
   }
@@ -268,8 +269,8 @@ public class GraphicsCardBase extends AbstractManagedEnvironment implements Devi
     return screen(dstIdx, dst -> {
       int col = args.optInteger(1, 1);
       int row = args.optInteger(2, 1);
-      int w = args.optInteger(3, dst.getWidth());
-      int h = args.optInteger(4, dst.getHeight());
+      int w = MathCompat.clamp(args.optInteger(3, dst.getWidth()), 0, dst.getWidth());
+      int h = MathCompat.clamp(args.optInteger(4, dst.getHeight()), 0, dst.getHeight());
       int srcIdx = args.optInteger(5, bufferIndex);
       return screen(srcIdx, src -> {
         int fromCol = args.optInteger(6, 1);
@@ -295,7 +296,7 @@ public class GraphicsCardBase extends AbstractManagedEnvironment implements Devi
         }
         budgetExhausted = false;
 
-        if (resolveInvokeCosts(dstIdx, context, budgetCost, w * h, energyCost)) {
+        if (resolveInvokeCosts(dstIdx, context, budgetCost, (long) w * h, energyCost)) {
           if (dstIdx == srcIdx) {
             int tx = col - fromCol;
             int ty = row - fromRow;
@@ -567,7 +568,7 @@ public class GraphicsCardBase extends AbstractManagedEnvironment implements Devi
     int tx = args.checkInteger(4);
     int ty = args.checkInteger(5);
     return screen(s -> {
-      if (resolveInvokeCosts(bufferIndex, context, copyCosts[tier], w * h, OCSettings.get().gpuCopyCost)) {
+      if (resolveInvokeCosts(bufferIndex, context, copyCosts[tier], (long) w * h, OCSettings.get().gpuCopyCost)) {
         s.copy(x, y, w, h, tx, ty);
         return ResultWrapper.result(true);
       }
@@ -586,7 +587,7 @@ public class GraphicsCardBase extends AbstractManagedEnvironment implements Devi
       return screen(s -> {
         int c = value.codePointAt(0);
         double cost = (c == ' ') ? OCSettings.get().gpuClearCost : OCSettings.get().gpuFillCost;
-        if (resolveInvokeCosts(bufferIndex, context, fillCosts[tier], w * h, cost)) {
+        if (resolveInvokeCosts(bufferIndex, context, fillCosts[tier], (long) w * h, cost)) {
           s.fill(x, y, w, h, c);
           return ResultWrapper.result(true);
         }

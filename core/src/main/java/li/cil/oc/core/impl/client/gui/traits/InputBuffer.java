@@ -181,7 +181,10 @@ public interface InputBuffer extends DisplayBuffer {
       keyCode == GLFW.GLFW_KEY_SLASH ||
       keyCode == GLFW.GLFW_KEY_GRAVE_ACCENT ||
       keyCode == GLFW.GLFW_KEY_WORLD_1 ||
-      keyCode == GLFW.GLFW_KEY_WORLD_2;
+      keyCode == GLFW.GLFW_KEY_WORLD_2 ||
+      // the numpad's digits and operators type their characters too (they were dropped)
+      (keyCode >= GLFW.GLFW_KEY_KP_0 && keyCode <= GLFW.GLFW_KEY_KP_ADD) ||
+      keyCode == GLFW.GLFW_KEY_KP_EQUAL;
   }
 
   private static int glfwToLwjglKeyCode(int keyCode) {

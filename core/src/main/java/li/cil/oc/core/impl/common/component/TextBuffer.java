@@ -73,6 +73,31 @@ public class TextBuffer extends TextBufferBase {
     return pendingCommands;
   }
 
+  /**
+   * The GPU pages this screen has, to one client that just asked for the screen: they went only to the clients near
+   * when each page was made, and a bitblt from one drew nothing for a client that came later.
+   */
+  public void sendRamPagesTo(net.minecraft.server.level.ServerPlayer player) {
+    var pb = (PacketBuilderBase<?>) PacketBuilderFactory.get().createCompressed(PacketType.TextBufferMulti);
+    try {
+      pb.writeUTF(node.address());
+      boolean any = false;
+      for (var device : getInternalBuffers().values()) {
+        for (int id : device.bufferIndexes()) {
+          var ram = device.getBuffer(id);
+          if (ram == null) continue;
+          var nbt = new CompoundTag();
+          ram.save(nbt, null);
+          PacketSender.appendTextBufferRamInit(pb, ram.owner, ram.id, nbt);
+          any = true;
+        }
+      }
+      if (any) pb.sendToPlayer(player);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
   @Override
   protected void sendPowerChange(String address, boolean powered) {
     PacketSender.sendTextBufferPowerChange(address, powered, host());

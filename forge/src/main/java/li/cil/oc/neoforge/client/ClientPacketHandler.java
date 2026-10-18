@@ -1015,6 +1015,12 @@ public final class ClientPacketHandler extends PacketHandler {
           public boolean charTyped(char codePoint, int modifiers) {
             return inner.handleCharTyped(codePoint, modifiers) || super.charTyped(codePoint, modifiers);
           }
+
+          @Override
+          public void removed() {
+            inner.onGuiClosed(); // the keys held are let go (the tablet's screen never did)
+            super.removed();
+          }
         });
         return;
       }

@@ -50,7 +50,7 @@ public class Screen extends BlockEntity implements TextBufferHost, SidedEnvironm
   private final int[] _input = new int[]{-1, -1, -1, -1, -1, -1};
   public AABB cachedBounds = null;
   public boolean invertTouchMode = false;
-  public final Map<Entity, int[]> lastWalked = new WeakHashMap<>();
+  public final Map<Entity, long[]> lastWalked = new WeakHashMap<>();
   public final Set<Entity> arrows = new HashSet<>();
   public int color;
   @SuppressWarnings("unused")
@@ -709,11 +709,15 @@ public class Screen extends BlockEntity implements TextBufferHost, SidedEnvironm
     int[] lp = localPosition();
     int x = lp[0];
     int y = lp[1];
-    int[] oldPos = lastWalked.get(entity);
-    if (oldPos != null && oldPos[0] == x && oldPos[1] == y) return;
-    lastWalked.put(entity, new int[]{x, y});
+    // once per step onto it: stepOn runs on every movement tick while on it, so steps are told apart by a pause (this
+    // kept every entity's last position forever: stepping on the same spot again never signalled again)
+    long now = level != null ? level.getGameTime() : 0;
+    long[] last = lastWalked.get(entity);
+    lastWalked.put(entity, new long[]{x, y, now});
+    if (last != null && last[0] == x && last[1] == y && now - last[2] <= 10) return;
     if (entity instanceof Player player && OCSettings.get().inputUsername) {
-      origin.node.sendToReachable("computer.signal", "walk", x + 1, height - y, player.getName());
+      // the name as a string (a Component arrived in Lua as nil)
+      origin.node.sendToReachable("computer.signal", "walk", x + 1, height - y, player.getScoreboardName());
     } else {
       origin.node.sendToReachable("computer.signal", "walk", x + 1, height - y);
     }

@@ -58,7 +58,8 @@ public interface TextBufferProxy extends li.cil.oc.api.internal.TextBuffer {
     if (value.isPalette() && !(data().format() instanceof PackedColor.PaletteFormat)) {
       value = new PackedColor.Color(color, false);
     }
-    if (data().foreground().value() != value.value()) {
+    // the palette flag counts too: index 0 of the palette after RGB 0 (black) was no change, and stayed RGB
+    if (data().foreground().value() != value.value() || data().foreground().isPalette() != value.isPalette()) {
       data().foreground_$eq(value);
       onBufferColorChange();
     }
@@ -85,7 +86,7 @@ public interface TextBufferProxy extends li.cil.oc.api.internal.TextBuffer {
     if (value.isPalette() && !(data().format() instanceof PackedColor.PaletteFormat)) {
       value = new PackedColor.Color(color, false);
     }
-    if (data().background().value() != value.value()) {
+    if (data().background().value() != value.value() || data().background().isPalette() != value.isPalette()) {
       data().background_$eq(value);
       onBufferColorChange();
     }
@@ -129,7 +130,7 @@ public interface TextBufferProxy extends li.cil.oc.api.internal.TextBuffer {
     int subFrom = s.offsetByCodePoints(0, leftOffset);
     int width = Math.min(sLength, maxWidth);
     if (width <= 0) return "";
-    else if ((sLength - leftOffset) <= width) return s;
+    else if ((sLength - leftOffset) <= width) return s.substring(subFrom); // from the offset (x below 1 drew it all)
     else return s.substring(subFrom, s.offsetByCodePoints(subFrom, width));
   }
 

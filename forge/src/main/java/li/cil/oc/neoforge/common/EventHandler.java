@@ -241,18 +241,20 @@ public final class EventHandler {
         }
         // and every machine still in it: block entities in chunks that never unload (spawn, forced) included
         li.cil.oc.core.impl.server.machine.MachineBase.closeAllIn(serverLevel);
+        keyboards.removeIf(kb -> kb.host == null || kb.host.level() == worldLevel); // they were kept forever
         Callbacks.clear();
         li.cil.oc.core.impl.server.ServerRobotRegistry.INSTANCE.clear(worldLevel);
       } else {
         li.cil.oc.core.impl.client.ClientComponentTracker.INSTANCE.clear(worldLevel);
         li.cil.oc.core.impl.client.ClientRobotTracker.INSTANCE.clear(worldLevel);
         TerminalServer.TerminalServerCache.loaded.clear();
+        // the unloading level's buffers go (this removed every other level's and kept the old level's: a leak)
         li.cil.oc.core.impl.common.component.TextBuffer.clientBuffers.removeIf(t -> {
           var keep = t.host().level() != worldLevel;
           if (!keep) {
             li.cil.oc.core.impl.client.ClientComponentTracker.INSTANCE.remove(worldLevel, t);
           }
-          return keep;
+          return !keep;
         });
       }
     }

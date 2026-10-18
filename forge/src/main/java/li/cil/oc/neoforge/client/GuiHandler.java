@@ -103,10 +103,12 @@ public final class GuiHandler {
         return inner.handleCharTyped(codePoint, modifiers) || super.charTyped(codePoint, modifiers);
       }
 
+      // every close lets go of the keys held (onClose is only Esc: closed otherwise - a respawn, another screen -
+      // they stayed pressed in the computer)
       @Override
-      public void onClose() {
+      public void removed() {
         inner.onGuiClosed();
-        super.onClose();
+        super.removed();
       }
     };
   }

@@ -197,7 +197,8 @@ public abstract class TextBufferBase extends AbstractManagedEnvironment implemen
 
   @Callback(doc = "function(enabled:boolean):boolean -- Set whether to use high precision mode (sub-pixel mouse event positions).")
   public Object[] setPrecise(Context computer, Arguments args) {
-    if (maxDepth == OCSettings.screenDepthsByTier[3].ordinal()) {
+    // tier 3 (the index was 3 of a 3-entry array: every call failed)
+    if (maxDepth == OCSettings.screenDepthsByTier[li.cil.oc.core.common.Tier.Three].ordinal()) {
       boolean old = precisionMode;
       precisionMode = args.checkBoolean(0);
       return ResultWrapper.result(old);
@@ -268,7 +269,8 @@ public abstract class TextBufferBase extends AbstractManagedEnvironment implemen
 
   @Override
   public boolean setResolution(int w, int h) {
-    if (w < 1 || h < 1 || w > maxWidth || h > maxHeight || h * w > maxWidth * maxHeight)
+    // as OC: either side up to the screen's width, the area up to its own (a tall 80x50 on a 160x50 screen was refused)
+    if (w < 1 || h < 1 || w > maxWidth || h > maxWidth || h * w > maxWidth * maxHeight)
       throw new IllegalArgumentException("unsupported resolution");
     proxy.onBufferResolutionChange(w, h);
     int oldWidth = data.width, oldHeight = data.height;

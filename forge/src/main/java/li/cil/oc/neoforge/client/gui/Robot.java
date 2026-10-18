@@ -396,9 +396,10 @@ public class Robot extends DynamicGuiContainer<li.cil.oc.neoforge.common.contain
     }
   }
 
+  // every close, not only Esc, lets go of the keys held
   @Override
-  public void onClose() {
+  public void removed() {
     onGuiClosed();
-    super.onClose();
+    super.removed();
   }
 }
