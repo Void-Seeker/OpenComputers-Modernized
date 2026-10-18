@@ -37,6 +37,12 @@ public final class WirelessNetworkDebugRenderer {
       RenderSystem.disableDepthTest();
       RenderSystem.disableCull();
       RenderSystem.setShader(GameRenderer::getPositionColorShader);
+      // 1.20.1: the camera's rotation is only in the event's pose, not in the model-view matrix (1.21 has it there):
+      // without it the lines stuck to the screen as if the camera looked north
+      var modelView = RenderSystem.getModelViewStack();
+      modelView.pushPose();
+      modelView.mulPoseMatrix(e.getPoseStack().last().pose());
+      RenderSystem.applyModelViewMatrix();
       try {
         var allBounds = tree.allBounds();
         var tesselator = Tesselator.getInstance();
@@ -57,6 +63,8 @@ public final class WirelessNetworkDebugRenderer {
         var mesh = builder.end();
         if (mesh != null) BufferUploader.drawWithShader(mesh);
       } finally {
+        modelView.popPose();
+        RenderSystem.applyModelViewMatrix();
         RenderSystem.enableDepthTest();
         RenderSystem.enableCull();
         RenderSystem.disableBlend();

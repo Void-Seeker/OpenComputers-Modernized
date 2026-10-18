@@ -696,6 +696,11 @@ public abstract class Robot extends RobotBase implements Computer, PowerInformat
     return RotationHelper.toGlobal(UPRIGHT, facing, value);
   }
 
+  /** The heading the server says the robot turned to (the client's copy, without touching the block). */
+  public void headingFromServer(Direction value) {
+    if (value.getAxis().isHorizontal()) facing = value;
+  }
+
   public void syncFromBlockState(BlockState state) {
     if (state.hasProperty(BlockStateProperties.FACING)) {
       var blockFacing = state.getValue(BlockStateProperties.FACING);

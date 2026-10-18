@@ -35,6 +35,14 @@ public class RobotProxy extends BlockEntity implements Computer, PowerInformatio
   public Robot robot;
   public RobotData info;
 
+  /** A changed block state (a turn) reaches the robot here on the client too: its heading follows. */
+  @Override
+  @SuppressWarnings("deprecation")
+  public void setBlockState(@NotNull BlockState state) {
+    super.setBlockState(state);
+    if (robot != null) robot.syncFromBlockState(state);
+  }
+
   public RobotProxy(BlockEntityType<?> type, Robot robot, BlockPos pos, BlockState state) {
     super(type, pos, state);
     this.robot = robot;

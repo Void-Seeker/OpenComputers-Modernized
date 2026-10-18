@@ -751,7 +751,11 @@ public final class ClientPacketHandler extends PacketHandler {
     try {
       var t = p.readBlockEntity(li.cil.oc.neoforge.common.blockentity.RobotProxy.class);
       if (t != null) {
-        t.setAnimateTurn(p.readByte(), p.readInt());
+        byte axis = p.readByte();
+        int ticks = p.readInt();
+        byte facing = p.readByte();
+        if (facing >= 2 && facing < 6 && t.robot != null) t.robot.headingFromServer(net.minecraft.core.Direction.from3DDataValue(facing));
+        t.setAnimateTurn(axis, ticks);
       }
     } catch (IOException e) {
       throw new RuntimeException(e);

@@ -327,6 +327,8 @@ public final class PacketSender extends li.cil.oc.core.impl.common.PacketSender 
       pb.writeBlockEntity(t);
       pb.writeByte(turnAxis);
       pb.writeInt(animationTicksTotal);
+      // the heading it turns to: the client had no other way to learn it (it went on drawing the old one)
+      pb.writeByte(t instanceof li.cil.oc.core.impl.common.blockentity.RobotBase robot ? robot.facing().get3DDataValue() : -1);
       pb.sendToPlayersNearBlockEntity(t, OCSettings.get().maxNetworkClientEffectPacketDistance);
     } catch (IOException e) {
       throw new RuntimeException(e);

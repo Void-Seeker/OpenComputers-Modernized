@@ -133,8 +133,8 @@ public class PrintModel implements IDynamicBakedModel {
       data[idx + 1] = Float.floatToRawIntBits((float) v.y);
       data[idx + 2] = Float.floatToRawIntBits((float) v.z);
       data[idx + 3] = packedColor;
-      data[idx + 4] = Float.floatToRawIntBits(sprite.getU((float) u));
-      data[idx + 5] = Float.floatToRawIntBits(sprite.getV((float) vv));
+      data[idx + 4] = Float.floatToRawIntBits(sprite.getU((float) u * 16));   // 1.20.1: getU/getV take 0-16 (1.21: 0-1)
+      data[idx + 5] = Float.floatToRawIntBits(sprite.getV((float) vv * 16));
       data[idx + 6] = 0;
     }
     ForgeHooksClient.fillNormal(data, face);

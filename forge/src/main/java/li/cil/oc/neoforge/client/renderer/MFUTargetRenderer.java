@@ -55,6 +55,12 @@ public final class MFUTargetRenderer {
           RenderSystem.disableDepthTest();
           RenderSystem.disableCull();
           RenderSystem.setShader(GameRenderer::getPositionColorShader);
+          // 1.20.1: the camera's rotation is only in the event's pose, not in the model-view matrix (1.21 has it there):
+          // without it the lines stuck to the screen as if the camera looked north
+          var modelView = RenderSystem.getModelViewStack();
+          modelView.pushPose();
+          modelView.mulPoseMatrix(e.getPoseStack().last().pose());
+          RenderSystem.applyModelViewMatrix();
           try {
             float r = ((color >> 16) & 0xFF) / 255f;
             float g = ((color >> 8) & 0xFF) / 255f;
@@ -71,6 +77,8 @@ public final class MFUTargetRenderer {
             var mesh2 = builder.end();
             if (mesh2 != null) BufferUploader.drawWithShader(mesh2);
           } finally {
+            modelView.popPose();
+            RenderSystem.applyModelViewMatrix();
             RenderSystem.enableDepthTest();
             RenderSystem.enableCull();
             RenderSystem.disableBlend();

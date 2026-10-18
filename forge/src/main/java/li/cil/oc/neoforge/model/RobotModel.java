@@ -132,8 +132,8 @@ public class RobotModel implements IDynamicBakedModel {
       float x = (v[0] - 0.5f) * 1.4f + 0.5f;
       float y = (v[1] - 0.5f) * 1.4f + 0.5f;
       float z = (v[2] - 0.5f) * 1.4f + 0.5f;
-      float u = sprite.getU(v[3]);
-      float vt = sprite.getV(v[4]);
+      float u = sprite.getU(v[3] * 16);   // 1.20.1: getU/getV take 0-16 (1.21: 0-1)
+      float vt = sprite.getV(v[4] * 16);
 
       int offset = index * 8;
       data[offset] = Float.floatToRawIntBits(x);

@@ -45,24 +45,24 @@ public class AssemblerRenderer implements BlockEntityRenderer<Assembler> {
     float v0 = sprite.getV0(), v1 = sprite.getV1();
     VertexConsumer consumer = bufferSource.getBuffer(RenderType.entityTranslucent(InventoryMenu.BLOCK_ATLAS));
     var matrix = poseStack.last().pose();
-    consumer.vertex(matrix, -0.5f, 0.55f, 0.5f).color(255, 255, 255, 255).uv(u0, v1).overlayCoords(packedOverlay).uv2(FULL_BRIGHT).normal(0, 1, 0).endVertex();
-    consumer.vertex(matrix, 0.5f, 0.55f, 0.5f).color(255, 255, 255, 255).uv(u1, v1).overlayCoords(packedOverlay).uv2(FULL_BRIGHT).normal(0, 1, 0).endVertex();
-    consumer.vertex(matrix, 0.5f, 0.55f, -0.5f).color(255, 255, 255, 255).uv(u1, v0).overlayCoords(packedOverlay).uv2(FULL_BRIGHT).normal(0, 1, 0).endVertex();
-    consumer.vertex(matrix, -0.5f, 0.55f, -0.5f).color(255, 255, 255, 255).uv(u0, v0).overlayCoords(packedOverlay).uv2(FULL_BRIGHT).normal(0, 1, 0).endVertex();
+    consumer.vertex(matrix, -0.5f, 0.55f, 0.5f).color(255, 255, 255, 255).uv(u0, v1).overlayCoords(packedOverlay).uv2(FULL_BRIGHT).normal(poseStack.last().normal(), 0, 1, 0).endVertex();
+    consumer.vertex(matrix, 0.5f, 0.55f, 0.5f).color(255, 255, 255, 255).uv(u1, v1).overlayCoords(packedOverlay).uv2(FULL_BRIGHT).normal(poseStack.last().normal(), 0, 1, 0).endVertex();
+    consumer.vertex(matrix, 0.5f, 0.55f, -0.5f).color(255, 255, 255, 255).uv(u1, v0).overlayCoords(packedOverlay).uv2(FULL_BRIGHT).normal(poseStack.last().normal(), 0, 1, 0).endVertex();
+    consumer.vertex(matrix, -0.5f, 0.55f, -0.5f).color(255, 255, 255, 255).uv(u0, v0).overlayCoords(packedOverlay).uv2(FULL_BRIGHT).normal(poseStack.last().normal(), 0, 1, 0).endVertex();
   }
 
   private void renderSideInner(PoseStack poseStack, MultiBufferSource bufferSource, int packedOverlay, float indent) {
     var atlas = Minecraft.getInstance().getTextureAtlas(InventoryMenu.BLOCK_ATLAS);
     var sprite = atlas.apply(Textures.blockAssemblerSideAssemblingSprite);
-    float uMin = sprite.getU((0.5f - indent));
-    float uMax = sprite.getU((0.5f + indent));
+    float uMin = sprite.getU((0.5f - indent) * 16);   // 1.20.1: getU/getV take 0-16 (1.21: 0-1)
+    float uMax = sprite.getU((0.5f + indent) * 16);
     float v0 = sprite.getV0(), v1 = sprite.getV1();
     VertexConsumer consumer = bufferSource.getBuffer(RenderType.entityTranslucent(InventoryMenu.BLOCK_ATLAS));
     var matrix = poseStack.last().pose();
-    consumer.vertex(matrix, indent, 0.5f, -indent).color(255, 255, 255, 255).uv(uMin, v1).overlayCoords(packedOverlay).uv2(FULL_BRIGHT).normal(0, 1, 0).endVertex();
-    consumer.vertex(matrix, indent, 0.5f, indent).color(255, 255, 255, 255).uv(uMax, v1).overlayCoords(packedOverlay).uv2(FULL_BRIGHT).normal(0, 1, 0).endVertex();
-    consumer.vertex(matrix, indent, -0.5f, indent).color(255, 255, 255, 255).uv(uMax, v0).overlayCoords(packedOverlay).uv2(FULL_BRIGHT).normal(0, 1, 0).endVertex();
-    consumer.vertex(matrix, indent, -0.5f, -indent).color(255, 255, 255, 255).uv(uMin, v0).overlayCoords(packedOverlay).uv2(FULL_BRIGHT).normal(0, 1, 0).endVertex();
+    consumer.vertex(matrix, indent, 0.5f, -indent).color(255, 255, 255, 255).uv(uMin, v1).overlayCoords(packedOverlay).uv2(FULL_BRIGHT).normal(poseStack.last().normal(), 0, 1, 0).endVertex();
+    consumer.vertex(matrix, indent, 0.5f, indent).color(255, 255, 255, 255).uv(uMax, v1).overlayCoords(packedOverlay).uv2(FULL_BRIGHT).normal(poseStack.last().normal(), 0, 1, 0).endVertex();
+    consumer.vertex(matrix, indent, -0.5f, indent).color(255, 255, 255, 255).uv(uMax, v0).overlayCoords(packedOverlay).uv2(FULL_BRIGHT).normal(poseStack.last().normal(), 0, 1, 0).endVertex();
+    consumer.vertex(matrix, indent, -0.5f, -indent).color(255, 255, 255, 255).uv(uMin, v0).overlayCoords(packedOverlay).uv2(FULL_BRIGHT).normal(poseStack.last().normal(), 0, 1, 0).endVertex();
   }
 
   private void renderSideEdge(PoseStack poseStack, MultiBufferSource bufferSource, int packedOverlay) {
@@ -72,9 +72,9 @@ public class AssemblerRenderer implements BlockEntityRenderer<Assembler> {
     float v0 = sprite.getV0(), v1 = sprite.getV1();
     VertexConsumer consumer = bufferSource.getBuffer(RenderType.entityTranslucent(InventoryMenu.BLOCK_ATLAS));
     var matrix = poseStack.last().pose();
-    consumer.vertex(matrix, 0.5005f, 0.5f, -0.5f).color(255, 255, 255, 255).uv(u0, v1).overlayCoords(packedOverlay).uv2(FULL_BRIGHT).normal(0, 1, 0).endVertex();
-    consumer.vertex(matrix, 0.5005f, 0.5f, 0.5f).color(255, 255, 255, 255).uv(u1, v1).overlayCoords(packedOverlay).uv2(FULL_BRIGHT).normal(0, 1, 0).endVertex();
-    consumer.vertex(matrix, 0.5005f, -0.5f, 0.5f).color(255, 255, 255, 255).uv(u1, v0).overlayCoords(packedOverlay).uv2(FULL_BRIGHT).normal(0, 1, 0).endVertex();
-    consumer.vertex(matrix, 0.5005f, -0.5f, -0.5f).color(255, 255, 255, 255).uv(u0, v0).overlayCoords(packedOverlay).uv2(FULL_BRIGHT).normal(0, 1, 0).endVertex();
+    consumer.vertex(matrix, 0.5005f, 0.5f, -0.5f).color(255, 255, 255, 255).uv(u0, v1).overlayCoords(packedOverlay).uv2(FULL_BRIGHT).normal(poseStack.last().normal(), 0, 1, 0).endVertex();
+    consumer.vertex(matrix, 0.5005f, 0.5f, 0.5f).color(255, 255, 255, 255).uv(u1, v1).overlayCoords(packedOverlay).uv2(FULL_BRIGHT).normal(poseStack.last().normal(), 0, 1, 0).endVertex();
+    consumer.vertex(matrix, 0.5005f, -0.5f, 0.5f).color(255, 255, 255, 255).uv(u1, v0).overlayCoords(packedOverlay).uv2(FULL_BRIGHT).normal(poseStack.last().normal(), 0, 1, 0).endVertex();
+    consumer.vertex(matrix, 0.5005f, -0.5f, -0.5f).color(255, 255, 255, 255).uv(u0, v0).overlayCoords(packedOverlay).uv2(FULL_BRIGHT).normal(poseStack.last().normal(), 0, 1, 0).endVertex();
   }
 }

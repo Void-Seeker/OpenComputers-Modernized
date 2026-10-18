@@ -256,20 +256,20 @@ public class RobotRenderer implements BlockEntityRenderer<RobotProxy> {
       H, GT, H, 0.5f, 0.5f, 0, 0.2f, 1);
 
     addQuad(consumer, matrix, pose, packedLight, packedOverlay,
-      0.5f, 1, 0.5f, 0.25f, 0.25f, 0, 0.2f, 1,
-      0.5f, 1, 0.5f, 0.25f, 0.25f, 0, 0.2f, 1,
-      H, GT, H, 0.5f, 0.5f, 0, 0.2f, 1,
+      0.5f, 1, 0.5f, 0.25f, 0.25f, 1, 0.2f, 0,
+      0.5f, 1, 0.5f, 0.25f, 0.25f, 1, 0.2f, 0,
+      H, GT, H, 0.5f, 0.5f, 1, 0.2f, 0,
       H, GT, L, 0.5f, 0, 1, 0.2f, 0);
 
     addQuad(consumer, matrix, pose, packedLight, packedOverlay,
-      0.5f, 1, 0.5f, 0.25f, 0.25f, 0, 0.2f, 1,
-      0.5f, 1, 0.5f, 0.25f, 0.25f, 0, 0.2f, 1,
+      0.5f, 1, 0.5f, 0.25f, 0.25f, 0, 0.2f, -1,
+      0.5f, 1, 0.5f, 0.25f, 0.25f, 0, 0.2f, -1,
       H, GT, L, 0.5f, 0, 0, 0.2f, -1,
       L, GT, L, 0, 0, 0, 0.2f, -1);
 
     addQuad(consumer, matrix, pose, packedLight, packedOverlay,
-      0.5f, 1, 0.5f, 0.25f, 0.25f, 0, 0.2f, 1,
-      0.5f, 1, 0.5f, 0.25f, 0.25f, 0, 0.2f, 1,
+      0.5f, 1, 0.5f, 0.25f, 0.25f, -1, 0.2f, 0,
+      0.5f, 1, 0.5f, 0.25f, 0.25f, -1, 0.2f, 0,
       L, GT, L, 0, 0, -1, 0.2f, 0,
       L, GT, H, 0, 0.5f, -1, 0.2f, 0);
 
@@ -286,26 +286,26 @@ public class RobotRenderer implements BlockEntityRenderer<RobotProxy> {
     var pose = poseStack.last();
 
     addQuad(consumer, matrix, pose, packedLight, packedOverlay,
-      0.5f, 0.03f, 0.5f, 0.75f, 0.25f, 0, -0.2f, 1,
-      0.5f, 0.03f, 0.5f, 0.75f, 0.25f, 0, -0.2f, 1,
-      L, GB, L, 0.5f, 0, 0, -0.2f, 1,
-      H, GB, L, 1, 0, 0, -0.2f, 1);
+      0.5f, 0.03f, 0.5f, 0.75f, 0.25f, 0, -0.2f, -1,
+      0.5f, 0.03f, 0.5f, 0.75f, 0.25f, 0, -0.2f, -1,
+      L, GB, L, 0.5f, 0, 0, -0.2f, -1,
+      H, GB, L, 1, 0, 0, -0.2f, -1);
 
     addQuad(consumer, matrix, pose, packedLight, packedOverlay,
-      0.5f, 0.03f, 0.5f, 0.75f, 0.25f, 0, -0.2f, 1,
-      0.5f, 0.03f, 0.5f, 0.75f, 0.25f, 0, -0.2f, 1,
+      0.5f, 0.03f, 0.5f, 0.75f, 0.25f, 1, -0.2f, 0,
+      0.5f, 0.03f, 0.5f, 0.75f, 0.25f, 1, -0.2f, 0,
       H, GB, L, 1, 0, 1, -0.2f, 0,
       H, GB, H, 1, 0.5f, 1, -0.2f, 0);
 
     addQuad(consumer, matrix, pose, packedLight, packedOverlay,
       0.5f, 0.03f, 0.5f, 0.75f, 0.25f, 0, -0.2f, 1,
       0.5f, 0.03f, 0.5f, 0.75f, 0.25f, 0, -0.2f, 1,
-      H, GB, H, 1, 0.5f, 0, -0.2f, -1,
-      L, GB, H, 0.5f, 0.5f, 0, -0.2f, -1);
+      H, GB, H, 1, 0.5f, 0, -0.2f, 1,
+      L, GB, H, 0.5f, 0.5f, 0, -0.2f, 1);
 
     addQuad(consumer, matrix, pose, packedLight, packedOverlay,
-      0.5f, 0.03f, 0.5f, 0.75f, 0.25f, 0, -0.2f, 1,
-      0.5f, 0.03f, 0.5f, 0.75f, 0.25f, 0, -0.2f, 1,
+      0.5f, 0.03f, 0.5f, 0.75f, 0.25f, -1, -0.2f, 0,
+      0.5f, 0.03f, 0.5f, 0.75f, 0.25f, -1, -0.2f, 0,
       L, GB, H, 0.5f, 0.5f, -1, -0.2f, 0,
       L, GB, L, 0.5f, 0, -1, -0.2f, 0);
 

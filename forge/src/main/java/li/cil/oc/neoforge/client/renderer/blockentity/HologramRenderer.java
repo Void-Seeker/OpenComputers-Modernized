@@ -87,6 +87,9 @@ public class HologramRenderer implements BlockEntityRenderer<Hologram> {
 
   private static void submitQuadsStatic(VertexConsumer consumer, org.joml.Matrix4f matrix,
                                         float[] verts, int quadCount, int alphaInt, int packedOverlay) {
+    // 1.20.1 lights in camera space: normals go through the stored matrix (its inverse transpose), as vertices do
+    var normalMatrix = new org.joml.Matrix3f(matrix).invert().transpose();
+    var n = new org.joml.Vector3f();
     int idx = 0;
     for (int q = 0; q < quadCount; q++) {
       for (int v = 0; v < 4; v++) {
@@ -109,7 +112,7 @@ public class HologramRenderer implements BlockEntityRenderer<Hologram> {
           .uv(u, vv)
           .overlayCoords(packedOverlay)
           .uv2(0xF000F0)
-          .normal(nx, ny, nz).endVertex();
+          .normal(n.set(nx, ny, nz).mul(normalMatrix).normalize().x, n.y, n.z).endVertex();
       }
     }
   }

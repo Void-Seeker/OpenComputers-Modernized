@@ -172,8 +172,8 @@ public class DroneModel implements IDynamicBakedModel {
             vPixel = from.y() + (1 - face[vi].y()) * (to.y() - from.y());
           }
         }
-        uArr[vi] = sprite.getU(uPixel / 16.0f);
-        vtArr[vi] = sprite.getV(vPixel / 16.0f);
+        uArr[vi] = sprite.getU(uPixel);   // 1.20.1: getU/getV take 0-16 (1.21: 0-1)
+        vtArr[vi] = sprite.getV(vPixel);
       }
 
       int packedNormal = computePackedNormal(rxArr, ryArr, rzArr);

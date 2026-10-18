@@ -198,7 +198,7 @@ public class CablePartRenderer implements PartRenderer<CablePart> {
     // 1.20.1: elements must be written in vertex format order and the vertex closed with endVertex().
     c.vertex(pos.x, pos.y, pos.z)
       .color((int) (r * brightness), (int) (g * brightness), (int) (b * brightness), 255)
-      .uv(sprite.getU((float) u), sprite.getV((float) v))
+      .uv(sprite.getU((float) u * 16), sprite.getV((float) v * 16))   // 1.20.1: getU/getV take 0-16 (1.21: 0-1)
       .overlayCoords(OverlayTexture.NO_OVERLAY)
       .uv2(light)
       .normal(nx, ny, nz)
