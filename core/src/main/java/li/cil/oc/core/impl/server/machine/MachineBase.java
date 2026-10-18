@@ -843,6 +843,7 @@ public abstract class MachineBase extends AbstractManagedEnvironment implements 
       synchronized (state) {
         close();
         state.clear();
+        lastSaved = nbt.isEmpty() ? null : nbt.copy();   // what a save that cannot wait writes, until a save succeeds
         super.load(nbt, provider);
         int[] stateIds = nbt.getIntArray("state");
         for (int i = stateIds.length - 1; i >= 0; i--) {
@@ -921,15 +922,34 @@ public abstract class MachineBase extends AbstractManagedEnvironment implements 
     }
   }
 
+  /** What the last full save wrote: written again if a save cannot wait for the machine (rather than nothing). */
+  private CompoundTag lastSaved;
+
   @Override
   public void save(CompoundTag nbt, HolderLookup.Provider provider) {
-    if (isExecuting() || SaveHandlerDelegate.get().savingForClients()) {
+    if (SaveHandlerDelegate.get().savingForClients()) {
       return;
     }
-    if (!lockForServer("saving")) return;
+    // wait a little for a running slice to end, else write the last saved state: this gave up at once and saved
+    // nothing - a computer busy at an autosave or chunk unload came back switched off, its program gone (and the server
+    // thread must not wait long on a stuck computer)
+    boolean locked;
+    try {
+      locked = executionLock.tryLock(100, java.util.concurrent.TimeUnit.MILLISECONDS);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      locked = false;
+    }
+    if (!locked) {
+      LOGGER.warn("The computer at {}, {}, {} is busy; its last saved state is saved again.",
+        (int) host.xPosition(), (int) host.yPosition(), (int) host.zPosition());
+      if (lastSaved != null) nbt.merge(lastSaved.copy());
+      return;
+    }
     try {
       synchronized (state) {
-        if (isExecuting() || SaveHandlerDelegate.get().savingForClients()) {
+        if (isExecuting()) {
+          if (lastSaved != null) nbt.merge(lastSaved.copy());
           return;
         }
         pause(0.05);
@@ -999,6 +1019,7 @@ public abstract class MachineBase extends AbstractManagedEnvironment implements 
         } catch (Throwable t) {
           LOGGER.error("Error saving computer state", t);
         }
+        lastSaved = nbt.copy();
       }
     } finally {
       executionLock.unlock();

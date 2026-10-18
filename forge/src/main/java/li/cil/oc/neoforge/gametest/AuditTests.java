@@ -344,14 +344,16 @@ public final class AuditTests {
             lock.unlock();
           }
         }, "stuck computer");
+        mc.saveWithoutMetadata();   // a save while it is free: what a save that cannot wait writes again
         holder.start();
         helper.runAfterDelay(2, () -> {
           helper.assertTrue(lock.isLocked(), "the test thread does not hold the execution lock");
           final long start = System.nanoTime();
-          mc.saveWithoutMetadata(); // machine.save
+          final var savedWhileBusy = mc.saveWithoutMetadata().getCompound(li.cil.oc.core.impl.OCSettings.namespace + "computer"); // machine.save
           machine.pause(1);
           final long ms = (System.nanoTime() - start) / 1_000_000;
           helper.assertTrue(ms < 500, "the server thread waited " + ms + " ms on the computer's lock");
+          helper.assertTrue(savedWhileBusy.contains("state"), "a save while the computer was busy wrote no machine state (it would come back off): " + savedWhileBusy);
           helper.runAfterDelay(60, () -> {
             helper.assertTrue(!lock.isLocked() || lock.isHeldByCurrentThread() || mc.machine().isRunning(), "lock state unexpected");
             helper.assertTrue(mc.machine().isRunning(), "the machine stopped: " + mc.machine().lastError());
