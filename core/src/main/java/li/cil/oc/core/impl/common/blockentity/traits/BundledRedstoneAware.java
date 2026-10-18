@@ -91,10 +91,10 @@ public interface BundledRedstoneAware extends RedstoneAware {
   }
 
   default void setBundledOutput(Map<?, ?> values) {
-    boolean changed = false;
     for (Direction side : Direction.values()) {
       Object obj = values.get(side.get3DDataValue());
       if (obj instanceof Map<?, ?> child) {
+        boolean changed = false;
         int[][] output = bundledOutput();
         int sideIndex = side.get3DDataValue();
         for (int color = 0; color < 16; color++) {
@@ -107,8 +107,9 @@ public interface BundledRedstoneAware extends RedstoneAware {
             }
           }
         }
+        // the key is a local side, the cable to tell is on the world side (it told the cable on world side k)
         if (changed) {
-          onRedstoneOutputChanged(side);
+          onRedstoneOutputChanged(toGlobal(side));
         }
       }
     }

@@ -69,7 +69,17 @@ public interface RedstoneBundled extends DeviceInfo {
     if (color != null) return ResultWrapper.result((double) bundledRedstone().getBundledInput(side, color));
     if (side != null)
       return ResultWrapper.result(colorsToMap(bundledRedstone().getBundledInput(side)));
-    return ResultWrapper.result(sidesToMap(bundledRedstone().bundledInput()));
+    // by the device's own sides, as the per-side call (the inputs are kept by world side)
+    int[][] byWorld = bundledRedstone().bundledInput();
+    int[][] local = new int[byWorld.length][];
+    for (Direction world : Direction.values()) {
+      if (world.ordinal() < byWorld.length) {
+        int[] colors = byWorld[world.ordinal()].clone();
+        for (int i = 0; i < colors.length; i++) colors[i] = Math.max(colors[i], 0);
+        local[bundledRedstone().toLocal(world).ordinal()] = colors;
+      }
+    }
+    return ResultWrapper.result(sidesToMap(local));
   }
 
   @Callback(direct = true, doc = "function([side:number[, color:number]]):number or table -- Fewer params returns set of outputs")

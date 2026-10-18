@@ -38,7 +38,20 @@ public abstract class RedstoneVanilla extends RedstoneSignaller implements Devic
     Direction side = getOptionalSide(args);
     if (side != null)
       return ResultWrapper.result((double) ((RedstoneAware) redstone()).getInput(side));
-    return ResultWrapper.result(valuesToMap(bySides(((RedstoneAware) redstone()).input())));
+    return ResultWrapper.result(valuesToMap(inputsBySides(((RedstoneAware) redstone()).input())));
+  }
+
+  /**
+   * Inputs are kept by world side: the table is by the device's own sides, as the per-side calls and the outputs (it
+   * was by world side for a case or microcontroller not facing south), and an input not read yet is 0, not -1.
+   */
+  private int[] inputsBySides(int[] values) {
+    var host = (RedstoneAware) redstone();
+    int[] local = new int[values.length];
+    for (Direction side : Direction.values()) {
+      if (side.ordinal() < values.length) local[host.toLocal(side).ordinal()] = Math.max(values[side.ordinal()], 0);
+    }
+    return local;
   }
 
   /** A robot keeps redstone values by world side: Lua gets them by the robot's sides, as a case's. */

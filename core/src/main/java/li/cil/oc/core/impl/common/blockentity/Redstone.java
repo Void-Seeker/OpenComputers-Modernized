@@ -25,7 +25,9 @@ public class Redstone extends BlockEntity implements Environment, BundledRedston
   public final Node node;
   public final Node dummyNode;
   private boolean _isOutputEnabled;
-  protected boolean shouldUpdateInput;
+  // read once placed as in OC (only the forge subclass set it, and the block made the core class: a new Redstone I/O
+  // block read nothing until a neighbour changed)
+  protected boolean shouldUpdateInput = true;
   private final int[] _input = new int[]{-1, -1, -1, -1, -1, -1};
   private final int[] _output = new int[6];
   private final int[][] _bundledInput = new int[6][16];
@@ -233,6 +235,12 @@ public class Redstone extends BlockEntity implements Environment, BundledRedston
         }
       }
     }
+  }
+
+  // bundled input changes come in here (the trait's hook): they made no redstone_changed and woke nothing
+  @Override
+  public void onRedstoneInputChanged(int side, int oldValue, int newValue, int color) {
+    onRedstoneInputChanged(new RedstoneChangedEventArgs(Direction.from3DDataValue(side), oldValue, newValue, color));
   }
 
   protected void onRedstoneInputChanged(RedstoneChangedEventArgs args) {

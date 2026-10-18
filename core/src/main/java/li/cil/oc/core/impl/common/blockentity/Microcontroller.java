@@ -146,6 +146,11 @@ public class Microcontroller extends BlockEntity implements PowerAcceptor, Hub, 
     super.initialize();
     if (isServer() && getLevel() != null) {
       EventHandlerDelegate.get().scheduleServer(this);
+      // what is already powered around it (it read nothing until a neighbour changed: a lever on before it was placed
+      // read 0)
+      EventHandlerDelegate.get().scheduleServer(() -> {
+        if (!isRemoved()) checkRedstoneInputChanged();
+      });
       if (pendingMachineNbt != null) {
         Machine m = machine();
         if (m != null) {
@@ -422,13 +427,30 @@ public class Microcontroller extends BlockEntity implements PowerAcceptor, Hub, 
 
   // Redstone. Upstream left the RedstoneAware defaults here, which store nothing (output() returned a fresh array,
   // isOutputEnabled() false), and the block was no signal source: a redstone card in a microcontroller did nothing.
-  // Same behaviour as the computer case; outputs are always enabled, as in the original mod.
+  // As OC's computers: outputs are on while it runs with a redstone card, and cleared when it stops (they were always
+  // on - a door or dropper stayed powered after a crash or shutdown).
   private final int[] _rsInput = new int[]{-1, -1, -1, -1, -1, -1};
   private final int[] _rsOutput = new int[6];
+  private boolean _isOutputEnabled = false;
 
   @Override
   public boolean isOutputEnabled() {
-    return true;
+    return _isOutputEnabled;
+  }
+
+  @Override
+  public void setOutputEnabled(boolean value) {
+    if (value != _isOutputEnabled) {
+      _isOutputEnabled = value;
+      if (!value) {
+        java.util.Arrays.fill(_rsOutput, 0);
+        for (var colors : _bundledOutput) java.util.Arrays.fill(colors, 0);
+        if (getLevel() != null && !getLevel().isClientSide) {
+          for (var side : Direction.values()) onRedstoneOutputChanged(side);
+        }
+      }
+      onRedstoneOutputEnabledChanged();
+    }
   }
 
   @Override
@@ -519,7 +541,8 @@ public class Microcontroller extends BlockEntity implements PowerAcceptor, Hub, 
         var newValue = li.cil.oc.core.impl.integration.util.BundledRedstone.computeInput(position(), side);
         if (oldValue != newValue) {
           _rsInput[side.ordinal()] = newValue;
-          onRedstoneInputChanged(side.ordinal(), oldValue, newValue);
+          // the first reading (from unknown) is no change: it woke a stopped microcontroller that had a powered neighbour
+          if (oldValue >= 0) onRedstoneInputChanged(side.ordinal(), oldValue, newValue);
         }
         setBundledInput(side, li.cil.oc.core.impl.integration.util.BundledRedstone.computeBundledInput(position(), side));
       }
@@ -631,6 +654,7 @@ public class Microcontroller extends BlockEntity implements PowerAcceptor, Hub, 
           _hasErrored = errored;
           setChanged();
           PacketSender.sendComputerState(this, isRunning(), hasErrored());
+          setOutputEnabled(hasRedstoneCard()); // on while it runs with a redstone card, off (and cleared) when it stops
         }
         updateComponents();
       }
@@ -922,6 +946,7 @@ public class Microcontroller extends BlockEntity implements PowerAcceptor, Hub, 
     if (value != _isRunning) {
       _isRunning = value;
       if (value) _hasErrored = false;
+      if (isServer()) setOutputEnabled(hasRedstoneCard());
       if (getLevel() != null) {
         BlockState current = getBlockState();
         getLevel().sendBlockUpdated(worldPosition, current, current, 3);
@@ -957,6 +982,13 @@ public class Microcontroller extends BlockEntity implements PowerAcceptor, Hub, 
 
   @Override
   public boolean hasRedstoneCard() {
+    if (machine() == null || !machine().isRunning()) return false;
+    for (var stack : info.components) {
+      if (stack != null && !stack.isEmpty()) {
+        var driver = li.cil.oc.api.API.driver.driverFor(stack, getClass());
+        if (driver != null && li.cil.oc.core.impl.util.ComponentDriverHelper.isRedstoneCard(driver)) return true;
+      }
+    }
     return false;
   }
 

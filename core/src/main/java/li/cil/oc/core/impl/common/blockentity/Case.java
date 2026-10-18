@@ -398,7 +398,8 @@ public class Case extends BlockEntity implements PowerAcceptor, Computer, Colore
 
   @Override
   public EnumSet<li.cil.oc.api.util.StateAware.State> getCurrentState() {
-    return EnumSet.noneOf(li.cil.oc.api.util.StateAware.State.class);
+    // a comparator reads 15 from a running case, as in OC (it read 0)
+    return isRunning() ? EnumSet.of(li.cil.oc.api.util.StateAware.State.IsWorking) : EnumSet.noneOf(li.cil.oc.api.util.StateAware.State.class);
   }
 
   @Override
@@ -527,6 +528,10 @@ public class Case extends BlockEntity implements PowerAcceptor, Computer, Colore
       _isOutputEnabled = value;
       if (!value) {
         java.util.Arrays.fill(_output, 0);
+        for (var colors : _bundledOutput) java.util.Arrays.fill(colors, 0); // bundled cables too (they kept their colours)
+        if (getLevel() != null && !getLevel().isClientSide) {
+          for (var side : Direction.values()) onRedstoneOutputChanged(side);
+        }
       }
       onRedstoneOutputEnabledChanged();
     }
@@ -655,7 +660,8 @@ public class Case extends BlockEntity implements PowerAcceptor, Computer, Colore
   public void setBundledOutput(Map<?, ?> values) {
     for (var entry : values.entrySet()) {
       if (entry.getKey() instanceof Number sideKey && entry.getValue() instanceof Map<?, ?> sideMap) {
-        var side = Direction.from3DDataValue(sideKey.intValue());
+        // the key is the case's own side; setBundledOutput(side, ...) takes a world side (local was applied twice)
+        var side = toGlobal(Direction.from3DDataValue(sideKey.intValue()));
         setBundledOutput(side, sideMap);
       }
     }
@@ -689,13 +695,8 @@ public class Case extends BlockEntity implements PowerAcceptor, Computer, Colore
     setBundledInput(side, li.cil.oc.core.impl.integration.util.BundledRedstone.computeBundledInput(position(), side));
   }
 
-  @Override
-  public void onRedstoneOutputChanged(Direction side) {
-    if (getLevel() != null && !getLevel().isClientSide()) {
-      getLevel().updateNeighborsAt(getBlockPos(), getBlockState().getBlock());
-    }
-    syncRedstoneState();
-  }
+  // the trait's: the block powered by the side and the blocks around it hear about it (this told only the case's own
+  // neighbours, and a lamp behind the powered block stayed as it was)
 
   @Override
   public Object[] getInterfaces(int side) {
