@@ -977,10 +977,17 @@ public abstract class RobotBase extends BlockEntity implements li.cil.oc.core.im
     li.cil.oc.core.impl.util.InventoryUtils.dropAllSlots(BlockPosition.apply(worldPosition.getX(), worldPosition.getY(), worldPosition.getZ(), getLevel()), this);
   }
 
+  /**
+   * What a broken robot drops besides the robot item, which keeps its components and containers: its tool, what sits
+   * in its containers, and its inventory. (It used to drop the inventory only: tool and container contents vanished.)
+   */
   public void dropInventorySlots() {
     var position = BlockPosition.apply(worldPosition.getX(), worldPosition.getY(), worldPosition.getZ(), getLevel());
-    var invSlots = inventorySlots();
-    for (int slot : invSlots) {
+    li.cil.oc.core.impl.util.InventoryUtils.dropSlot(position, this, 0, Integer.MAX_VALUE);
+    for (int slot : containerSlots()) {
+      li.cil.oc.core.impl.util.InventoryUtils.dropSlot(position, this, slot, Integer.MAX_VALUE);
+    }
+    for (int slot : inventorySlots()) {
       li.cil.oc.core.impl.util.InventoryUtils.dropSlot(position, this, slot, getMaxStackSize());
     }
   }

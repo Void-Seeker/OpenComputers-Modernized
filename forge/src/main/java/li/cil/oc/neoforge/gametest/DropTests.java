@@ -266,4 +266,58 @@ public final class DropTests {
       });
     });
   }
+
+  /** A robot with a tool, a card in its card container and diamonds, broken by a player or by anything else. */
+  private static void robotDropsEverythingItCarries(final GameTestHelper helper, final boolean byPlayer) {
+    final var data = new RobotData();
+    data.name = "test";
+    data.components.add(item(Constants.ItemName.InventoryUpgrade));
+    data.containers.add(item(Constants.ItemName.CardContainerTier1));
+    final BlockPos pos = new BlockPos(2, 2, 2);
+    helper.setBlock(pos, Blocks.ROBOT.get());
+    final BlockPos abs = helper.absolutePos(pos);
+    Blocks.ROBOT.get().setPlacedBy(helper.getLevel(), abs, helper.getLevel().getBlockState(abs), player(helper), data.createItemStack());
+    final var robot = ((li.cil.oc.core.impl.common.blockentity.RobotProxy) helper.getLevel().getBlockEntity(abs)).robot;
+    final ItemStack pick = new ItemStack(net.minecraft.world.item.Items.IRON_PICKAXE);
+    pick.setDamageValue(17);
+    pick.setHoverName(net.minecraft.network.chat.Component.literal("keep me"));
+    robot.equipmentInventory().setItem(0, pick.copy());
+    robot.equipmentInventory().setItem(1, item(Constants.ItemName.RedstoneCardTier1));
+    robot.mainInventory().setItem(0, new ItemStack(net.minecraft.world.item.Items.DIAMOND, 5));
+
+    final List<ItemStack> drops;
+    if (byPlayer) {
+      drops = breakAndCollect(helper, pos);
+    } else {
+      final AABB box = new AABB(abs).inflate(3);
+      helper.getLevel().getEntitiesOfClass(ItemEntity.class, box).forEach(Entity::discard);
+      helper.getLevel().destroyBlock(abs, true);
+      drops = new ArrayList<>();
+      for (final ItemEntity entity : helper.getLevel().getEntitiesOfClass(ItemEntity.class, box)) {
+        drops.add(entity.getItem().copy());
+        entity.discard();
+      }
+    }
+    final var robots = drops.stream().filter(s -> isOC(s, Constants.BlockName.Robot)).toList();
+    final var picks = drops.stream().filter(s -> s.is(net.minecraft.world.item.Items.IRON_PICKAXE)).toList();
+    final long cards = drops.stream().filter(s -> isOC(s, Constants.ItemName.RedstoneCardTier1)).count();
+    final int diamonds = drops.stream().filter(s -> s.is(net.minecraft.world.item.Items.DIAMOND)).mapToInt(ItemStack::getCount).sum();
+    helper.assertTrue(robots.size() == 1 && picks.size() == 1 && ItemStack.matches(picks.get(0), pick) && cards == 1 && diamonds == 5
+        && drops.size() == 4, (byPlayer ? "broken by a player" : "destroyed") + ": expected the robot, its damaged named pickaxe, "
+        + "the card from its container and 5 diamonds, dropped " + describe(drops));
+    final var kept = new RobotData(robots.get(0));
+    helper.assertTrue(kept.containers.size() == 1 && kept.components.size() == 1,
+      "the robot item keeps its container and component: " + kept.containers.size() + " / " + kept.components.size());
+    helper.succeed();
+  }
+
+  @GameTest(template = EMPTY)
+  public static void robotBrokenByAPlayerDropsItsToolAndContainerContents(final GameTestHelper helper) {
+    robotDropsEverythingItCarries(helper, true);
+  }
+
+  @GameTest(template = EMPTY)
+  public static void robotDestroyedDropsItsToolAndContainerContents(final GameTestHelper helper) {
+    robotDropsEverythingItCarries(helper, false);
+  }
 }
