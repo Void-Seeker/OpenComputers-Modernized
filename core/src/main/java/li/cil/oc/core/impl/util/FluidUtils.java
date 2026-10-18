@@ -38,6 +38,18 @@ public final class FluidUtils {
     return handler != null ? handler.fluidHandlerIn(stack) : null;
   }
 
+  /** What draining a fluid container gives: the fluid that came out and the container afterwards. */
+  public record Drained(FluidStack fluid, ItemStack container) {
+  }
+
+  /**
+   * Drains up to amount from one of the stack's items (a copy): what came out and what the item is now (an empty bucket,
+   * a cell with the rest), or null if nothing came out (a bucket gives all or nothing).
+   */
+  public static Drained drainItem(ItemStack stack, int amount) {
+    return handler != null ? handler.drainItem(stack, amount) : null;
+  }
+
   public static ItemStack fillItem(ItemStack stack, FluidStack resource) {
     return handler != null ? handler.fillItem(stack, resource) : null;
   }
@@ -56,6 +68,10 @@ public final class FluidUtils {
     FluidHandler fluidHandlerIn(ItemStack stack);
 
     ItemStack fillItem(ItemStack stack, FluidStack resource);
+
+    default Drained drainItem(ItemStack stack, int amount) {
+      return null;
+    }
 
     boolean isFluidContainer(ItemStack stack);
 

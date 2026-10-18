@@ -624,8 +624,10 @@ public abstract class Robot extends RobotBase implements Computer, PowerInformat
 
   @Override
   public int @NotNull [] getSlotsForFace(@NotNull Direction side) {
-    if (side == Direction.WEST) return new int[]{0};
-    if (side == Direction.EAST) return containerSlots().stream().mapToInt(i -> i).toArray();
+    // by the robot's own sides (it was the world's): the tool from its right (local west), containers from its left
+    Direction local = toLocal(side);
+    if (local == Direction.WEST) return new int[]{0};
+    if (local == Direction.EAST) return containerSlots().stream().mapToInt(i -> i).toArray();
     return inventorySlots().stream().mapToInt(i -> i).toArray();
   }
 

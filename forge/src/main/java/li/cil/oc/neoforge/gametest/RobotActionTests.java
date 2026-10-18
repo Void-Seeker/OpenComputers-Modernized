@@ -277,4 +277,68 @@ public final class RobotActionTests {
       "taken out: " + robot.mainInventory().getContainerSize() + " slots, " + loose(helper, Items.DIAMOND) + " diamonds dropped");
     helper.succeed();
   }
+
+  /** Waterlogged stairs are what they are: solid. A robot does not move into them (it replaced them with itself). */
+  @GameTest(template = EMPTY, timeoutTicks = 200)
+  public static void robotTreatsWaterloggedBlocksAsSolid(final GameTestHelper helper) {
+    floor(helper);
+    helper.setBlock(AT.south(), Blocks.OAK_STAIRS.defaultBlockState().setValue(BlockStateProperties.WATERLOGGED, true));
+    TestMachines.runRobot(helper, AT, List.of(Constants.ItemName.InventoryUpgrade),
+      ROBOT + "local blocked, what = r.detect(3) local ok, why = r.move(3) error('done:' .. tostring(blocked) .. ',' .. tostring(what) .. ',' .. tostring(ok))", 60, (robot, result) -> {
+        helper.assertTrue(result != null && result.startsWith("true,solid,") && !result.endsWith("true") && helper.getBlockState(AT.south()).is(Blocks.OAK_STAIRS),
+          "detect/move returned " + result + ", in front: " + helper.getBlockState(AT.south()));
+        helper.succeed();
+      });
+  }
+
+  /** A robot's geolyzer and its hopper sides go by the robot's sides, not the world's (here it faces east). */
+  @GameTest(template = EMPTY, timeoutTicks = 200)
+  public static void robotGeolyzerAndHoppersUseTheRobotsSides(final GameTestHelper helper) {
+    floor(helper);
+    helper.setBlock(AT.east(), Blocks.STONE);
+    TestMachines.runRobot(helper, AT, List.of(Constants.ItemName.InventoryUpgrade, Constants.BlockName.Geolyzer),
+      ROBOT + "r.turn(false) local g = component.proxy(component.list('geolyzer')()) local blocked, what = g.detect(3) error('done:' .. tostring(blocked) .. ',' .. tostring(what))", 60, (robot, result) -> {
+        helper.assertTrue("true,solid".equals(result), "facing east, the geolyzer saw " + result + " in front (stone there, air to the south)");
+        final int[] fromRight = robot.getSlotsForFace(robot.toGlobal(net.minecraft.core.Direction.WEST));
+        helper.assertTrue(fromRight.length == 1 && fromRight[0] == 0, "from the robot's right a hopper reaches " + java.util.Arrays.toString(fromRight) + ", not the tool slot");
+        helper.succeed();
+      });
+  }
+
+  /** The experience upgrade's speed-up keeps fractions of a second (break times were cut to whole seconds). */
+  @GameTest(template = EMPTY)
+  public static void robotBreakTimeKeepsFractions(final GameTestHelper helper) {
+    final BlockPos abs = helper.absolutePos(AT);
+    helper.setBlock(AT, li.cil.oc.neoforge.common.init.Blocks.ROBOT.get());
+    final var data = new li.cil.oc.core.impl.common.item.data.RobotData();
+    data.name = "timer";
+    li.cil.oc.neoforge.common.init.Blocks.ROBOT.get().setPlacedBy(helper.getLevel(), abs, helper.getLevel().getBlockState(abs),
+      net.minecraftforge.common.util.FakePlayerFactory.getMinecraft(helper.getLevel()), data.createItemStack());
+    final Robot robot = ((li.cil.oc.core.impl.common.blockentity.RobotProxy) helper.getLevel().getBlockEntity(abs)).robot;
+    final var event = new li.cil.oc.api.event.RobotBreakBlockEvent.Pre(robot, helper.getLevel(), abs.south(), 0.45);
+    net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(event);
+    helper.assertTrue(Math.abs(event.getBreakTime() - 0.45) < 1e-9, "a 0.45 s break became " + event.getBreakTime() + " s");
+    helper.succeed();
+  }
+
+  /**
+   * The tank controller takes from a fluid item only what really comes out: a lava bucket into a tank with room for
+   * half a bucket stays a lava bucket (half was lost and the bucket emptied); into an empty tank it gives a bucket back.
+   */
+  @GameTest(template = EMPTY, timeoutTicks = 200)
+  public static void robotTankControllerDrainsOnlyWhatFits(final GameTestHelper helper) {
+    TestMachines.runRobot(helper, AT, List.of(Constants.ItemName.InventoryUpgrade, Constants.ItemName.TankUpgrade, Constants.ItemName.TankControllerUpgrade), robot -> {
+      robot.mainInventory().setItem(0, new ItemStack(Items.LAVA_BUCKET));
+      robot.mainInventory().setItem(1, new ItemStack(Items.LAVA_BUCKET));
+      final var tank = (li.cil.oc.core.util.FluidTank) robot.getFluidTank(0);
+      tank.fill(new li.cil.oc.core.util.FluidStack("minecraft:lava", tank.getCapacity() - 1500), false);   // room for 1500 mB
+    }, "local t = component.proxy(component.list('tank_controller')()) local r = component.proxy(component.list('robot')()) "
+      + "local ok1 = t.drain() r.select(2) local ok2 = t.drain() error('done:' .. tostring(ok1) .. ',' .. tostring(ok2))", 60, (robot, result) -> {
+      final var tank = (li.cil.oc.core.util.FluidTank) robot.getFluidTank(0);
+      helper.assertTrue("true,nil".equals(result) && tank.getFluidAmount() == tank.getCapacity() - 500
+          && robot.mainInventory().getItem(0).is(Items.BUCKET) && robot.mainInventory().getItem(1).is(Items.LAVA_BUCKET),
+        "drains returned " + result + ": tank " + tank.getFluidAmount() + "/" + tank.getCapacity() + " mB, slots " + robot.mainInventory().getItem(0) + ", " + robot.mainInventory().getItem(1));
+      helper.succeed();
+    });
+  }
 }

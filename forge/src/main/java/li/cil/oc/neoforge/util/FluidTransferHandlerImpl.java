@@ -60,6 +60,18 @@ public class FluidTransferHandlerImpl implements FluidUtils.FluidTransferHandler
   }
 
   @Override
+  public li.cil.oc.core.impl.util.FluidUtils.Drained drainItem(ItemStack stack, int amount) {
+    if (stack.isEmpty() || amount <= 0) return null;
+    ItemStack oneSized = stack.copy();
+    oneSized.setCount(1);
+    IFluidHandlerItem handler = li.cil.oc.neoforge.compat.Capabilities.FluidHandler.ITEM.getCapability(oneSized);
+    if (handler == null) return null;
+    var drained = handler.drain(amount, IFluidHandler.FluidAction.EXECUTE);
+    if (drained.isEmpty()) return null;
+    return new li.cil.oc.core.impl.util.FluidUtils.Drained(li.cil.oc.neoforge.util.FluidHandler.fromNeo(drained), handler.getContainer());
+  }
+
+  @Override
   public boolean isFluidContainer(ItemStack stack) {
     if (stack.isEmpty()) return false;
     return li.cil.oc.neoforge.compat.Capabilities.FluidHandler.ITEM.getCapability(stack) != null;

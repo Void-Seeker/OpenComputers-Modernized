@@ -34,7 +34,7 @@ public final class ExperienceUpgradeHandler {
   @SubscribeEvent
   public static void onRobotBreakBlockPre(RobotBreakBlockEvent.Pre e) {
     double boost = Math.max(0, 1 - getLevel(e.agent) * OCSettings.get().harvestSpeedBoostPerLevel);
-    e.setBreakTime((long) (e.getBreakTime() * boost));
+    e.setBreakTime(e.getBreakTime() * boost);   // was cut to whole seconds: stone took 0.05 s, obsidian 9 s
   }
 
   @SuppressWarnings("unused")

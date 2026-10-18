@@ -64,7 +64,9 @@ public interface WorldAware {
     if (state.isAir()) {
       return new Object[]{false, "air"};
     }
-    if (!state.getFluidState().isEmpty()) {
+    // a liquid block itself - not any block holding water (waterlogged stairs, slabs, chests are what they are: they
+    // counted as liquid, and a robot moving in replaced them with itself)
+    if (state.getBlock() instanceof net.minecraft.world.level.block.LiquidBlock) {
       return new Object[]{WorldAction.checkBlockBreak(level(), pos, state), "liquid"};
     }
     if (state.canBeReplaced()) {

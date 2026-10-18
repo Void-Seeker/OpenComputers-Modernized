@@ -51,7 +51,8 @@ public final class RobotCommonHandler {
       }
 
       boolean isMovingDown = e.direction == Direction.DOWN;
-      boolean bypassesFlightLimit = maxFlyingHeight >= world.getHeight();
+      // OC's "as high as the world" was 256: a tier 2 hover upgrade (256) flew anywhere; 1.20.1 worlds are 384 high
+      boolean bypassesFlightLimit = maxFlyingHeight >= Math.min(256, world.getHeight());
       BlockPosition startPos = BlockPosition.apply(robot);
       BlockPosition targetPos = startPos.offset(e.direction);
       boolean validMove = isMovingDown ||

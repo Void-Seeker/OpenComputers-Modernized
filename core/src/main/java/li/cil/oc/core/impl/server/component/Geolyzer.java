@@ -29,10 +29,11 @@ public class Geolyzer extends GeolyzerBase {
   @Override
   public Direction checkSideForAction(Arguments args, int n) {
     Direction side = ExtendedArguments.checkSideAny(args, n);
+    // a robot's, drone's or microcontroller's own sides (a robot's geolyzer has the robot, not its proxy, as host: it
+    // used world sides; a microcontroller's turned the wrong way, toLocal)
+    if (host instanceof li.cil.oc.api.internal.Rotatable rotatable) return rotatable.toGlobal(side);
     if (GeolyzerHostHelper.get() != null && GeolyzerHostHelper.get().isRobot(host))
       return GeolyzerHostHelper.get().robotToGlobal(host, side);
-    if (host instanceof Drone) return ((Drone) host).toGlobal(side);
-    if (host instanceof Microcontroller) return ((Microcontroller) host).toLocal(side);
     return side;
   }
 }

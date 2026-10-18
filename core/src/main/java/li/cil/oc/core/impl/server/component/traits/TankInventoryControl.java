@@ -55,29 +55,30 @@ public interface TankInventoryControl extends WorldAware, InventoryAware, TankAw
     ItemStack stack = inventory().getItem(selectedSlot());
     if (stack.isEmpty()) return result(null, "nothing selected");
     FluidHandler fluidHandler = FluidUtils.fluidHandlerIn(stack);
-    if (fluidHandler != null) {
-      FluidStack drainable = fluidHandler.drain(amount, true);
-      var remaining = stack.getItem().getCraftingRemainingItem();
-      ItemStack container = remaining != null ? new ItemStack(remaining) : ItemStack.EMPTY;
-      if (drainable == null || drainable.isEmpty())
-        return result(null, "item is empty or not a fluid container");
-      int transferred = into.fill(drainable, true);
-      if (transferred <= 0)
-        return result(null, "tank is full or incompatible fluid");
-      into.fill(drainable.copyWithAmount(transferred), false);
-      fluidHandler.drain(transferred, false);
-      inventory().removeItem(selectedSlot(), 1);
-      if (!container.isEmpty()) {
+    if (fluidHandler == null) return result(null, "item is empty or not a fluid container");
+    FluidStack drainable = fluidHandler.drain(amount, true);
+    if (drainable == null || drainable.isEmpty()) return result(null, "item is empty or not a fluid container");
+    int fits = into.fill(drainable, true);
+    if (fits <= 0) return result(null, "tank is full or incompatible fluid");
+    // drained for real from one item, and only what the tank takes: a bucket gives all or nothing, a cell keeps the
+    // rest (it used to move what the tank took, delete the item and hand back only its vanilla leftover)
+    var drained = FluidUtils.drainItem(stack, fits);
+    if (drained == null) return result(null, "the item cannot give only " + fits + " mB");
+    int transferred = into.fill(drained.fluid(), false);
+    inventory().removeItem(selectedSlot(), 1);
+    ItemStack container = drained.container().copy();
+    if (!container.isEmpty()) {
+      if (inventory().getItem(selectedSlot()).isEmpty()) {
+        inventory().setItem(selectedSlot(), container);
+      } else {
         for (int s : insertionSlots()) {
-          if (InventoryUtils.insertIntoInventorySlot(container, inventory(), null, s, 64)) break;
+          if (container.isEmpty()) break;
+          InventoryUtils.insertIntoInventorySlot(container, inventory(), null, s, 64);
         }
-        if (container.getCount() > 0) {
-          InventoryUtils.spawnStackInWorld(position(), container, null, null);
-        }
+        if (!container.isEmpty()) InventoryUtils.spawnStackInWorld(position(), container, null, null);
       }
-      return result(true, transferred);
     }
-    return result(null, "item is empty or not a fluid container");
+    return result(true, transferred);
   }
 
   @Callback(doc = "function([amount:number]):boolean -- Transfers fluid from the selected tank to a tank in the selected inventory slot.")
