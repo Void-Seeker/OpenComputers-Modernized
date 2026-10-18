@@ -113,7 +113,6 @@ public class Drone extends Entity implements MachineHost, li.cil.oc.api.internal
   public UUID ownerUUID = OCSettings.get().fakePlayerProfile.getId();
 
   private Player player_;
-  private boolean isChangingDimension = false;
 
   public Drone(EntityType<? extends Drone> type, Level level) {
     super(type, level);
@@ -265,7 +264,8 @@ public class Drone extends Entity implements MachineHost, li.cil.oc.api.internal
 
       @Override
       public boolean stillValid(@NotNull Player player) {
-        return player.distanceToSqr(Drone.this) < 64;
+        // not once the drone is gone (killed, picked up, through a portal): its open GUI took from and gave to nothing
+        return !Drone.this.isRemoved() && player.distanceToSqr(Drone.this) < 64;
       }
     };
 
@@ -327,7 +327,9 @@ public class Drone extends Entity implements MachineHost, li.cil.oc.api.internal
     if (player_ == null && DroneHelper.get() != null) player_ = DroneHelper.get().createPlayer(this);
     if (player_ != null && DroneHelper.get() != null) {
       DroneHelper.get().updatePlayerPosition(player_, facing(), facing());
-      DroneHelper.get().setPlayerInventoryItems(player_);
+      // no copy of the inventory into the player here: actions carry it (CarriedInventory). Asked for the player in
+      // the middle of one (the experience upgrade is), this overwrote the carried copies: placed blocks were
+      // duplicated, swings deleted and shifted the drone's items
     }
     return player_;
   }
@@ -659,6 +661,7 @@ public class Drone extends Entity implements MachineHost, li.cil.oc.api.internal
     super.tick();
 
     if (!level().isClientSide) {
+      applyTargetOffset();
       if (isInWater() || isInLava()) {
         if (machine != null) machine.stop();
       }
@@ -818,18 +821,34 @@ public class Drone extends Entity implements MachineHost, li.cil.oc.api.internal
     }
   }
 
+  /** Where the target was relative to the old drone, for the copy in another dimension: made absolute on its first tick. */
+  private net.minecraft.world.phys.Vec3 targetOffset;
+
+  // A dimension change (portal, /tp) makes a copy of the drone there (restoreFrom) and removes this one, which cleans
+  // up in onRemovedFromWorld. This used to remove the drone whether or not the trip happened: a portal without an exit
+  // (an unlinked nether portal) deleted it with all it carried. Its target stayed in the old world's coordinates.
   @Override
-  public Entity changeDimension(@NotNull net.minecraft.server.level.ServerLevel destination) {
-    targetX((targetX() - (float) getX()));
-    targetY((targetY() - (float) getY()));
-    targetZ((targetZ() - (float) getZ()));
-    try {
-      isChangingDimension = true;
-      return super.changeDimension(destination);
-    } finally {
-      isChangingDimension = false;
-      remove(net.minecraft.world.entity.Entity.RemovalReason.DISCARDED);
+  public void restoreFrom(@NotNull Entity old) {
+    super.restoreFrom(old);
+    if (old instanceof Drone drone) {
+      targetOffset = new net.minecraft.world.phys.Vec3(drone.targetX() - drone.getX(), drone.targetY() - drone.getY(), drone.targetZ() - drone.getZ());
     }
+  }
+
+  // portals and /tp place the copy with moveTo right after restoreFrom: the target goes along at once (the copy may
+  // not tick for a long time, nor before it is saved, where no player is)
+  @Override
+  public void moveTo(double x, double y, double z, float yRot, float xRot) {
+    super.moveTo(x, y, z, yRot, xRot);
+    applyTargetOffset();
+  }
+
+  private void applyTargetOffset() {
+    if (targetOffset == null) return;
+    targetX((float) (getX() + targetOffset.x));
+    targetY((float) (getY() + targetOffset.y));
+    targetZ((float) (getZ() + targetOffset.z));
+    targetOffset = null;
   }
 
   private void syncInfo() {
@@ -849,6 +868,8 @@ public class Drone extends Entity implements MachineHost, li.cil.oc.api.internal
       control.load(nbt.getCompound("control"), level().registryAccess());
       components.load(nbt.getCompound("components"), level().registryAccess());
       mainInventory.load(nbt.getCompound("inventory"), level().registryAccess());
+      // running as saved before the components connect: they ask (a chunkloader only loads for a running machine)
+      setRunning(machine != null && machine.isRunning());
       wireThingsTogether();
     }
     targetX(nbt.getFloat("targetX"));
@@ -892,10 +913,14 @@ public class Drone extends Entity implements MachineHost, li.cil.oc.api.internal
     nbt.putString("ownerUuid", ownerUUID.toString());
   }
 
-  @Override
-  public void remove(@NotNull RemovalReason reason) {
-    super.remove(reason);
-    if (!level().isClientSide && !isChangingDimension) {
+  /**
+   * Gone from the world for whatever reason - killed, picked up, unloaded with its chunk, moved to another dimension -
+   * the machine and its components are let go (it was only on remove(): unloading and /tp leaked the Lua state and
+   * left its components connected). What is saved or copied was written before this. Called by the loader's "left the
+   * level" event.
+   */
+  public void onLeftWorld() {
+    if (!level().isClientSide) {
       if (machine != null) machine.stop();
       if (machine != null) machine.node().remove();
       components.disconnectComponents();
@@ -925,7 +950,9 @@ public class Drone extends Entity implements MachineHost, li.cil.oc.api.internal
 
   @Override
   public boolean isInWater() {
-    return level().isWaterAt(BlockPos.containing(position()));
+    // in water, not next to a waterlogged slab or lantern (that switched the drone off; it fell)
+    var state = level().getBlockState(BlockPos.containing(position()));
+    return state.getFluidState().is(FluidTags.WATER) && !state.hasProperty(net.minecraft.world.level.block.state.properties.BlockStateProperties.WATERLOGGED);
   }
 
   @Override

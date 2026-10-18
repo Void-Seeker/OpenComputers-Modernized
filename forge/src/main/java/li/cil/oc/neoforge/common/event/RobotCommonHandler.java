@@ -81,4 +81,13 @@ public final class RobotCommonHandler {
     }
     return false;
   }
+
+  /** A drone that leaves a level, whatever the reason (also unloading, /tp, portals), lets go of its machine. */
+  @SuppressWarnings("unused")
+  @SubscribeEvent
+  public static void onEntityLeaveLevel(net.minecraftforge.event.entity.EntityLeaveLevelEvent e) {
+    if (e.getEntity() instanceof li.cil.oc.core.impl.common.entity.Drone drone && !e.getLevel().isClientSide()) {
+      drone.onLeftWorld();
+    }
+  }
 }

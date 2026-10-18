@@ -54,6 +54,13 @@ public class Drone extends DroneBase {
   }
 
   @Override
+  protected boolean playerInteractEntity(@NotNull net.minecraft.world.entity.player.Player player, @NotNull net.minecraft.world.entity.Entity entity) {
+    // as a robot's, with the drone's inventory carried (drones hold no tool: bare-handed). entity.interact outside it
+    // held a copy of the first slot: leads were duplicated, name tags and breeding food never used up
+    return ((li.cil.oc.neoforge.server.agent.Player) player).interactWithEntity(entity);
+  }
+
+  @Override
   protected boolean playerUseEquippedItem(@NotNull Player player, double duration) {
     return ((li.cil.oc.neoforge.server.agent.Player) player).useEquippedItem(duration);
   }

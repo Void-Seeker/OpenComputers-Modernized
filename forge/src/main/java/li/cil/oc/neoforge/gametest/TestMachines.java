@@ -93,4 +93,37 @@ final class TestMachines {
       });
     });
   }
+
+  /**
+   * Spawns a drone (tier 1 CPU, tier 1 RAM, the given parts, the program as its EEPROM) at the centre of pos, as its item
+   * does, and boots it; after delay ticks the check gets the drone and what the program reported (error("done:" ..)).
+   */
+  static void runDrone(final GameTestHelper helper, final BlockPos pos, final List<String> parts,
+                       final Consumer<li.cil.oc.core.impl.common.entity.Drone> setup, final String program, final int delay,
+                       final java.util.function.BiConsumer<li.cil.oc.core.impl.common.entity.Drone, String> check) {
+    final var data = new li.cil.oc.core.impl.common.item.data.DroneData();
+    data.name = "tester";
+    for (final String part : List.of(li.cil.oc.core.Constants.ItemName.CPUTier1, li.cil.oc.core.Constants.ItemName.RAMTier1)) {
+      data.components.add(li.cil.oc.api.Items.get(part).createItemStack(1));
+    }
+    for (final String part : parts) {
+      data.components.add(li.cil.oc.api.Items.get(part).createItemStack(1));
+    }
+    data.components.add(li.cil.oc.api.Items.registerEEPROM("drone test", program.getBytes(StandardCharsets.UTF_8), null, false));
+    final var level = helper.getLevel();
+    final var drone = new li.cil.oc.core.impl.common.entity.Drone(li.cil.oc.core.impl.common.entity.Drone.getEntityType(), level);
+    drone.initializeAfterPlacement(data.createItemStack(), null, helper.absoluteVec(net.minecraft.world.phys.Vec3.atCenterOf(pos)));
+    level.addFreshEntity(drone);
+    setup.accept(drone);
+    helper.runAfterDelay(5, () -> {
+      ((li.cil.oc.api.network.Connector) drone.machine().node()).changeBuffer(20000);
+      helper.assertTrue(drone.start(), "the drone did not start: " + drone.machine().lastError());
+      helper.runAfterDelay(delay, () -> {
+        final String error = drone.machine().lastError();
+        final int at = error == null ? -1 : error.indexOf("done:");
+        helper.assertTrue(error == null || at >= 0, "the program failed: " + error);
+        check.accept(drone, at >= 0 ? error.substring(at + 5) : null);
+      });
+    });
+  }
 }

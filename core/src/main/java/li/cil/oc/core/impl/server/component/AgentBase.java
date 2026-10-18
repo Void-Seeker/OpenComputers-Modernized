@@ -386,9 +386,11 @@ public abstract class AgentBase extends AbstractManagedEnvironment implements
       if (!success && hit.getType() != HitResult.Type.BLOCK) {
         int airActivation = li.cil.oc.core.server.agent.ActivationType.None;
         if (canPlaceInAir()) {
-          BlockPosition placePos = position();
-          if (playerPlaceBlock(player, 0, placePos.x(), placePos.y(), placePos.z(), facing.ordinal(),
-            0.5f + facing.getStepX() * 0.5f, 0.5f + facing.getStepY() * 0.5f, 0.5f + facing.getStepZ() * 0.5f)) {
+          // into the air in front, against it from this side (it clicked the agent's own block: a drone's is air,
+          // replaceable, and the block went where the drone is)
+          BlockPosition placePos = position().offset(facing);
+          if (playerPlaceBlock(player, 0, placePos.x(), placePos.y(), placePos.z(), facing.getOpposite().ordinal(),
+            0.5f - facing.getStepX() * 0.5f, 0.5f - facing.getStepY() * 0.5f, 0.5f - facing.getStepZ() * 0.5f)) {
             airActivation = li.cil.oc.core.server.agent.ActivationType.ItemPlaced;
           } else {
             BlockPosition usePos = position().offset(facing).offset(side);

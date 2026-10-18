@@ -539,11 +539,13 @@ public class Player extends FakePlayer implements li.cil.oc.core.impl.server.age
     ItemStack stack = inventory.getItem(slot);
     ItemStack oldStack = stack.copy();
     ItemStack oldSlot0 = ItemStack.EMPTY;
+    ItemStack held = null;   // what the first slot holds for the action, to see what vanilla put there instead
     if (inventory == agent.mainInventory()) {
       getInventory().selected = slot;
     } else {
       oldSlot0 = getInventory().items.get(0).copy();
       getInventory().items.set(0, inventory.getItem(slot));
+      held = getInventory().items.get(0);
       getInventory().selected = 0;
     }
     getInventory().offhand.set(0, inventory.getItem(slot));
@@ -566,12 +568,19 @@ public class Player extends FakePlayer implements li.cil.oc.core.impl.server.age
       }
       // what vanilla code gave the player beyond the robot's slots (a milk bucket, an empty bottle) is the robot's
       var extras = carried.extras();
+      // an empty hand's first slot is where Inventory.add puts things (a book from a shelf): that is the robot's too
+      if (held != null && held.isEmpty() && !getInventory().items.get(0).isEmpty()) extras.add(getInventory().items.get(0));
       carried.restore();
       getInventory().selected = oldSelected;
       if (inventory != agent.mainInventory()) {
         getInventory().items.set(0, oldSlot0);
       }
-      inventory.setItem(slot, getInventory().offhand.get(0));
+      if (slot < inventory.getContainerSize()) {
+        inventory.setItem(slot, getInventory().offhand.get(0));
+      } else if (!getInventory().offhand.get(0).isEmpty()) {
+        // no such slot (a drone has no tool slot): what vanilla put in the hand (a flower from a pot) is the drone's
+        extras.add(getInventory().offhand.get(0));
+      }
       getInventory().offhand.set(0, oldOffhand);
       ItemStack newStack = inventory.getItem(slot);
       if (repair && !newStack.isEmpty()) {

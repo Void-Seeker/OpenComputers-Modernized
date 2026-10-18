@@ -1,6 +1,7 @@
 package li.cil.oc.core.impl.server.component;
 
 import java.util.Map;
+import net.minecraft.world.item.ItemStack;
 import li.cil.oc.api.Network;
 import li.cil.oc.api.driver.DeviceInfo;
 import li.cil.oc.api.machine.Arguments;
@@ -28,8 +29,7 @@ public abstract class DroneBase extends AgentBase implements DeviceInfo {
       DeviceAttribute.Class, DeviceClass.System,
       DeviceAttribute.Description, "Drone",
       DeviceAttribute.Vendor, Constants.DeviceInfo.DefaultVendor,
-      DeviceAttribute.Product, "Overwatcher",
-      DeviceAttribute.Capacity, String.valueOf(inventorySize));
+      DeviceAttribute.Product, "Overwatcher");
     setNode(this.node);
   }
 
@@ -40,7 +40,10 @@ public abstract class DroneBase extends AgentBase implements DeviceInfo {
 
   @Override
   public Map<String, String> getDeviceInfo() {
-    return deviceInfo;
+    // the capacity as it is now (it was taken when the drone was made, before its parts were known: always 0)
+    var info = new java.util.HashMap<>(deviceInfo);
+    info.put(DeviceAttribute.Capacity, String.valueOf(inventory().getContainerSize()));
+    return info;
   }
 
   protected abstract String statusTextImpl();
@@ -82,9 +85,12 @@ public abstract class DroneBase extends AgentBase implements DeviceInfo {
   @Override
   public void onSuckCollect(ItemEntity entity) {
     var inv = inventory();
-    if (InventoryUtils.insertIntoInventory(entity.getItem(), inv, null, 64)) {
+    ItemStack stack = entity.getItem();
+    if (InventoryUtils.insertIntoInventory(stack, inv, null, 64)) {
       playPickupSound();
     }
+    if (stack.isEmpty()) entity.discard();
+    else entity.setItem(stack);   // what is left, seen by clients too
   }
 
   @Override
@@ -128,10 +134,17 @@ public abstract class DroneBase extends AgentBase implements DeviceInfo {
   @Callback(doc = "function(dx:number, dy:number, dz:number) -- Change the target position by the specified offset.")
   @SuppressWarnings("SameReturnValue")
   public Object @Nullable [] move(Context context, Arguments args) {
-    setTargetXImpl(targetXImpl() + (float) args.checkDouble(0));
-    setTargetYImpl(targetYImpl() + (float) args.checkDouble(1));
-    setTargetZImpl(targetZImpl() + (float) args.checkDouble(2));
+    setTargetXImpl(targetXImpl() + (float) finite(args, 0));
+    setTargetYImpl(targetYImpl() + (float) finite(args, 1));
+    setTargetZImpl(targetZImpl() + (float) finite(args, 2));
     return null;
+  }
+
+  // NaN or an infinity flew the drone to x 0 or out of the world, or (as acceleration) froze it for good
+  private static double finite(Arguments args, int index) {
+    double value = args.checkDouble(index);
+    if (!Double.isFinite(value)) throw new IllegalArgumentException("bad argument #" + (index + 1) + " (finite number expected)");
+    return value;
   }
 
   @Callback(doc = "function():number -- Get the current distance to the target position.")
@@ -156,7 +169,7 @@ public abstract class DroneBase extends AgentBase implements DeviceInfo {
 
   @Callback(doc = "function(value:number):number -- Try to set the acceleration.")
   public Object[] setAcceleration(Context context, Arguments args) {
-    setTargetAccelerationImpl((float) (args.checkDouble(0) / 20.0));
+    setTargetAccelerationImpl((float) (finite(args, 0) / 20.0));
     return ResultWrapper.result(targetAccelerationImpl() * 20);
   }
 }

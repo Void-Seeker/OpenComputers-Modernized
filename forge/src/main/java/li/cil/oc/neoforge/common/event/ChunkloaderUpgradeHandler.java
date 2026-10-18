@@ -38,7 +38,7 @@ public final class ChunkloaderUpgradeHandler {
     Set<Long> oldChunks = chunks.getOrDefault(address, Set.of());
 
     for (long chunk : oldChunks) {
-      if (!newChunks.contains(chunk)) {
+      if (!newChunks.contains(chunk) && !claimedByOthers(chunks, address, chunk)) {
         serverLevel.setChunkForced(ChunkPos.getX(chunk), ChunkPos.getZ(chunk), false);
       }
     }
@@ -50,6 +50,15 @@ public final class ChunkloaderUpgradeHandler {
     }
 
     chunks.put(address, newChunks);
+  }
+
+  // Forced chunks are one flag per chunk for everyone: a loader leaving a chunk unforced it while another loader there
+  // still needed it (and swarms of drones crossing each other's areas did so all the time).
+  private static boolean claimedByOthers(Map<String, Set<Long>> chunks, String address, long chunk) {
+    for (var entry : chunks.entrySet()) {
+      if (!entry.getKey().equals(address) && entry.getValue().contains(chunk)) return true;
+    }
+    return false;
   }
 
   public static void releaseLoadedChunk(UpgradeChunkloader loader) {
@@ -64,7 +73,9 @@ public final class ChunkloaderUpgradeHandler {
     if (oldChunks == null) return;
 
     for (long chunk : oldChunks) {
-      serverLevel.setChunkForced(ChunkPos.getX(chunk), ChunkPos.getZ(chunk), false);
+      if (!claimedByOthers(worldMap, null, chunk)) {
+        serverLevel.setChunkForced(ChunkPos.getX(chunk), ChunkPos.getZ(chunk), false);
+      }
     }
 
     if (worldMap.isEmpty()) {

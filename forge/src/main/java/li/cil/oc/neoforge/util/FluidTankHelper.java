@@ -13,7 +13,7 @@ public class FluidTankHelper extends li.cil.oc.core.util.FluidTankHelper {
       public int tankCount() {
         int count = 0;
         for (var comp : inventory.componentEnvironments()) {
-          if (comp instanceof IFluidTank) count++;
+          if (comp instanceof li.cil.oc.core.util.FluidTank) count++;   // the tank upgrade is one of these, not an IFluidTank: drones had no tanks
         }
         return count;
       }
@@ -22,7 +22,7 @@ public class FluidTankHelper extends li.cil.oc.core.util.FluidTankHelper {
       public Object getFluidTank(int index) {
         int count = 0;
         for (var comp : inventory.componentEnvironments()) {
-          if (comp instanceof IFluidTank tank) {
+          if (comp instanceof li.cil.oc.core.util.FluidTank tank) {
             if (count == index) return tank;
             count++;
           }

@@ -78,9 +78,9 @@ public class Drone extends DelegateItem {
         pos.getZ() + (clickLoc.z - pos.getZ()) * 1.1
       );
       drone.initializeAfterPlacement(stack, player, spawnPos);
-      world.addFreshEntity(drone);
+      // the item goes only if the drone is there (a cancelled spawn kept nothing), and not in creative
+      if (world.addFreshEntity(drone) && (player == null || !player.getAbilities().instabuild)) stack.shrink(1);
     }
-    stack.shrink(1);
     return InteractionResult.SUCCESS;
   }
 }

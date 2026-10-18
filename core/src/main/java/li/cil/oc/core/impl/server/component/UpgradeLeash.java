@@ -95,7 +95,7 @@ public class UpgradeLeash extends AbstractManagedEnvironment implements WorldAwa
   }
 
   private void unleashAll() {
-    for (Mob entity : entitiesInBounds(position().bounds().inflate(5), Mob.class)) {
+    for (Mob entity : entitiesInBounds(position().bounds().inflate(12), Mob.class)) {
       if (leashedEntities.contains(entity.getUUID()) && entity.getLeashHolder() == host) {
         entity.dropLeash(true, false);
       }
@@ -112,7 +112,7 @@ public class UpgradeLeash extends AbstractManagedEnvironment implements WorldAwa
     }
     Tasks.schedule(() -> {
       Set<UUID> foundEntities = new HashSet<>();
-      for (Mob entity : entitiesInBounds(position().bounds().inflate(5), Mob.class)) {
+      for (Mob entity : entitiesInBounds(position().bounds().inflate(12), Mob.class)) {
         if (leashedEntities.contains(entity.getUUID())) {
           entity.setLeashedTo(host, true);
           foundEntities.add(entity.getUUID());
