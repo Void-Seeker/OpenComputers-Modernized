@@ -338,6 +338,9 @@ public class Print extends BlockEntity implements RedstoneAware, Rotatable, Name
     super.readFromNBTForServer(nbt);
     var dataKey = nbt.contains(OCSettings.namespace + "data") ? OCSettings.namespace + "data" : "data";
     data.load(nbt.getCompound(dataKey), getEffectiveProvider());
+    // the block says what it is too (beacon base prints placed before isBeaconBase was set by crafting)
+    var beaconBase = li.cil.oc.api.Items.get(li.cil.oc.core.Constants.BlockName.BeaconBasePrint);
+    if (beaconBase != null && getBlockState().getBlock() == beaconBase.block()) data.markBeaconBase();
     state = nbt.contains(OCSettings.namespace + "state") ? nbt.getBoolean(OCSettings.namespace + "state") : nbt.getBoolean("state");
     if (nbt.contains(OCSettings.namespace + "yaw")) {
       _facing = Direction.from3DDataValue(nbt.getInt(OCSettings.namespace + "yaw"));

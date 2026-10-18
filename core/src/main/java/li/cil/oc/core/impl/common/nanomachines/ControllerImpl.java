@@ -23,7 +23,6 @@ import li.cil.oc.core.impl.util.PlayerUtils;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.player.Player;
@@ -31,7 +30,6 @@ import net.minecraft.world.level.Level;
 
 public class ControllerImpl implements Controller, WirelessEndpoint {
   public static final int FullSyncInterval = 20 * 60;
-  public static final DamageSource OverloadDamage = new DamageSourceWithRandomCause("oc.nanomachinesOverload", 3);
   public final Player player;
   public final double CommandRange;
   public final NeuralNetwork configuration = new NeuralNetwork(this);
@@ -87,8 +85,8 @@ public class ControllerImpl implements Controller, WirelessEndpoint {
         for (int i = 0; i < cmd.length; i++) {
           if (cmd[i] instanceof byte[]) cmd[i] = new String((byte[]) cmd[i], StandardCharsets.UTF_8);
         }
-        if (cmd.length > 0) {
-          String op = (String) cmd[0];
+        // OC ignored what is not a command; a cast threw out of the sender's broadcast (players after this one missed it)
+        if (cmd.length > 0 && cmd[0] instanceof String op) {
           switch (op) {
             case "setResponsePort" -> {
               if (cmd.length > 1 && cmd[1] instanceof Number n) {
@@ -103,7 +101,7 @@ public class ControllerImpl implements Controller, WirelessEndpoint {
                 int index = -1;
                 for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
                   var stack = player.getInventory().getItem(i);
-                  if (li.cil.oc.api.Items.get(stack) == nanomachinesItem && new NanomachineData(stack).configuration.isEmpty()) {
+                  if (li.cil.oc.api.Items.get(stack) == nanomachinesItem && new NanomachineData(stack).configuration == null) { // a blank item has none (isEmpty threw: always "error")
                     index = i;
                     break;
                   }
@@ -311,7 +309,7 @@ public class ControllerImpl implements Controller, WirelessEndpoint {
         long activeInputs = configuration.triggers.stream().filter(t -> t.isActive).count();
         int overload = (int) activeInputs - getSafeActiveInputs();
         if (!player.getAbilities().instabuild && overload > 0 && player.level().getGameTime() % 20 == 0) {
-          player.hurt(OverloadDamage, overload);
+          player.hurt(DamageSourceWithRandomCause.overload(player.level()), overload);
         }
       }
 

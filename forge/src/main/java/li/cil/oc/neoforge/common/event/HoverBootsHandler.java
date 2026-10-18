@@ -54,22 +54,16 @@ public final class HoverBootsHandler {
         if (player.onGround()) {
           player.addEffect(new MobEffectInstance(MobEffects.JUMP, 100, 3, false, false, true));
         } else {
-          var jumpBoost = player.getEffect(MobEffects.JUMP);
-          if (jumpBoost != null && jumpBoost.getAmplifier() == 3) {
-            player.removeEffect(MobEffects.JUMP);
-          }
+          removeBootsEffect(player, MobEffects.JUMP, 3);
         }
         if (!player.onGround() && player.fallDistance < 5 && player.getDeltaMovement().y < 0) {
           player.addEffect(new MobEffectInstance(MobEffects.SLOW_FALLING, 100, 0, false, false, true));
         } else {
-          player.removeEffect(MobEffects.SLOW_FALLING);
+          removeBootsEffect(player, MobEffects.SLOW_FALLING, 0);
         }
       } else {
-        var jumpBoost = player.getEffect(MobEffects.JUMP);
-        if (jumpBoost != null && jumpBoost.getAmplifier() == 3) {
-          player.removeEffect(MobEffects.JUMP);
-        }
-        player.removeEffect(MobEffects.SLOW_FALLING);
+        removeBootsEffect(player, MobEffects.JUMP, 3);
+        removeBootsEffect(player, MobEffects.SLOW_FALLING, 0);
         if (!OCSettings.get().ignorePower) {
           var bootsStack = equippedArmor(player)
             .filter(stack -> stack.getItem() instanceof HoverBoots)
@@ -88,6 +82,29 @@ public final class HoverBootsHandler {
       if (stepHeightAttr != null) {
         stepHeightAttr.setBaseValue(hasHoverBoots ? 0.4 : 0.0);
       }
+    }
+  }
+
+  /**
+   * Takes away an effect only if it is the boots' own (hidden, theirs amplifier, at most their 100 ticks): it took
+   * every player's Slow Falling every tick, boots or not (potions and tipped arrows did nothing), and any Jump Boost IV.
+   */
+  private static void removeBootsEffect(Player player, net.minecraft.world.effect.MobEffect effect, int amplifier) {
+    var instance = player.getEffect(effect);
+    if (instance != null && !instance.isVisible() && instance.getAmplifier() == amplifier && instance.getDuration() <= 100) {
+      player.removeEffect(effect);
+    }
+  }
+
+  /** A jump with the boots' Jump Boost costs what the config says (power.cost.hoverBootJump was never charged). */
+  @SubscribeEvent
+  public static void onJump(net.minecraftforge.event.entity.living.LivingEvent.LivingJumpEvent e) {
+    if (e.getEntity() instanceof Player player && !(player instanceof FakePlayer) && !player.level().isClientSide
+      && !OCSettings.get().ignorePower && !player.getAbilities().instabuild) {
+      var jump = player.getEffect(MobEffects.JUMP);
+      if (jump == null || jump.isVisible() || jump.getAmplifier() != 3) return;
+      equippedArmor(player).filter(stack -> stack.getItem() instanceof HoverBoots).findFirst()
+        .ifPresent(stack -> ((HoverBoots) stack.getItem()).charge(stack, -OCSettings.get().hoverBootJump, false));
     }
   }
 

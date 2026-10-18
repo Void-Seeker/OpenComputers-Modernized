@@ -55,7 +55,9 @@ public class NavigationUpgradeData extends ItemData {
   public void save(ItemStack stack, HolderLookup.Provider provider) {
     var tag = CustomData.get(stack);
     var nbt = tag != null && !tag.isEmpty() ? tag.copyTag() : new CompoundTag();
-    save(nbt.getCompound(OCSettings.namespace + "data"), provider);
+    var data = nbt.getCompound(OCSettings.namespace + "data"); // a new, detached one when missing: put it back
+    save(data, provider);
+    nbt.put(OCSettings.namespace + "data", data);
     CustomData.set(stack, CustomData.of(nbt));
   }
 

@@ -245,7 +245,9 @@ public final class GuiHandler {
             return new li.cil.oc.core.impl.common.container.Tablet(Menus.TABLET.get(), containerId, player.getInventory(), li.cil.oc.core.impl.common.item.Tablet.get(heldItem, player));
           }
         }
-        if (item instanceof li.cil.oc.core.impl.common.item.DiskDriveMountable && id == GuiType.DiskDriveMountable) {
+        // the registered item is the forge one (a DelegateItem, not the core class): the GUI never opened
+        if ((item instanceof li.cil.oc.core.impl.common.item.DiskDriveMountable || item instanceof li.cil.oc.neoforge.common.item.DiskDriveMountable)
+          && id == GuiType.DiskDriveMountable) {
           var provider = player.level().registryAccess();
           return new li.cil.oc.core.impl.common.container.DiskDrive(Menus.DISK_DRIVE.get(), containerId, player.getInventory(), new DiskDriveMountableInventory() {
             private final ItemStack[] items = new ItemStack[1];

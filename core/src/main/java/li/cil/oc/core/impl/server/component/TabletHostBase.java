@@ -36,6 +36,8 @@ public abstract class TabletHostBase implements ComponentInventory, MachineHost,
   private li.cil.oc.api.machine.Machine _machine;
   private Tablet _tabletComponent;
   public Level creationLevel;
+  // the energy last written into the item: more in the item is what a charger put there since
+  private double savedEnergy = Double.NaN;
 
   protected TabletHostBase() {
     deviceInfo = Map.of(
@@ -46,6 +48,14 @@ public abstract class TabletHostBase implements ComponentInventory, MachineHost,
   }
 
   public abstract ItemStack getStack();
+
+  /**
+   * The stack the tablet is now (OC: wrapper.stack = stack). Every move in an inventory, a drop and a pick-up makes a
+   * new stack object: the machine went on saving its energy and state into the old, empty one, its GUI closed at once,
+   * and what it did after the move was lost when it unloaded (its energy came back: a dupe).
+   */
+  public void rebind(@NotNull ItemStack current) {
+  }
 
   /** The tablet's menus are valid while the tablet is the item in hand; moving or throwing it closes them. */
   @Override
@@ -85,6 +95,7 @@ public abstract class TabletHostBase implements ComponentInventory, MachineHost,
           if (tabletComponent.node instanceof Connector connector) {
             var charge = Math.max(0, tabletData.energy - connector.localBuffer());
             connector.changeBuffer(charge);
+            savedEnergy = connector.localBuffer();
           }
         }
         persistMachineState();
@@ -272,8 +283,14 @@ public abstract class TabletHostBase implements ComponentInventory, MachineHost,
       data.isRunning = running;
       var c = serverComponent();
       if (c != null && c.node instanceof Connector connector) {
+        // chargers charge the item (Tablet.charge); this overwrote that with the machine's buffer every tick, so a
+        // carried tablet never charged while the charger's energy was spent
+        if (!Double.isNaN(savedEnergy) && data.energy > savedEnergy) {
+          connector.changeBuffer(data.energy - savedEnergy);
+        }
         data.energy = connector.localBuffer();
         data.maxEnergy = connector.localBufferSize();
+        savedEnergy = data.energy;
       }
       data.save(getStack());
       if (player() != null) {

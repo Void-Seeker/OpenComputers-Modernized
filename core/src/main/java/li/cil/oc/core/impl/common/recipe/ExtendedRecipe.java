@@ -134,7 +134,10 @@ public final class ExtendedRecipe {
         craftedCustomData = CustomData.get(craftedStack);
       }
       CompoundTag nbt = craftedCustomData != null ? craftedCustomData.copyTag() : new CompoundTag();
-      if (craftedStack.getCount() == 1) {
+      // OC: a one-ingredient recipe formats (or turns a loot disk into a floppy) and keeps only the colour; any other
+      // (dyeing) keeps the disk - its address, label and lock - under the new colour. This asked for a result count of
+      // 1, which dyeing has too, and the dye recipes were vanilla ones that never came here: dyeing wiped the floppy.
+      if (getItems(inventory).length == 1) {
         String colorKey = OCSettings.namespace + "color";
         for (var stack : getItems(inventory)) {
           var info = li.cil.oc.api.Items.get(stack);
@@ -152,18 +155,24 @@ public final class ExtendedRecipe {
         } else {
           CustomData.set(craftedStack, CustomData.of(nbt));
         }
-      } else if (allFloppies(inventory)) {
+      } else {
         for (var stack : getItems(inventory)) {
           var stackCustomData = CustomData.get(stack);
           if (li.cil.oc.api.Items.get(stack) == floppy && stackCustomData != null && !stackCustomData.isEmpty()) {
             var oldData = stackCustomData.copyTag();
             for (var oldTagName : oldData.getAllKeys()) {
               var tag = oldData.get(oldTagName);
-              if (tag != null) nbt.put(oldTagName, tag.copy());
+              if (tag != null && !nbt.contains(oldTagName)) nbt.put(oldTagName, tag.copy());
             }
           }
         }
-        CustomData.set(craftedStack, CustomData.of(nbt));
+        // the vanilla keys (a renamed floppy's name) are outside CustomData; keep them too
+        for (var stack : getItems(inventory)) {
+          if (li.cil.oc.api.Items.get(stack) == floppy && stack.hasCustomHoverName() && !craftedStack.hasCustomHoverName()) {
+            craftedStack.setHoverName(stack.getHoverName());
+          }
+        }
+        CustomData.set(craftedStack, nbt.isEmpty() ? CustomData.EMPTY : CustomData.of(nbt));
       }
     }
 
@@ -280,13 +289,6 @@ public final class ExtendedRecipe {
     return false;
   }
 
-  private static boolean allFloppies(CraftingContainer inventory) {
-    for (var stack : getItems(inventory)) {
-      if (li.cil.oc.api.Items.get(stack) != floppy) return false;
-    }
-    return true;
-  }
-
   private static void recraft(ItemStack craftedStack, CraftingContainer inventory, ItemInfo descriptor, java.util.function.Function<ItemStack, ItemDataWrapper> dataFactory) {
     if (li.cil.oc.api.Items.get(craftedStack) == descriptor) {
       ItemStack oldMcu = null;
@@ -393,9 +395,32 @@ public final class ExtendedRecipe {
       return components;
     }
 
+    // by slot: the items are slot-indexed (31 is the inner container slot) and the compacted list moved that one into a
+    // component slot, freeing the inner slot for another. Kept parts stay, the new EEPROM goes where the old one was.
     @Override
     public void save(ItemStack stack) {
-      data.items = new ArrayList<>(components);
+      var items = new ArrayList<>(data.items);
+      int freed = -1;
+      for (int i = 0; i < items.size(); i++) {
+        var item = items.get(i);
+        if (item != null && components.stream().noneMatch(c -> c == item)) {
+          if (freed < 0) freed = i;
+          items.set(i, null);
+        }
+      }
+      for (var component : components) {
+        if (items.stream().anyMatch(i -> i == component)) continue;
+        int at = freed;
+        freed = -1;
+        if (at < 0) {
+          for (int i = 0; i < items.size() - 1 && at < 0; i++) {
+            if (items.get(i) == null || items.get(i).isEmpty()) at = i;
+          }
+        }
+        if (at >= 0) items.set(at, component);
+        else items.add(component);
+      }
+      data.items = items;
       data.save(stack);
     }
   }

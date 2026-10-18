@@ -25,7 +25,6 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.Container;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import li.cil.oc.compat.CustomData;
 import org.jetbrains.annotations.Nullable;
 
 public class UpgradeDatabase extends AbstractManagedEnvironment implements li.cil.oc.api.internal.Database, DeviceInfo {
@@ -161,7 +160,9 @@ public class UpgradeDatabase extends AbstractManagedEnvironment implements li.ci
     if (stack.isDamageableItem()) {
       stack.setDamageValue(damage);
     }
-    if (tag != null) CustomData.set(stack, CustomData.of(tag));
+    // the whole tag, as OC: CustomData leaves out the vanilla keys (StoredEnchantments, Enchantments, display), and an
+    // enchanted book was stored as a plain one that nothing matched
+    if (tag != null) stack.setTag(tag);
     data.setItem(slot, stack);
     return ResultWrapper.result(true);
   }

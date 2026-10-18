@@ -20,7 +20,7 @@ public class UpgradeExperience extends DelegateItem implements ItemTier {
   @Override
   public void appendHoverText(@NotNull ItemStack stack, @org.jetbrains.annotations.Nullable net.minecraft.world.level.Level context, @NotNull List<Component> tooltip, @NotNull TooltipFlag flag) {
     super.appendHoverText(stack, context, tooltip, flag);
-    CompoundTag nbt = Item.getDataTag(stack);
+    CompoundTag nbt = Item.peekDataTag(stack); // reading only: hovering gave the item a tag, and it stopped stacking
     double experience = Math.max(0, nbt.getDouble(OCSettings.namespace + "xp"));
     if (experience > 0) {
       int lvl = Math.min((int) (Math.pow(experience - OCSettings.get().baseXpToLevel, 1.0 / OCSettings.get().exponentialXpGrowth) / OCSettings.get().constantXpGrowth), 30);

@@ -68,6 +68,15 @@ public class Microcontroller extends RedstoneAware implements PowerAcceptor, Sta
     return OCSettings.get().caseRate[Tier.One];
   }
 
+  // pick-block gives this microcontroller (it gave an empty one)
+  @Override
+  public @NotNull ItemStack getCloneItemStack(@NotNull net.minecraft.world.level.BlockGetter world, @NotNull BlockPos pos, @NotNull BlockState state) {
+    if (world.getBlockEntity(pos) instanceof li.cil.oc.core.impl.common.blockentity.Microcontroller mcu) {
+      return mcu.info.copyItemStack();
+    }
+    return super.getCloneItemStack(world, pos, state);
+  }
+
   @Override
   public BlockEntity newBlockEntity(@NotNull BlockPos pos, @NotNull BlockState state) {
     return new li.cil.oc.core.impl.common.blockentity.Microcontroller(pos, state);

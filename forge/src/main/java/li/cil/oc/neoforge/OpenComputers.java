@@ -183,7 +183,11 @@ public final class OpenComputers {
       }
     });
     li.cil.oc.core.impl.common.item.UpgradeTank.setFluidTooltipProvider((registries, data) -> {
-      var fluidStack = net.minecraftforge.fluids.FluidStack.loadFluidStackFromNBT(data);
+      // the tank saves {fluid: {id, Amount}} (UpgradeTankBase); this read a top-level FluidName and never found one
+      var f = data.contains("fluid") ? data.getCompound("fluid") : data;
+      var id = net.minecraft.resources.ResourceLocation.tryParse(f.contains("id") ? f.getString("id") : f.getString("FluidName"));
+      var fluid = id == null ? null : net.minecraftforge.registries.ForgeRegistries.FLUIDS.getValue(id);
+      var fluidStack = fluid == null || f.getInt("Amount") <= 0 ? null : new net.minecraftforge.fluids.FluidStack(fluid, f.getInt("Amount"));
       if (fluidStack != null && !fluidStack.isEmpty()) {
         return fluidStack.getDisplayName().getString() + ": " + fluidStack.getAmount() + "/16000";
       }

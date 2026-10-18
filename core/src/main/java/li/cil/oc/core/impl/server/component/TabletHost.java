@@ -9,7 +9,7 @@ import li.cil.oc.compat.CustomData;
 import org.jetbrains.annotations.NotNull;
 
 public class TabletHost extends TabletHostBase {
-  public final ItemStack stack;
+  public ItemStack stack;
   public Player player;
   private final ItemStack[] mirror;
 
@@ -37,6 +37,11 @@ public class TabletHost extends TabletHostBase {
   @Override
   public @NotNull ItemStack getStack() {
     return stack;
+  }
+
+  @Override
+  public void rebind(@NotNull ItemStack current) {
+    stack = current;
   }
 
   @Override

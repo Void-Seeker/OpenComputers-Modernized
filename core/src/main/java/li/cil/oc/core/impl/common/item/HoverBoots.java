@@ -28,6 +28,13 @@ public class HoverBoots extends ArmorItem implements Chargeable {
     super(ArmorMaterials.DIAMOND, ArmorItem.Type.BOOTS, properties.rarity(Rarity.UNCOMMON));
   }
 
+  // 1.20.1's ArmorItem gives its material's durability: the boots wore out and broke (1.21's do not; OC's never did).
+  // They run on charge only.
+  @Override
+  public boolean canBeDepleted() {
+    return false;
+  }
+
   @Override
   public void onCraftedBy(@NotNull ItemStack stack, @NotNull Level level, @NotNull Player player) {
     super.onCraftedBy(stack, level, player);

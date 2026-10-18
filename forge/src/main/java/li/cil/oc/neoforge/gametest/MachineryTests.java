@@ -53,7 +53,7 @@ public final class MachineryTests {
   private static int loose(final GameTestHelper helper, final String itemName) {
     final var item = li.cil.oc.api.Items.get(itemName).item();
     int n = 0;
-    for (final ItemEntity e : helper.getLevel().getEntitiesOfClass(ItemEntity.class, new AABB(helper.absolutePos(BlockPos.ZERO)).inflate(8))) {
+    for (final ItemEntity e : helper.getLevel().getEntitiesOfClass(ItemEntity.class, new AABB(helper.absolutePos(BlockPos.ZERO), helper.absolutePos(new BlockPos(6, 6, 6))).inflate(2))) {
       if (e.getItem().is(item)) n += e.getItem().getCount();
     }
     return n;

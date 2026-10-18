@@ -284,12 +284,12 @@ public final class Items implements ItemAPI {
   public static final RegistryObject<Manual> MANUAL = reg("manual", () -> new Manual(P));
   public static final RegistryObject<Nanomachines> NANOMACHINES = reg("nanomachines", () -> new Nanomachines(rr(Rarity.UNCOMMON)));
   public static final RegistryObject<TexturePicker> TEXTURE_PICKER = reg("texturepicker", () -> new TexturePicker(P));
-  public static final RegistryObject<li.cil.oc.neoforge.common.item.Wrench> WRENCH = reg("wrench", () -> new li.cil.oc.neoforge.common.item.Wrench(P));
+  public static final RegistryObject<li.cil.oc.neoforge.common.item.Wrench> WRENCH = reg("wrench", () -> new li.cil.oc.neoforge.common.item.Wrench(new Item.Properties()));
 
 
-  public static final RegistryObject<li.cil.oc.neoforge.common.item.FloppyDisk> FLOPPY = reg("floppy", () -> new li.cil.oc.neoforge.common.item.FloppyDisk(P));
-  public static final RegistryObject<Terminal> TERMINAL = reg("terminal", () -> new Terminal(P));
-  public static final RegistryObject<TerminalServer> TERMINAL_SERVER = reg("terminalserver", () -> new TerminalServer(P));
+  public static final RegistryObject<li.cil.oc.neoforge.common.item.FloppyDisk> FLOPPY = reg("floppy", () -> new li.cil.oc.neoforge.common.item.FloppyDisk(new Item.Properties().stacksTo(1)));
+  public static final RegistryObject<Terminal> TERMINAL = reg("terminal", () -> new Terminal(new Item.Properties()));
+  public static final RegistryObject<TerminalServer> TERMINAL_SERVER = reg("terminalserver", () -> new TerminalServer(new Item.Properties().stacksTo(1)));
   public static final RegistryObject<li.cil.oc.neoforge.common.item.DiskDriveMountable> DISK_DRIVE_MOUNTABLE = reg("diskdrivemountable", () -> new li.cil.oc.neoforge.common.item.DiskDriveMountable(P1));
 
 
@@ -315,7 +315,7 @@ public final class Items implements ItemAPI {
   public static final RegistryObject<DroneCase> DRONE_CASE_T1 = reg("dronecase1", () -> new DroneCase(r(Tier.One), Tier.One));
   public static final RegistryObject<DroneCase> DRONE_CASE_T2 = reg("dronecase2", () -> new DroneCase(r(Tier.Two), Tier.Two));
   public static final RegistryObject<DroneCase> DRONE_CASE_CREATIVE = reg("dronecasecreative", () -> new DroneCase(r(Tier.Four), Tier.Four));
-  public static final RegistryObject<Drone> DRONE = reg("drone", () -> new Drone(P));
+  public static final RegistryObject<Drone> DRONE = reg("drone", () -> new Drone(new Item.Properties().stacksTo(1)));
 
 
   public static final RegistryObject<Present> PRESENT = reg("present", () -> new Present(P));

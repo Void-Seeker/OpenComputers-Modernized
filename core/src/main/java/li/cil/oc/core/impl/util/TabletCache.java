@@ -97,6 +97,7 @@ public abstract class TabletCache {
         cache.cleanUp();
         host = cache.get(id, () -> createHost(stack, player));
       }
+      if (host.getStack() != stack) host.rebind(stack);
       return host;
     } catch (Exception e) {
       return createHost(stack, player);
@@ -143,7 +144,8 @@ public abstract class TabletCache {
     }
   }
 
-  private static String getId(ItemStack stack) {
+  /** The tablet id of a stack, without giving it one. */
+  public static String getId(ItemStack stack) {
     var tag = CustomData.get(stack);
     if (tag != null && !tag.isEmpty()) {
       var data = tag.copyTag();

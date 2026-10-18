@@ -24,6 +24,13 @@ public abstract class Item implements DriverItem {
     return nbt.getCompound(OCSettings.namespace + "data");
   }
 
+  /** The data, to read: the live tag if there is one, else an empty one not put into the stack (tooltips are client). */
+  public static CompoundTag peekDataTag(ItemStack stack) {
+    CompoundTag nbt = stack.getTag();
+    return nbt != null && nbt.contains(OCSettings.namespace + "data", net.minecraft.nbt.Tag.TAG_COMPOUND)
+      ? nbt.getCompound(OCSettings.namespace + "data") : new CompoundTag();
+  }
+
   public static String address(ItemStack stack) {
     String addressKey = "address";
     CompoundTag tag = getTag(stack, new String[]{OCSettings.namespace + "data", "node"});

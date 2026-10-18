@@ -31,6 +31,12 @@ public class Drone extends DelegateItem {
     agentOwnerProvider = provider;
   }
 
+  // by tier, as robots and microcontrollers (upstream set it when saving the data; the port moved that to the block item only)
+  @Override
+  public net.minecraft.world.item.@NotNull Rarity getRarity(@NotNull ItemStack stack) {
+    return li.cil.oc.core.impl.util.Rarity.byTier(new DroneData(stack).tier);
+  }
+
   public Drone(Properties properties) {
     super(properties);
   }

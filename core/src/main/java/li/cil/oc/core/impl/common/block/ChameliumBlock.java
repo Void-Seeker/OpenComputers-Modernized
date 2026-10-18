@@ -65,6 +65,20 @@ public class ChameliumBlock extends SimpleBlock {
     return DyeColor.byId(frequency & 0xF);
   }
 
+  // the dye stays on the block's drop (the loot table drops a plain block: a dyed one came back black, the dye lost)
+  @SuppressWarnings("deprecation")
+  @Override
+  public @NotNull java.util.List<ItemStack> getDrops(@NotNull BlockState state, net.minecraft.world.level.storage.loot.LootParams.@NotNull Builder params) {
+    var drops = super.getDrops(state, params);
+    DyeColor dye = state.getValue(COLOR);
+    if (dye != DyeColor.BLACK) {
+      for (var drop : drops) {
+        if (drop.is(asItem()) && readDyeColor(drop) == null) ItemColorizer.setColor(drop, dye.getTextColor());
+      }
+    }
+    return drops;
+  }
+
   @Override
   public @NotNull ItemStack getCloneItemStack(@NotNull net.minecraft.world.level.BlockGetter level, @NotNull BlockPos pos, @NotNull BlockState state) {
     ItemStack stack = super.getCloneItemStack(level, pos, state);

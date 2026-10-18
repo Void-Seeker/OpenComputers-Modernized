@@ -202,7 +202,7 @@ public final class TransposerTests {
       helper.assertTrue(box.getItem(1).is(Items.BONE_MEAL) && box.getItem(1).getCount() == 3, "bone meal slot holds " + box.getItem(1));
       // anywhere in the test area: the test world is terrain, and water can push the item around
       int dropped = 0;
-      for (final ItemEntity item : helper.getLevel().getEntitiesOfClass(ItemEntity.class, new AABB(helper.absolutePos(BlockPos.ZERO), helper.absolutePos(new BlockPos(5, 5, 5))).inflate(6))) {
+      for (final ItemEntity item : helper.getLevel().getEntitiesOfClass(ItemEntity.class, new AABB(helper.absolutePos(BlockPos.ZERO), helper.absolutePos(new BlockPos(5, 5, 5))).inflate(2))) {
         if (item.getItem().is(Items.BONE_MEAL)) dropped += item.getItem().getCount();
       }
       helper.assertTrue(dropped == 2, dropped + " bone meal were dropped instead of 2");

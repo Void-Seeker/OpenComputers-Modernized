@@ -78,7 +78,7 @@ public abstract class RobotAfterimage extends SimpleBlock {
   public @NotNull ItemStack getCloneItemStack(@NotNull net.minecraft.world.level.BlockGetter world, @NotNull BlockPos pos, @NotNull BlockState state) {
     var robot = findMovingRobot(world, pos);
     if (robot != null) {
-      return robot.info.createItemStack();
+      return robot.info.copyItemStack(); // as the robot itself: no second robot with the same component addresses
     }
     return ItemStack.EMPTY;
   }

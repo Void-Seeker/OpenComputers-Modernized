@@ -62,11 +62,16 @@ public class Item extends BlockItem {
     boolean needsCopying = player != null && player.getAbilities().instabuild &&
       li.cil.oc.api.Items.get(stack) == li.cil.oc.api.Items.get(Constants.BlockName.Robot);
     if (needsCopying) {
+      // the copy is what gets placed: 1.20.1 places the context's stack, which is the one in hand when the click
+      // started (swapping the hand did nothing - every robot placed from one stack shared its components' addresses,
+      // their disks one directory)
       ItemStack copy = new RobotData(stack).copyItemStack();
-      context.getPlayer().setItemInHand(context.getHand(), copy);
-      InteractionResult result = super.place(context);
-      context.getPlayer().setItemInHand(context.getHand(), stack);
-      return result;
+      var hit = new BlockPlaceContext(context) {
+        net.minecraft.world.phys.BlockHitResult hit() {
+          return getHitResult();
+        }
+      }.hit();
+      return super.place(new BlockPlaceContext(player, context.getHand(), copy, hit));
     }
     return super.place(context);
   }

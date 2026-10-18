@@ -4,7 +4,6 @@ import net.minecraft.core.Holder;
 import net.minecraft.network.chat.Component;
 import net.minecraft.tags.DamageTypeTags;
 import net.minecraft.tags.TagKey;
-import net.minecraft.world.damagesource.DamageScaling;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.damagesource.DamageType;
 import net.minecraft.world.entity.LivingEntity;
@@ -14,10 +13,28 @@ public class DamageSourceWithRandomCause extends DamageSource {
   private final String name;
   private final int numCauses;
 
-  public DamageSourceWithRandomCause(String name, int numCauses) {
-    super(Holder.direct(new DamageType(name, DamageScaling.NEVER, 0.1f)));
+  public DamageSourceWithRandomCause(Holder<DamageType> type, String name, int numCauses) {
+    super(type);
     this.name = name;
     this.numCauses = numCauses;
+  }
+
+  /**
+   * A source of the registered damage type (data/opencomputers/damage_type): an unregistered one (Holder.direct, as
+   * this was) has no id, and the damage event sent to the client carried -1, which the client cannot look up.
+   */
+  public static DamageSource of(net.minecraft.world.level.Level level, String type, String name, int numCauses) {
+    var key = net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.DAMAGE_TYPE, new net.minecraft.resources.ResourceLocation("opencomputers", type));
+    var holder = level.registryAccess().registryOrThrow(net.minecraft.core.registries.Registries.DAMAGE_TYPE).getHolder(key);
+    return new DamageSourceWithRandomCause(holder.<Holder<DamageType>>map(h -> h).orElseGet(() -> level.damageSources().magic().typeHolder()), name, numCauses);
+  }
+
+  public static DamageSource hungry(net.minecraft.world.level.Level level) {
+    return of(level, "nanomachines_hungry", "oc.nanomachinesHungry", 3);
+  }
+
+  public static DamageSource overload(net.minecraft.world.level.Level level) {
+    return of(level, "nanomachines_overload", "oc.nanomachinesOverload", 3);
   }
 
   @Override

@@ -63,20 +63,31 @@ public class PrintData extends ItemData {
 
   @Override
   public void load(ItemStack stack, HolderLookup.Provider provider) {
-    var info = Items.get(stack);
-    if (info != null) {
-      itemName = info.name();
-    }
     super.load(stack, provider);
+    takeKindFrom(stack);
   }
 
   @Override
   public void load(ItemStack stack) {
+    super.load(stack);
+    takeKindFrom(stack);
+  }
+
+  // the item says what it is: a crafted beacon base print's data had isBeaconBase false (the recipe never set it), so
+  // placed it loaded as a plain print and dropped as one, the metal block in it gone
+  private void takeKindFrom(ItemStack stack) {
     var info = Items.get(stack);
-    if (info != null) {
+    if (info == null) return;
+    if (Constants.BlockName.BeaconBasePrint.equals(info.name())) {
+      markBeaconBase();
+    } else if (Constants.BlockName.Print.equals(info.name()) && !isBeaconBase) {
       itemName = info.name();
     }
-    super.load(stack);
+  }
+
+  public void markBeaconBase() {
+    isBeaconBase = true;
+    itemName = Constants.BlockName.BeaconBasePrint;
   }
 
   public static void addInkProvider(Method provider) {

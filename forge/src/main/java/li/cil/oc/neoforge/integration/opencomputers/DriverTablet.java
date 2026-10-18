@@ -57,10 +57,10 @@ public final class DriverTablet extends Item {
         }
       }
     }
+    // the stack's own tag, not a copy: what the HDD's file system saves here (a tablet in a charger) has to stay
     if (slot >= 0) {
-      CustomData cd = CustomData.get(stack);
-      if (cd != null && !cd.isEmpty()) {
-        CompoundTag rootTag = cd.copyTag();
+      CompoundTag rootTag = stack.getTag();
+      if (rootTag != null) {
         if (rootTag.contains(OCSettings.namespace + "items")) {
           net.minecraft.nbt.ListTag baseTag = rootTag.getList(OCSettings.namespace + "items", Tag.TAG_COMPOUND);
           for (int i = 0; i < baseTag.size(); i++) {

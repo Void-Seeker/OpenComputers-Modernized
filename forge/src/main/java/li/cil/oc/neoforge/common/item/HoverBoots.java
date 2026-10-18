@@ -20,6 +20,12 @@ public class HoverBoots extends li.cil.oc.core.impl.common.item.HoverBoots {
     super(properties);
   }
 
+  // Forge asks this, not canBeDepleted (see the core class)
+  @Override
+  public boolean isDamageable(@NotNull ItemStack stack) {
+    return false;
+  }
+
   @Override
   public String getArmorTexture(@NotNull ItemStack ignoredStack, @NotNull Entity ignoredEntity, @NotNull EquipmentSlot ignoredSlot, String ignoredType) {
     return HOVER_BOOTS_TEXTURE.toString();

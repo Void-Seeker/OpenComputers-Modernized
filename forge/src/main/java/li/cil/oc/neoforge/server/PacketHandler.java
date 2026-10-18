@@ -308,8 +308,18 @@ public final class PacketHandler extends li.cil.oc.neoforge.common.PacketHandler
   public static void onMachineItemStateRequest(li.cil.oc.neoforge.common.PacketHandler.PacketParser p) {
     if (p.player instanceof net.minecraft.server.level.ServerPlayer player) {
       var stack = p.readItemStack();
-      var isRunning = li.cil.oc.core.impl.common.item.Tablet.get(stack, p.player).machine().isRunning();
-      PacketSender.sendMachineItemState(player, stack, isRunning);
+      // the client's stack is only a name for one in the player's inventory: a host made from it (any tablet the
+      // client cares to describe) or bound to it (the real tablet then saving into a copy) is not wanted
+      var id = stack == null ? null : li.cil.oc.core.impl.util.TabletCache.getId(stack);
+      if (id == null) return;
+      for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
+        var own = player.getInventory().getItem(i);
+        if (own.getItem() instanceof li.cil.oc.core.impl.common.item.Tablet && id.equals(li.cil.oc.core.impl.util.TabletCache.getId(own))) {
+          var isRunning = li.cil.oc.core.impl.common.item.Tablet.get(own, p.player).machine().isRunning();
+          PacketSender.sendMachineItemState(player, own, isRunning);
+          return;
+        }
+      }
     }
   }
 

@@ -13,7 +13,6 @@ import net.minecraft.world.entity.player.Player;
 public class HungryProvider extends ScalaProvider {
   public static final int FillCount = 10;
 
-  public static final DamageSourceWithRandomCause HungryDamage = new DamageSourceWithRandomCause("oc.nanomachinesHungry", 3);
 
   public HungryProvider() {
     super("d697c24a-014c-4773-a288-23084a59e9e8");
@@ -41,7 +40,7 @@ public class HungryProvider extends ScalaProvider {
     @Override
     public void onDisable(DisableReason reason) {
       if (reason == DisableReason.OutOfEnergy) {
-        player.hurt(HungryDamage, OCSettings.get().nanomachinesHungryDamage);
+        player.hurt(DamageSourceWithRandomCause.hungry(player.level()), OCSettings.get().nanomachinesHungryDamage);
         li.cil.oc.api.Nanomachines.getController(player).changeBuffer(OCSettings.get().nanomachinesHungryEnergyRestored);
       }
     }

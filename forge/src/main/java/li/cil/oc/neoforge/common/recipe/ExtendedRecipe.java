@@ -15,8 +15,17 @@ public final class ExtendedRecipe {
   }
 
   public static void init() {
-    li.cil.oc.core.impl.common.recipe.ExtendedRecipe.setAe2Check(Mods.AppliedEnergistics2::isAvailable);
+    li.cil.oc.core.impl.common.recipe.ExtendedRecipe.setAe2Check(() -> Mods.AppliedEnergistics2.isAvailable() && calledFromAe2Patterns());
     li.cil.oc.core.impl.common.recipe.ExtendedRecipe.setPrintHandler(ExtendedRecipe::handlePrintBlock);
+  }
+
+  /**
+   * As OC: only AE2's patterns (encoding one, or a crafting pattern run by its autocrafting) get the disabled item, so
+   * autocrafting cannot make linked cards; this blocked every craft whenever AE2 was installed, by hand too.
+   */
+  private static boolean calledFromAe2Patterns() {
+    return StackWalker.getInstance().walk(frames -> frames.anyMatch(f ->
+      f.getClassName().startsWith("appeng.crafting.pattern.") || f.getClassName().startsWith("appeng.menu.me.items.PatternEncodingTermMenu")));
   }
 
   @Nullable
@@ -51,6 +60,9 @@ public final class ExtendedRecipe {
       }
     }
 
+    if (isBeaconBaseInput || craftedStack.is(li.cil.oc.neoforge.common.init.Items.BEACON_BASE_PRINT.get())) {
+      data.markBeaconBase();
+    }
     if (isBeaconBaseInput && !craftedStack.is(li.cil.oc.neoforge.common.init.Items.BEACON_BASE_PRINT.get())) {
       var correctStack = new ItemStack(li.cil.oc.neoforge.common.init.Items.BEACON_BASE_PRINT.get(), craftedStack.getCount());
       data.save(correctStack);

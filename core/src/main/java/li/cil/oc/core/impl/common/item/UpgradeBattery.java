@@ -60,8 +60,11 @@ public class UpgradeBattery extends DelegateItem implements ItemTier, Chargeable
     var data = new NodeData(stack);
     double buffer = data.buffer != null ? data.buffer : 0.0;
     double max = OCSettings.get().bufferCapacitorUpgrades[tier];
-    double target = MathCompat.clamp(buffer + amount, 0, max);
-    double used = target - buffer;
+    // a stack shares one tag: each battery in it gets (or gives) its part. One battery's energy filled a whole stack,
+    // and split up each was full (or each gave the full charge again to an extracting FE charger).
+    int count = Math.max(1, stack.getCount());
+    double target = MathCompat.clamp(buffer + amount / count, 0, max);
+    double used = (target - buffer) * count;
     double unused = amount - used;
     if (!simulate && (used > Double.MIN_VALUE || used < -Double.MIN_VALUE)) {
       data.buffer = target;

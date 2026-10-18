@@ -58,6 +58,19 @@ public class MicrocontrollerData extends ItemData {
     super.save(stack, provider);
   }
 
+  /** The item without its components' addresses (as RobotData.copyItemStack): a second one is not the same machine. */
+  public ItemStack copyItemStack() {
+    var stack = createItemStack();
+    var copy = new MicrocontrollerData(stack);
+    for (var component : copy.components) {
+      if (component != null && !component.isEmpty() && component.getTag() != null) {
+        component.getTag().getCompound(OCSettings.namespace + "data").remove("node");
+      }
+    }
+    copy.save(stack);
+    return stack;
+  }
+
   @Override
   public void save(CompoundTag nbt, HolderLookup.Provider provider) {
     nbt.putByte(OCSettings.namespace + "tier", (byte) tier);

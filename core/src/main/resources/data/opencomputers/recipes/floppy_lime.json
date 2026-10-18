@@ -1,5 +1,5 @@
 {
-  "type": "minecraft:crafting_shapeless",
+  "type": "opencomputers:shapeless",
   "ingredients": [
     {
       "item": "opencomputers:floppy"

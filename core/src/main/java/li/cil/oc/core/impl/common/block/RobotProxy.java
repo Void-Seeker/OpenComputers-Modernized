@@ -70,6 +70,10 @@ public abstract class RobotProxy extends RedstoneAware implements GUI, StateAwar
         var tag = CustomData.get(component);
         if (tag != null && !tag.isEmpty()) {
           var nbt = tag.copyTag();
+          // the experience upgrade saves its xp in its oc:data (UpgradeExperience.save): the level line never showed
+          if (nbt.getCompound(OCSettings.namespace + "data").contains(OCSettings.namespace + "xp", Tag.TAG_DOUBLE)) {
+            nbt = nbt.getCompound(OCSettings.namespace + "data");
+          }
           if (nbt.contains(OCSettings.namespace + "xp", Tag.TAG_DOUBLE)) {
             double xp = nbt.getDouble(OCSettings.namespace + "xp");
             int level = Math.min((int) (Math.pow(xp - OCSettings.get().baseXpToLevel, 1.0 / OCSettings.get().exponentialXpGrowth) / OCSettings.get().constantXpGrowth), 30);

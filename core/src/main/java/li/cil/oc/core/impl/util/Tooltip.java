@@ -19,7 +19,9 @@ public final class Tooltip {
     return Math.max(Minecraft.getInstance().getWindow().getGuiScaledWidth() / 2, 200);
   }
 
-  private static Supplier<Font> fontSupplier = () -> null;
+  // Object, not Font: a lambda typed with Font loads the client class, and a dedicated server has none (any tooltip
+  // asked for there - another mod listing items - threw); only the client sets a font
+  private static Supplier<Object> fontSupplier = () -> null;
   private static BooleanSupplier extendedTooltips = () -> false;
 
   public static void setFont(Font font) {
@@ -35,7 +37,8 @@ public final class Tooltip {
   }
 
   private static Font font() {
-    return fontSupplier.get();
+    Object font = fontSupplier.get();
+    return font == null ? null : (Font) font;
   }
 
   public static List<Component> get(String name, Object... args) {

@@ -324,21 +324,14 @@ public interface ComponentInventory extends Inventory, Environment {
 
   default void save(ManagedEnvironment component, DriverItem driver, ItemStack stack, HolderLookup.Provider provider) {
     try {
-      var customData = CustomData.get(stack);
-      CompoundTag nbt;
-      if (customData != null && !customData.isEmpty()) {
-        nbt = customData.copyTag();
-      } else {
-        nbt = new CompoundTag();
-      }
-      CompoundTag data = nbt.contains(OCSettings.namespace + "data") ?
-        nbt.getCompound(OCSettings.namespace + "data") : new CompoundTag();
+      // OC: into the driver's tag for the stack. A tablet's is its HDD's, inside it; the tablet's own oc:data is its
+      // machine, which a charger replaced with the file system's state. And the stack's own inventory is not the
+      // component's to clear: a database upgrade's entries were wiped whenever its host saved.
+      CompoundTag data = dataTag(driver, stack);
       for (String key : List.copyOf(data.getAllKeys())) {
-        data.remove(key);
+        if (!key.equals(OCSettings.namespace + "items")) data.remove(key);
       }
       component.save(data, provider);
-      nbt.put(OCSettings.namespace + "data", data);
-      CustomData.set(stack, li.cil.oc.compat.CustomData.of(nbt));
     } catch (Throwable e) {
       LOGGER.warn("An item component of type '{}' (provided by driver '{}') threw an error while saving.", component.getClass().getName(), driver.getClass().getName(), e);
     }

@@ -1032,8 +1032,10 @@ public final class ClientPacketHandler extends PacketHandler {
           for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
             var invStack = player.getInventory().getItem(i);
             if (!invStack.isEmpty()) {
-              var invId = li.cil.oc.core.impl.util.TabletCache.getOrCreateId(invStack);
-              if (invId.equals(packetId)) {
+              // looking, not giving: this wrote a random tablet id into every item in the inventory (in creative they
+              // went to the server too, and the items no longer stacked with fresh ones)
+              var invId = li.cil.oc.core.impl.util.TabletCache.getId(invStack);
+              if (packetId.equals(invId)) {
                 var data = new li.cil.oc.core.impl.common.item.data.TabletData(packetStack);
                 data.isRunning = running;
                 data.save(invStack);
