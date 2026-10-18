@@ -81,7 +81,10 @@ public abstract class BlockEntity extends net.minecraft.world.level.block.entity
     if (!changeScheduled.getAndSet(true)) {
       EventHandlerDelegate.get().scheduleServer(() -> {
         changeScheduled.set(false);
-        if (!isRemoved() && getLevel() != null) setChanged();
+        // not for a server that has stopped (a mark queued by its computers ran in the next world: the old level's
+        // chunk lookup waited forever on the old server thread)
+        var level = getLevel();
+        if (!isRemoved() && level != null && (level.getServer() == null || level.getServer().isRunning())) setChanged();
       });
     }
   }

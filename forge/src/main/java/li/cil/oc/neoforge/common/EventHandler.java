@@ -62,6 +62,19 @@ public final class EventHandler {
     runningRobots.remove(robot);
   }
 
+  /** A stopped server leaves nothing for the next one (they ran against the old levels). */
+  public static void onServerStopped() {
+    synchronized (pendingServer) {
+      pendingServer.clear();
+    }
+    synchronized (pendingServerTimed) {
+      pendingServerTimed.clear();
+    }
+    runningRobots.clear();
+    keyboards.clear();
+    machines.clear();
+  }
+
   public static void scheduleClose(Machine machine) {
     machines.add(machine);
   }
@@ -226,6 +239,8 @@ public final class EventHandler {
         for (var entity : serverLevel.getEntities().getAll()) {
           if (entity instanceof MachineHost host) host.machine().stop();
         }
+        // and every machine still in it: block entities in chunks that never unload (spawn, forced) included
+        li.cil.oc.core.impl.server.machine.MachineBase.closeAllIn(serverLevel);
         Callbacks.clear();
         li.cil.oc.core.impl.server.ServerRobotRegistry.INSTANCE.clear(worldLevel);
       } else {

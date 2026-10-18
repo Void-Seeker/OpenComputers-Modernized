@@ -410,6 +410,7 @@ public final class OpenComputers {
   public void serverStop(final ServerStoppedEvent ignoredE) {
     ThreadPoolFactory.safePools.forEach(SafeThreadPool::waitForCompletion);
     StaticSimpleEnvironment.onServerStopped();
+    li.cil.oc.neoforge.common.EventHandler.onServerStopped();
   }
 
 }

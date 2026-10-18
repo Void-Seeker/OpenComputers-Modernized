@@ -77,7 +77,7 @@ public class ArgumentsImpl implements Arguments {
   public String checkString(int index) {
     Object value = checkAny(index);
     if (value instanceof String) return (String) value;
-    if (value instanceof byte[]) return new String((byte[]) value);
+    if (value instanceof byte[]) return new String((byte[]) value, java.nio.charset.StandardCharsets.UTF_8); // not the platform's (Windows: Cp1252)
     throw new IllegalArgumentException("expected string, got " + (value != null ? value.getClass().getSimpleName() : "nil"));
   }
 
@@ -125,7 +125,7 @@ public class ArgumentsImpl implements Arguments {
     if (index < 0 || index >= count()) return defaultVal;
     Object value = args[index];
     if (value instanceof String) return (String) value;
-    if (value instanceof byte[]) return new String((byte[]) value);
+    if (value instanceof byte[]) return new String((byte[]) value, java.nio.charset.StandardCharsets.UTF_8); // not the platform's (Windows: Cp1252)
     return defaultVal;
   }
 

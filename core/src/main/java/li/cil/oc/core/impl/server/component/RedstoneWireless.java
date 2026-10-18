@@ -94,7 +94,7 @@ public interface RedstoneWireless extends DeviceInfo {
     for (var entry : table.entrySet()) {
       Object value = entry.getValue();
       if (value instanceof byte[] ba) {
-        set.add(new String(ba));
+        set.add(new String(ba, java.nio.charset.StandardCharsets.UTF_8));
       } else if (value != null) {
         set.add(value.toString());
       }

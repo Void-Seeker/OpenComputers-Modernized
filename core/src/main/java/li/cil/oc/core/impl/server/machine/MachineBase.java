@@ -125,7 +125,27 @@ public abstract class MachineBase extends AbstractManagedEnvironment implements 
 
   protected abstract boolean platformIsGamePaused();
 
+  // every machine, to close those of a level that goes away with chunks still loaded (spawn, forced chunks): they were
+  // never closed, their Lua states leaked, and their queued work ran against the old level in the next world
+  private static final java.util.Set<MachineBase> liveMachines = java.util.Collections.synchronizedSet(java.util.Collections.newSetFromMap(new java.util.WeakHashMap<>()));
+
+  /** Closes the machines whose host is in the given level (it is unloading; everything was saved before). */
+  public static void closeAllIn(net.minecraft.world.level.Level level) {
+    java.util.List<MachineBase> machines;
+    synchronized (liveMachines) {
+      machines = new java.util.ArrayList<>(liveMachines);
+    }
+    for (var machine : machines) {
+      try {
+        if (machine.host.level() == level) machine.close();
+      } catch (Throwable t) {
+        LOGGER.warn("Could not close a computer of an unloading level.", t);
+      }
+    }
+  }
+
   public MachineBase(MachineHost host) {
+    liveMachines.add(this);
     this.host = host;
     this.node = Network.newNode(this, Visibility.Network)
       .withComponent("computer", Visibility.Neighbors)
@@ -207,6 +227,9 @@ public abstract class MachineBase extends AbstractManagedEnvironment implements 
     }
     if (newArch != architecture && lockForServer("the architecture switch")) {
       try {
+        // the one replaced is closed (a CPU taken out left its Lua state alive: JNI references kept it from ever
+        // being collected)
+        if (architecture != null) architecture.close();
         architecture = newArch;
         if (architecture != null && node != null && node.network() != null) architecture.onConnect();
       } finally {
@@ -642,7 +665,7 @@ public abstract class MachineBase extends AbstractManagedEnvironment implements 
       beep("-..");
       crash("gui.opencomputers.error.componentoverflow");
     }
-    worldTime = host.level().getGameTime();
+    worldTime = host.level().getDayTime(); // os.time/os.date follow the day clock, as OC (sleeping, /time set)
     uptime++;
     if (remainIdle > 0) remainIdle--;
     synchronized (callBudgetLock) {
@@ -862,6 +885,10 @@ public abstract class MachineBase extends AbstractManagedEnvironment implements 
           var addr = t.getString("address");
           var name = t.getString("name");
           _loadedComponents.put(addr, name);
+          // known, as in OC: they reconnect without component_added (every reload signalled all of them - OpenOS
+          // mounted every drive again and ran autorun), and the ones that do not come back are removed with
+          // component_removed once the start-up pause is over
+          _components.put(addr, name);
         }
         if (tmp != null) {
           if (nbt.contains("tmp")) {
@@ -913,6 +940,7 @@ public abstract class MachineBase extends AbstractManagedEnvironment implements 
           } catch (Throwable t) {
             LOGGER.error("Error loading computer state", t);
             close();
+            message = "could not restore the computer's state: " + t; // shown by the analyzer (it was only logged)
           }
         } else {
           onHostChanged();
@@ -992,6 +1020,8 @@ public abstract class MachineBase extends AbstractManagedEnvironment implements 
                 an.putByte(key, (byte) (b ? 1 : 0));
               } else if (arg instanceof Long l) {
                 an.putLong(key, l);
+              } else if (arg instanceof Integer || arg instanceof Short || arg instanceof Byte) {
+                an.putLong(key, ((Number) arg).longValue()); // kept as integers (they came back nil)
               } else if (arg instanceof Double v) {
                 an.putDouble(key, v);
               } else if (arg instanceof String string) {
