@@ -341,4 +341,115 @@ public final class RobotActionTests {
       helper.succeed();
     });
   }
+
+  /** transferTo from an empty slot moves nothing; compareTo of two empty slots is true; a part into an empty slot moves. */
+  @GameTest(template = EMPTY, timeoutTicks = 200)
+  public static void robotTransferToAndCompareToHandleEmptySlots(final GameTestHelper helper) {
+    TestMachines.runRobot(helper, AT, List.of(Constants.ItemName.InventoryUpgrade), robot -> robot.mainInventory().setItem(1, new ItemStack(Items.DIRT, 4)),
+      ROBOT + "r.select(1) local a = r.transferTo(2) local b = r.compareTo(3) r.select(2) local c = r.transferTo(5, 3) "
+        + "error('done:' .. tostring(a) .. ',' .. tostring(b) .. ',' .. tostring(c))", 60, (robot, result) -> {
+        final var inv = robot.mainInventory();
+        helper.assertTrue("false,true,true".equals(result) && inv.getItem(0).isEmpty() && inv.getItem(1).getCount() == 1 && inv.getItem(4).is(Items.DIRT) && inv.getItem(4).getCount() == 3,
+          "transferTo/compareTo returned " + result + ": slots " + inv.getItem(0) + ", " + inv.getItem(1) + ", " + inv.getItem(4));
+        helper.succeed();
+      });
+  }
+
+  /** A robot facing east: its redstone front output is east, and getOutput() reports it as its front. */
+  @GameTest(template = EMPTY, timeoutTicks = 200)
+  public static void robotRedstoneOutputsByItsOwnSides(final GameTestHelper helper) {
+    TestMachines.runRobot(helper, AT, List.of(Constants.ItemName.RedstoneCardTier1),
+      ROBOT + "r.turn(false) local rs = component.proxy(component.list('redstone')()) rs.setOutput(3, 15) local o = rs.getOutput() "
+        + "error('done:' .. tostring(o[3]) .. ',' .. tostring(o[5]))", 60, (robot, result) -> {
+        // what the robot gives its east neighbour (vanilla asks the emitter with the direction towards it)
+        final int signal = helper.getLevel().getSignal(helper.absolutePos(AT), net.minecraft.core.Direction.WEST);
+        helper.assertTrue("15,0".equals(result) && signal == 15, "getOutput()[front], [world east] = " + result + "; the block to the east gets " + signal);
+        helper.succeed();
+      });
+  }
+
+  /** /setblock and structures clear what a robot carries, not its components: the robot item keeps them. */
+  @GameTest(template = EMPTY)
+  public static void robotClearedKeepsItsComponents(final GameTestHelper helper) {
+    final BlockPos abs = helper.absolutePos(AT);
+    helper.setBlock(AT, li.cil.oc.neoforge.common.init.Blocks.ROBOT.get());
+    final var data = new li.cil.oc.core.impl.common.item.data.RobotData();
+    data.name = "cleared";
+    data.components.add(li.cil.oc.api.Items.get(Constants.ItemName.InventoryUpgrade).createItemStack(1));
+    li.cil.oc.neoforge.common.init.Blocks.ROBOT.get().setPlacedBy(helper.getLevel(), abs, helper.getLevel().getBlockState(abs),
+      net.minecraftforge.common.util.FakePlayerFactory.getMinecraft(helper.getLevel()), data.createItemStack());
+    final Robot robot = ((li.cil.oc.core.impl.common.blockentity.RobotProxy) helper.getLevel().getBlockEntity(abs)).robot;
+    robot.mainInventory().setItem(0, new ItemStack(Items.DIAMOND, 3));
+    net.minecraft.world.Clearable.tryClear(helper.getLevel().getBlockEntity(abs));
+    helper.getLevel().destroyBlock(abs, true);
+    final var robots = helper.getLevel().getEntitiesOfClass(ItemEntity.class, new AABB(abs).inflate(3)).stream()
+      .map(ItemEntity::getItem).filter(st -> net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(st.getItem()).getPath().equals("robot")).toList();
+    helper.assertTrue(robots.size() == 1 && new li.cil.oc.core.impl.common.item.data.RobotData(robots.get(0)).components.size() == 1 && loose(helper, Items.DIAMOND) == 0,
+      robots.size() + " robot items, components " + (robots.isEmpty() ? "-" : new li.cil.oc.core.impl.common.item.data.RobotData(robots.get(0)).components.size()) + ", diamonds " + loose(helper, Items.DIAMOND));
+    helper.succeed();
+  }
+
+  /** The robot player's addItem behaves as vanilla's: the stack keeps what did not fit, true only for all of it. */
+  @GameTest(template = EMPTY)
+  public static void robotPlayerAddItemKeepsTheRest(final GameTestHelper helper) {
+    final BlockPos abs = helper.absolutePos(AT);
+    helper.setBlock(AT, li.cil.oc.neoforge.common.init.Blocks.ROBOT.get());
+    final var data = new li.cil.oc.core.impl.common.item.data.RobotData();
+    data.name = "taker";
+    data.components.add(li.cil.oc.api.Items.get(Constants.ItemName.InventoryUpgrade).createItemStack(1));
+    li.cil.oc.neoforge.common.init.Blocks.ROBOT.get().setPlacedBy(helper.getLevel(), abs, helper.getLevel().getBlockState(abs),
+      net.minecraftforge.common.util.FakePlayerFactory.getMinecraft(helper.getLevel()), data.createItemStack());
+    final Robot robot = ((li.cil.oc.core.impl.common.blockentity.RobotProxy) helper.getLevel().getBlockEntity(abs)).robot;
+    for (int i = 0; i < robot.mainInventory().getContainerSize() - 1; i++) robot.mainInventory().setItem(i, new ItemStack(Items.STONE, 64));
+    final ItemStack offered = new ItemStack(Items.COBBLESTONE, 64);
+    offered.setCount(100);
+    final boolean all = robot.player().addItem(offered);
+    helper.assertTrue(!all && offered.getCount() == 36 && count(robot, Items.COBBLESTONE) == 64,
+      "addItem of 100 into one free slot said " + all + ", left " + offered.getCount() + ", the robot has " + count(robot, Items.COBBLESTONE));
+    helper.succeed();
+  }
+
+  /** The piston upgrade leaves air where it pushed a waterlogged block from (water was duplicated). */
+  @GameTest(template = EMPTY, timeoutTicks = 200)
+  public static void robotPistonLeavesNoWaterBehind(final GameTestHelper helper) {
+    floor(helper);
+    helper.setBlock(AT.south(), Blocks.STONE_SLAB.defaultBlockState().setValue(BlockStateProperties.WATERLOGGED, true));
+    TestMachines.runRobot(helper, AT, List.of(Constants.ItemName.PistonUpgrade),
+      "local p = component.proxy(component.list('piston')()) local ok, why = p.push() error('done:' .. tostring(ok) .. ',' .. tostring(why))", 60, (robot, result) -> {
+        helper.assertTrue(result != null && result.startsWith("true") && helper.getBlockState(AT.south().south()).is(Blocks.STONE_SLAB) && helper.getBlockState(AT.south()).isAir(),
+          "push returned " + result + ": " + helper.getBlockState(AT.south()) + " left, " + helper.getBlockState(AT.south().south()) + " pushed");
+        helper.succeed();
+      });
+  }
+
+  /** The sign upgrade reads the side of a sign that faces the robot, and leaves a waxed sign alone. */
+  @GameTest(template = EMPTY, timeoutTicks = 200)
+  public static void robotSignUpgradeReadsTheSideFacingIt(final GameTestHelper helper) {
+    // a standing sign south of the robot with its front facing south: the robot sees its back
+    helper.setBlock(AT.south(), Blocks.OAK_SIGN.defaultBlockState().setValue(net.minecraft.world.level.block.StandingSignBlock.ROTATION, 0));
+    final var sign = (net.minecraft.world.level.block.entity.SignBlockEntity) helper.getBlockEntity(AT.south());
+    sign.setText(new net.minecraft.world.level.block.entity.SignText().setMessage(0, net.minecraft.network.chat.Component.literal("front")), true);
+    sign.setText(new net.minecraft.world.level.block.entity.SignText().setMessage(0, net.minecraft.network.chat.Component.literal("back")), false);
+    TestMachines.runRobot(helper, AT, List.of(Constants.ItemName.SignUpgrade),
+      "local s = component.proxy(component.list('sign')()) local v = s.getValue() s.setValue('robot') local w = s.getValue() "
+        + "error('done:' .. tostring(v):match('[^\\n]*') .. ',' .. tostring(w):match('[^\\n]*'))", 60, (robot, result) -> {
+        helper.assertTrue("back,robot".equals(result) && sign.getFrontText().getMessage(0, false).getString().equals("front"),
+          "read/wrote " + result + "; the front now says " + sign.getFrontText().getMessage(0, false).getString());
+        helper.succeed();
+      });
+  }
+
+  @GameTest(template = EMPTY, timeoutTicks = 200)
+  public static void robotSignUpgradeLeavesAWaxedSignAlone(final GameTestHelper helper) {
+    helper.setBlock(AT.south(), Blocks.OAK_SIGN.defaultBlockState().setValue(net.minecraft.world.level.block.StandingSignBlock.ROTATION, 8));
+    final var sign = (net.minecraft.world.level.block.entity.SignBlockEntity) helper.getBlockEntity(AT.south());
+    sign.setText(new net.minecraft.world.level.block.entity.SignText().setMessage(0, net.minecraft.network.chat.Component.literal("kept")), true);
+    sign.setWaxed(true);
+    TestMachines.runRobot(helper, AT, List.of(Constants.ItemName.SignUpgrade),
+      "local s = component.proxy(component.list('sign')()) local ok, why = s.setValue('robot') error('done:' .. tostring(ok) .. ',' .. tostring(why))", 60, (robot, result) -> {
+        helper.assertTrue("nil,the sign is waxed".equals(result) && sign.getFrontText().getMessage(0, false).getString().equals("kept"),
+          "setValue on a waxed sign returned " + result + "; it says " + sign.getFrontText().getMessage(0, false).getString());
+        helper.succeed();
+      });
+  }
 }

@@ -353,6 +353,18 @@ public abstract class RobotBase extends BlockEntity implements li.cil.oc.core.im
     return output;
   }
 
+  /**
+   * Values kept by world side (redstone input and output) as Lua sees them: by the robot's own sides, as for a
+   * computer case (getInput()/getOutput() gave Lua the world's keys while setOutput takes the robot's).
+   */
+  public int[] toLocalSides(int[] byWorldSide) {
+    int[] local = new int[byWorldSide.length];
+    for (var side : Direction.values()) {
+      if (side.ordinal() < byWorldSide.length) local[toLocal(side).ordinal()] = byWorldSide[side.ordinal()];
+    }
+    return local;
+  }
+
   public int getOutput(Direction side) {
     return Math.max(0, output[side.ordinal()]);
   }
@@ -628,6 +640,8 @@ public abstract class RobotBase extends BlockEntity implements li.cil.oc.core.im
     if ("opencomputers".equals(net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(tool.getItem()).getNamespace())) return;
     Player holder = player();
     if (holder == null) return;
+    // where the robot is now (the player stays where its last action left it: a moved robot's tool ticked back there)
+    holder.setPos(xPosition(), yPosition(), zPosition());
     var carried = li.cil.oc.core.impl.util.CarriedInventory.carry(mainInventory, holder.getInventory().items, 0, -1);
     ItemStack before = tool.copy();
     try {
@@ -1139,8 +1153,9 @@ public abstract class RobotBase extends BlockEntity implements li.cil.oc.core.im
 
   @Override
   public void clearContent() {
+    // what the robot carries (/setblock, structures clear it); its components are the robot itself and stay with the
+    // robot item it drops (it dropped as a shell without them)
     Arrays.fill(inventory, ItemStack.EMPTY);
-    Collections.fill(info.components, ItemStack.EMPTY);
     setChanged();
   }
 

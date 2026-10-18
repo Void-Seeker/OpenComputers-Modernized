@@ -13,6 +13,7 @@ import net.minecraftforge.event.level.BlockEvent;
 public class PlayerInteractionManagerHelper {
   public static boolean onBlockClicked(Player player, BlockPos pos, Direction side) {
     if (player instanceof ServerPlayer sp) {
+      double x = sp.getX(), y = sp.getY(), z = sp.getZ();   // to put it back (it "restored" from itself, already moved)
       sp.setPos(
         pos.getX() + 0.5 - side.getStepX() * 0.1,
         pos.getY() + 0.5 - side.getStepY() * 0.1,
@@ -20,7 +21,7 @@ public class PlayerInteractionManagerHelper {
       );
       int maxBuildHeight = sp.level().getMaxBuildHeight();
       sp.gameMode.handleBlockBreakAction(pos, ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK, side, maxBuildHeight, 0);
-      sp.setPos(player.getX(), player.getY(), player.getZ());
+      sp.setPos(x, y, z);
       return true;
     }
     return false;

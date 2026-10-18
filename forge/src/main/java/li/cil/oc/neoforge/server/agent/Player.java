@@ -638,9 +638,11 @@ public class Player extends FakePlayer implements li.cil.oc.core.impl.server.age
 
   @Override
   public boolean addItem(@NotNull ItemStack stack) {
+    // as vanilla's Inventory.add: the stack keeps what did not fit, true only if all of it went in (it left the stack
+    // as it was and said true for a part: mod code dropping the rest duplicated it, code trusting it lost the rest)
     if (stack.isEmpty()) return false;
-    ItemStack remainder = addToAgentInventory(stack);
-    return remainder.getCount() < stack.getCount();
+    li.cil.oc.core.impl.util.CarriedInventory.insertIntoAgent(agent, stack);
+    return stack.isEmpty();
   }
 
   @Override

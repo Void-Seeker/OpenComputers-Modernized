@@ -31,12 +31,28 @@ public abstract class UpgradeSignBase extends AbstractManagedEnvironment impleme
 
   public abstract EnvironmentHost host();
 
+  /**
+   * Whether the sign shows its front to the host (1.20 signs have two sides; this read and wrote the front whichever
+   * side faced the robot), as for a player standing where the host is.
+   */
+  private boolean frontFacesHost(SignBlockEntity sign) {
+    Player player = getSignPlayer();
+    if (player == null) return true;
+    double x = player.getX(), y = player.getY(), z = player.getZ();
+    player.setPos(host().xPosition(), host().yPosition(), host().zPosition());
+    try {
+      return sign.isFacingFrontText(player);
+    } finally {
+      player.setPos(x, y, z);
+    }
+  }
+
   protected Object[] getValue(@Nullable SignBlockEntity blockEntity) {
     if (blockEntity == null) {
       return ResultWrapper.result(null, "no sign");
     }
     StringBuilder sb = new StringBuilder();
-    var text = blockEntity.getFrontText();
+    var text = blockEntity.getText(frontFacesHost(blockEntity));
     for (int i = 0; i < 4; i++) {
       if (i > 0) sb.append("\n");
       String line = text.getMessage(i, false).getString();
@@ -67,19 +83,23 @@ public abstract class UpgradeSignBase extends AbstractManagedEnvironment impleme
         lines[i] = "";
       }
     }
+    if (blockEntity.isWaxed()) {
+      return ResultWrapper.result(null, "the sign is waxed");
+    }
     if (!canChangeSign(player, blockEntity, lines)) {
       return ResultWrapper.result(null, "not allowed");
     }
-    var oldText = blockEntity.getFrontText();
+    boolean front = frontFacesHost(blockEntity);
+    var oldText = blockEntity.getText(front);
     for (int i = 0; i < 4; i++) {
       oldText = oldText.setMessage(i, Component.literal(lines[i]));
     }
-    blockEntity.setText(oldText, true);
+    blockEntity.setText(oldText, front);
     var pos = blockEntity.getBlockPos();
     host().level().sendBlockUpdated(pos, blockEntity.getBlockState(), blockEntity.getBlockState(), 3);
     fireSignPostEvent(blockEntity, lines);
     StringBuilder sb = new StringBuilder();
-    var newText = blockEntity.getFrontText();
+    var newText = blockEntity.getText(front);
     for (int i = 0; i < 4; i++) {
       if (i > 0) sb.append("\n");
       String line = newText.getMessage(i, false).getString();

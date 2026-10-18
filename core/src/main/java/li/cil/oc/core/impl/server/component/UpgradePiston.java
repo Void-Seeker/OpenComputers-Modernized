@@ -68,6 +68,10 @@ public abstract class UpgradePiston extends AbstractManagedEnvironment implement
     Direction side = pushDirection(args, 0);
     BlockPosition hostPos = pushOrigin(side);
     var blockPos = new BlockPos(hostPos.x(), hostPos.y(), hostPos.z());
+    // the configured cost of a push (power.cost.pistonPush) was never charged
+    if (!((li.cil.oc.api.network.Connector) node).tryChangeBuffer(-li.cil.oc.core.impl.OCSettings.get().pistonCost)) {
+      return ResultWrapper.result(false, "not enough energy");
+    }
     if (movePiston(host.level(), blockPos, side, true)) {
       host.level().playSeededSound(null, host.xPosition(), host.yPosition(), host.zPosition(),
         SoundEvents.PISTON_EXTEND, SoundSource.BLOCKS, 0.5f,
@@ -97,7 +101,8 @@ public abstract class UpgradePiston extends AbstractManagedEnvironment implement
       BlockState state = level.getBlockState(pos);
       BlockPos target = pos.relative(moveDir);
       level.setBlock(target, state, 2);
-      level.removeBlock(pos, false);
+      // air, as a vanilla piston leaves (removeBlock left a waterlogged block's water behind: water duplicated)
+      level.setBlock(pos, Blocks.AIR.defaultBlockState(), 2);
     }
     return true;
   }

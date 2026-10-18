@@ -55,7 +55,7 @@ public abstract class TradeBase extends AbstractValue {
   public Object[] getInput(Context context, Arguments arguments) {
     MerchantOffer recipe = info.recipe();
     if (recipe != null) {
-      ItemStack first = recipe.getBaseCostA().copy();
+      ItemStack first = recipe.getCostA().copy();
       ItemStack second = recipe.getCostB().isEmpty() ? null : recipe.getCostB().copy();
       return ResultWrapper.result(first, second);
     }
@@ -111,7 +111,7 @@ public abstract class TradeBase extends AbstractValue {
   private boolean completeTrade(Container inventory, MerchantOffer recipe, boolean exact) {
     Merchant merchant = info.merchant.get();
     if (merchant == null) return false;
-    ItemStack firstInput = recipe.getBaseCostA();
+    ItemStack firstInput = recipe.getCostA();
     ItemStack secondInput = recipe.getCostB().isEmpty() ? null : recipe.getCostB();
 
     ItemStack firstExtracted = InventoryUtils.extractFromInventory(firstInput, inventory, null, true, exact);

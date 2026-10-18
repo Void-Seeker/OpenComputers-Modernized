@@ -38,7 +38,12 @@ public abstract class RedstoneVanilla extends RedstoneSignaller implements Devic
     Direction side = getOptionalSide(args);
     if (side != null)
       return ResultWrapper.result((double) ((RedstoneAware) redstone()).getInput(side));
-    return ResultWrapper.result(valuesToMap(((RedstoneAware) redstone()).input()));
+    return ResultWrapper.result(valuesToMap(bySides(((RedstoneAware) redstone()).input())));
+  }
+
+  /** A robot keeps redstone values by world side: Lua gets them by the robot's sides, as a case's. */
+  private int[] bySides(int[] values) {
+    return redstone() instanceof li.cil.oc.core.impl.common.blockentity.RobotBase robot ? robot.toLocalSides(values) : values;
   }
 
   @Callback(direct = true, doc = "function([side:number]):number or table -- Get the redstone output (all sides, or optionally on the specified side)")
@@ -46,7 +51,7 @@ public abstract class RedstoneVanilla extends RedstoneSignaller implements Devic
     Direction side = getOptionalSide(args);
     if (side != null)
       return ResultWrapper.result((double) ((RedstoneAware) redstone()).getOutput(side));
-    return ResultWrapper.result(valuesToMap(((RedstoneAware) redstone()).output()));
+    return ResultWrapper.result(valuesToMap(bySides(((RedstoneAware) redstone()).output())));
   }
 
   @SuppressWarnings("rawtypes")
@@ -60,7 +65,7 @@ public abstract class RedstoneVanilla extends RedstoneSignaller implements Devic
       ((RedstoneAware) redstone()).setOutput(side, value);
     } else if (args.count() == 1) {
       Map table = args.checkTable(0);
-      ret = valuesToMap(((RedstoneAware) redstone()).output());
+      ret = valuesToMap(bySides(((RedstoneAware) redstone()).output()));
       ((RedstoneAware) redstone()).setOutput(table);
     } else {
       throw new RuntimeException("invalid number of arguments, expected 1 or 2");
