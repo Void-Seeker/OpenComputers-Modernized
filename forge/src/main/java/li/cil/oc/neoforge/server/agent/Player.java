@@ -52,7 +52,6 @@ import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.common.ForgeMod;
 import net.minecraftforge.common.util.FakePlayer;
 import net.minecraftforge.eventbus.api.Event;
-import net.minecraftforge.event.entity.living.LivingEntityUseItemEvent;
 import org.jetbrains.annotations.NotNull;
 
 public class Player extends FakePlayer implements li.cil.oc.core.impl.server.agent.AgentPlayer {
@@ -372,20 +371,24 @@ public class Player extends FakePlayer implements li.cil.oc.core.impl.server.age
   }
 
   private boolean useItemWithHand(double duration, ItemStack stack) {
-    if (!trySetActiveHand(duration)) {
-      if (duration > 0) return false;
-    }
-
+    stopUsingItem();
     ItemStack oldStack = stack.copy();
     if (!isItemUseAllowed(stack)) return false;
 
-    int maxDuration = stack.getUseDuration();
-    int heldTicks = MathCompat.clamp((int) (duration * 20), 0, maxDuration);
-    agent.machine().pause(heldTicks / 20.0);
-
     InteractionResultHolder<ItemStack> useResult = stack.use(level(), this, InteractionHand.OFF_HAND);
-    stopUsingItem();
-
+    if (isUsingItem()) {
+      // an item that is held (a bow, food, a shield): hold it as long as asked, then let go - a bow shoots - or,
+      // held for its whole use duration, finish using it (eat, drink); vanilla does both, Forge events included
+      int maxDuration = getUseItem().getUseDuration();
+      int heldTicks = MathCompat.clamp((int) (duration * 20), 0, maxDuration);
+      agent.machine().pause(heldTicks / 20.0);
+      useItemRemaining = maxDuration - heldTicks;
+      if (useItemRemaining <= 0) completeUsingItem();
+      else releaseUsingItem();
+      stopUsingItem();
+      // what the robot holds now is in the off hand (the result of eating, the worn bow)
+      return useResult.getResult().consumesAction();
+    }
     if (!useResult.getResult().consumesAction()) return false;
 
     ItemStack newStack = useResult.getObject();
@@ -395,25 +398,6 @@ public class Player extends FakePlayer implements li.cil.oc.core.impl.server.age
       getInventory().offhand.set(0, newStack);
     }
     return stackChanged;
-  }
-
-  private boolean trySetActiveHand(double duration) {
-    stopUsingItem();
-    // Forge's event bus cannot invoke @SubscribeEvent methods of anonymous classes, so use a listener.
-    final java.util.function.Consumer<LivingEntityUseItemEvent.Start> handler = event -> {
-      if (event.getEntity() == Player.this && !event.isCanceled()) {
-        event.setDuration((int) duration);
-      }
-    };
-    MinecraftForge.EVENT_BUS.addListener(net.minecraftforge.eventbus.api.EventPriority.LOWEST, false, LivingEntityUseItemEvent.Start.class, handler);
-    try {
-      startUsingItem(InteractionHand.OFF_HAND);
-      return isUsingItem();
-    } catch (Exception e) {
-      return false;
-    } finally {
-      MinecraftForge.EVENT_BUS.unregister(handler);
-    }
   }
 
   private boolean shouldCancel(java.util.function.Supplier<net.minecraftforge.event.entity.player.PlayerInteractEvent.RightClickBlock> f) {
@@ -485,6 +469,10 @@ public class Player extends FakePlayer implements li.cil.oc.core.impl.server.age
   public void setItemSlot(net.minecraft.world.entity.@NotNull EquipmentSlot slot, @NotNull ItemStack stack) {
     if (slot == net.minecraft.world.entity.EquipmentSlot.MAINHAND && agent.equipmentInventory().getContainerSize() > 0) {
       agent.equipmentInventory().setItem(0, stack);
+    } else if (slot == net.minecraft.world.entity.EquipmentSlot.OFFHAND) {
+      // the off hand holds the item an action uses, and goes back into its slot afterwards: what using it leaves in
+      // the hand (the empty bottle of a drunk potion) must stay there
+      getInventory().offhand.set(0, stack);
     }
   }
 
@@ -532,9 +520,24 @@ public class Player extends FakePlayer implements li.cil.oc.core.impl.server.age
       getInventory().selected = 0;
     }
     getInventory().offhand.set(0, inventory.getItem(slot));
+    // the holder carries the robot's inventory (after the tool, which takes the first place), so a tool can draw on
+    // it as it works - a mana tool pays its wear from a mana tablet; the slot in use is not carried twice
+    boolean main = inventory == agent.mainInventory();
+    var carried = li.cil.oc.core.impl.util.CarriedInventory.carry(agent.mainInventory(), getInventory().items, main ? 0 : 1, main ? slot : -1);
     try {
       return f.apply(stack);
     } finally {
+      // what it drew comes back; mana spent on a tool's wear gets the robot's wear discount, like durability does
+      double manaKept = 1;
+      if (repair && !oldStack.isEmpty()) {
+        var rate = new RobotUsedToolEvent.ComputeDamageRate(agent, oldStack, oldStack, OCSettings.get().itemDamageRate);
+        MinecraftForge.EVENT_BUS.post(rate);
+        manaKept = rate.getDamageRate();
+      }
+      if (carried.bringBack(manaKept, li.cil.oc.core.impl.util.CarriedInventory.manaItems, getRandom())) {
+        agent.mainInventory().setChanged();
+      }
+      carried.restore();
       getInventory().selected = oldSelected;
       if (inventory != agent.mainInventory()) {
         getInventory().items.set(0, oldSlot0);

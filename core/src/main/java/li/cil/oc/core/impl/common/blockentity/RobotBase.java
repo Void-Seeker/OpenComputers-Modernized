@@ -599,7 +599,7 @@ public abstract class RobotBase extends BlockEntity implements li.cil.oc.core.im
    * Tools that work off their holder's inventory then work in robots as they do for players: Embers' clockwork tools
    * power on from ember cells in the robot and draw on them, Botania's mana tools mend from a mana tablet.
    * OC's own items (a tablet would boot) are left alone. Afterwards the holder carries what it carried before
-   * (nothing): copies left there would let a robot action draw on them for free (mana a tool spends on its wear).
+   * (nothing): copies left there would let a robot action draw on them for free.
    */
   public void tickTool() {
     tickTool((tool, holder) -> tool.inventoryTick(holder.level(), holder, holder.getInventory().selected, true));
@@ -611,36 +611,19 @@ public abstract class RobotBase extends BlockEntity implements li.cil.oc.core.im
     if ("opencomputers".equals(net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(tool.getItem()).getNamespace())) return;
     Player holder = player();
     if (holder == null) return;
-    var carried = holder.getInventory().items;
-    int n = Math.min(carried.size(), mainInventory.getContainerSize());
-    ItemStack[] previously = new ItemStack[n];
-    for (int i = 0; i < n; i++) {
-      previously[i] = carried.get(i);
-      carried.set(i, mainInventory.getItem(i).copy());
-    }
+    var carried = li.cil.oc.core.impl.util.CarriedInventory.carry(mainInventory, holder.getInventory().items, 0, -1);
     ItemStack before = tool.copy();
     try {
       tick.accept(tool, holder);
     } catch (Throwable t) {
       toolTickFailed = true;
       LOGGER.warn("Robot at {} stops ticking its tool {}, which failed: {}", worldPosition, tool, t.toString());
-      for (int i = 0; i < n; i++) carried.set(i, previously[i]);
+      carried.restore();
       return;
     }
-    boolean changed = !ItemStack.matches(before, tool);
-    for (int i = 0; i < n; i++) {
-      ItemStack now = carried.get(i), had = mainInventory.getItem(i);
-      if (ItemStack.matches(now, had)) continue;
-      if (!had.isEmpty() && ItemStack.isSameItem(now, had) && now.getCount() == had.getCount()) {
-        // only its data changed (an ember cell's charge): like a tool's wear, no inventory_changed for that
-        had.setTag(now.getTag() == null ? null : now.getTag().copy());
-        changed = true;
-      } else {
-        mainInventory.setItem(i, now.copy());
-      }
-    }
-    for (int i = 0; i < n; i++) carried.set(i, previously[i]);
-    if (changed) setChanged();
+    boolean changed = carried.bringBack(1, li.cil.oc.core.impl.util.CarriedInventory.manaItems, holder.getRandom());
+    carried.restore();
+    if (changed || !ItemStack.matches(before, tool)) setChanged();
   }
 
   @Override
