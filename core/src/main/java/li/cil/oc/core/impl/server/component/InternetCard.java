@@ -344,8 +344,11 @@ public class InternetCard extends AbstractManagedEnvironment implements DeviceIn
     private void setupSelector() {
       if (channel == null) return;
       TCPNotifier.add(channel, () -> {
-        if (owner != null) {
-          owner.node.sendToVisible("computer.signal", "internet_ready", id.toString());
+        var card = owner;
+        if (card != null) {
+          // on the server thread: the network is walked there (from the notifier thread a concurrent change threw,
+          // and the signal was lost - event.pull("internet_ready") waited forever)
+          li.cil.oc.core.impl.util.EventHandlerDelegate.get().scheduleServer(() -> card.node.sendToVisible("computer.signal", "internet_ready", id.toString()));
         } else {
           try {
             channel.close();
@@ -428,8 +431,11 @@ public class InternetCard extends AbstractManagedEnvironment implements DeviceIn
       }
     }
 
+    // why the connection failed, said on the next call (it closed and said only "connection lost")
+    private String failure = null;
+
     private boolean checkConnected() {
-      if (owner == null) throw new RuntimeException(new IOException("connection lost"));
+      if (owner == null) throw new RuntimeException(new IOException(failure != null ? failure : "connection lost"));
       try {
         if (isAddressResolved) {
           return channel.finishConnect();
@@ -448,8 +454,10 @@ public class InternetCard extends AbstractManagedEnvironment implements DeviceIn
         }
         return false;
       } catch (Throwable t) {
+        Throwable cause = t instanceof RuntimeException && t.getCause() != null ? t.getCause() : t;
+        failure = cause.getMessage() != null ? cause.getMessage() : cause.toString();
         close();
-        return false;
+        throw new RuntimeException(new IOException(failure));
       }
     }
 
@@ -485,7 +493,9 @@ public class InternetCard extends AbstractManagedEnvironment implements DeviceIn
     private Object responseHeaders;
     private Future<InputStream> stream;
     private Future<?> reader;
-    private boolean eof = false;
+    private volatile boolean eof = false;
+    // a read that failed (connection reset, premature end): said once the data before it is read
+    private volatile String readError = null;
 
     @SuppressWarnings("unused")
     public HTTPRequest() {
@@ -512,7 +522,7 @@ public class InternetCard extends AbstractManagedEnvironment implements DeviceIn
     public synchronized Object[] read(Context context, Arguments args) {
       int n = MathCompat.clamp(args.optInteger(0, Integer.MAX_VALUE), 0, OCSettings.get().maxReadBuffer);
       if (checkResponse()) {
-        if (eof && queue.isEmpty()) return ResultWrapper.result((Object) null);
+        if (eof && queue.isEmpty()) return readError != null ? ResultWrapper.result(null, readError) : ResultWrapper.result((Object) null);
         byte[] buffer = new byte[n];
         int read = 0;
         while (!queue.isEmpty() && read < n) {
@@ -578,7 +588,11 @@ public class InternetCard extends AbstractManagedEnvironment implements DeviceIn
               int count = stream.get().read(buffer);
               if (count < 0) eof = true;
               else for (int i = 0; i < count; i++) queue.add(buffer[i]);
-            } catch (Exception ignored) {
+            } catch (Exception e) {
+              // ignored, the reads returned "" forever and the program waited forever
+              Throwable cause = e instanceof ExecutionException && e.getCause() != null ? e.getCause() : e;
+              readError = cause.getMessage() != null ? cause.getMessage() : cause.toString();
+              eof = true;
             }
           });
         }
@@ -601,39 +615,60 @@ public class InternetCard extends AbstractManagedEnvironment implements DeviceIn
       @Override
       public InputStream call() {
         try {
-          checkLists(InetAddress.getByName(url.getHost()), url.getHost());
           MinecraftServer server = SideTracker.getCurrentServer();
           Proxy proxy = server != null ? server.getProxy() : Proxy.NO_PROXY;
-          URLConnection conn = url.openConnection(proxy);
-          if (!(conn instanceof HttpURLConnection http))
-            throw new RuntimeException(new IOException("unexpected connection type"));
-          try {
-            http.setDoInput(true);
-            http.setDoOutput(post != null);
-            http.setRequestMethod(method != null ? method : (post != null ? "POST" : "GET"));
-            http.setRequestProperty("User-Agent",
-              OCSettings.get().httpUserAgent.replace("$version", Tags.VERSION));
-            for (Map.Entry<String, String> h : headers.entrySet())
-              http.setRequestProperty(h.getKey(), h.getValue());
-            if (post != null) {
-              http.setReadTimeout(OCSettings.get().httpTimeout);
-              BufferedWriter out = new BufferedWriter(new OutputStreamWriter(http.getOutputStream()));
-              out.write(post);
-              out.close();
-            }
+          URL current = url;
+          String currentMethod = method != null ? method : (post != null ? "POST" : "GET");
+          String body = post;
+          // redirects are followed here, each new host through the filter: followed by Java, a public address could
+          // send the request on to the LAN or loopback the filter denies
+          for (int hops = 0; ; hops++) {
+            checkLists(InetAddress.getByName(current.getHost()), current.getHost());
+            URLConnection conn = current.openConnection(proxy);
+            if (!(conn instanceof HttpURLConnection http))
+              throw new RuntimeException(new IOException("unexpected connection type"));
             try {
-              http.getInputStream();
-            } catch (Exception ignored) {
+              http.setInstanceFollowRedirects(false);
+              http.setDoInput(true);
+              http.setDoOutput(body != null);
+              http.setRequestMethod(currentMethod);
+              http.setRequestProperty("User-Agent",
+                OCSettings.get().httpUserAgent.replace("$version", Tags.VERSION));
+              for (Map.Entry<String, String> h : headers.entrySet())
+                http.setRequestProperty(h.getKey(), h.getValue());
+              // every request times out as configured (only POSTs did: a stalled GET held a request thread forever)
+              http.setConnectTimeout(OCSettings.get().httpTimeout);
+              http.setReadTimeout(OCSettings.get().httpTimeout);
+              if (body != null) {
+                BufferedWriter out = new BufferedWriter(new OutputStreamWriter(http.getOutputStream()));
+                out.write(body);
+                out.close();
+              }
+              try {
+                http.getInputStream();
+              } catch (Exception ignored) {
+              }
+              int code = http.getResponseCode();
+              String location = http.getHeaderField("Location");
+              if (location != null && (code == 301 || code == 302 || code == 303 || code == 307 || code == 308) && hops < 8) {
+                current = new URL(current, location);
+                if (code == 303 || ((code == 301 || code == 302) && "POST".equals(currentMethod))) {
+                  currentMethod = "GET";
+                  body = null;
+                }
+                http.disconnect();
+                continue;
+              }
+              synchronized (HTTPRequest.this) {
+                responseCode = code;
+                responseMessage = http.getResponseMessage();
+                responseHeaders = http.getHeaderFields();
+              }
+              return http.getInputStream();
+            } catch (Throwable t) {
+              http.disconnect();
+              throw t;
             }
-            synchronized (HTTPRequest.this) {
-              responseCode = http.getResponseCode();
-              responseMessage = http.getResponseMessage();
-              responseHeaders = http.getHeaderFields();
-            }
-            return http.getInputStream();
-          } catch (Throwable t) {
-            http.disconnect();
-            throw t;
           }
         } catch (UnknownHostException e) {
           throw new RuntimeException(new IOException("unknown host: " + (e.getMessage() != null ? e.getMessage() : e.toString())));

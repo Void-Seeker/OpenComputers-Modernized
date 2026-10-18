@@ -83,8 +83,8 @@ public abstract class TabletCache {
       var host = cache.get(id, () -> createHost(stack, player));
       var dimChanged = host.creationLevel != null && !host.creationLevel.dimension().equals(player.level().dimension());
       if (dimChanged) {
-        host.creationLevel = player.level();
-
+        // the old host leaves from its own level: set to the new one first, its wireless card left the new
+        // dimension's network and stayed in the old one's (with the whole tablet machine)
         if (!player.level().isClientSide) {
           host.stopMachine();
           if (host.machine().node() != null && host.machine().node().network() != null) {

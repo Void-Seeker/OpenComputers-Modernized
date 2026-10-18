@@ -322,7 +322,12 @@ public abstract class HubBlockEntity extends BlockEntity implements Hub {
       var queueSize = packetQueue.size();
       if (relayCooldown > 0) {
         relayCooldown--;
-      } else if (queueSize > 0) {
+      } else {
+        // as OC: idle again, so the next packet waits the relay delay (it went out at once: light traffic relayed
+        // faster than configured, whatever the CPU upgrade)
+        relayCooldown = -1;
+      }
+      if (relayCooldown < 0 && queueSize > 0) {
         int maxPackets = relayAmount;
         int toProcess = Math.min(queueSize, maxPackets);
         for (int i = 0; i < toProcess; i++) {

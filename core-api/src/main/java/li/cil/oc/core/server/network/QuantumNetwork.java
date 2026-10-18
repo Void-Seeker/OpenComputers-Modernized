@@ -22,9 +22,13 @@ public final class QuantumNetwork {
     if (map != null) map.remove(card);
   }
 
+  /** A copy: the linked card removed itself from the live key set, and was out of its tunnel after its first send. */
   public static Collection<QuantumNode> getEndpoints(String tunnel) {
     Map<QuantumNode, Boolean> map = tunnels.get(tunnel);
-    return map != null ? map.keySet() : Collections.emptyList();
+    if (map == null) return Collections.emptyList();
+    synchronized (map) {
+      return new java.util.ArrayList<>(map.keySet());
+    }
   }
 
   public interface QuantumNode {

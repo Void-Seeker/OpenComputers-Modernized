@@ -365,6 +365,12 @@ public class Relay extends HubBlockEntity implements ComponentInventory, PowerAc
   @Override
   public void onItemAdded(int slot, ItemStack stack) {
     updateLimits(slot, stack);
+    // a wireless card put in sends at its range until told otherwise (the strength stayed 0: wired-to-wireless relaying
+    // silently did nothing until a program set it)
+    if (maxWirelessRange() > 0 && strength <= 0) {
+      strength = maxWirelessRange();
+      setChanged();
+    }
   }
 
   private void updateLimits(int ignoredSlot, ItemStack stack) {
@@ -385,6 +391,7 @@ public class Relay extends HubBlockEntity implements ComponentInventory, PowerAc
         var descriptor = li.cil.oc.api.Items.get(stack);
         if (descriptor == li.cil.oc.api.Items.get(Constants.ItemName.WirelessNetworkCardTier1) || descriptor == li.cil.oc.api.Items.get(Constants.ItemName.WirelessNetworkCardTier2)) {
           wirelessTier = descriptor == li.cil.oc.api.Items.get(Constants.ItemName.WirelessNetworkCardTier1) ? Tier.One : Tier.Two;
+          strength = Math.min(strength, maxWirelessRange()); // a tier 1 card after a tier 2 one: its own range
         }
         if (descriptor == li.cil.oc.api.Items.get(Constants.ItemName.LinkedCard)) {
           var data = DriverLinkedCard.getDataTag(stack);
