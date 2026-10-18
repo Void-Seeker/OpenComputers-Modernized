@@ -12,7 +12,7 @@ import net.minecraft.world.item.ItemStack;
 public interface ItemInventoryControl extends InventoryAware {
   @Callback(doc = "function(slot:number):number -- The size of an item inventory in the specified slot.")
   default Object[] getItemInventorySize(Context context, Arguments args) {
-    return withItemInventory(ExtendedArguments.checkSlot(args, inventory(), 0), itemInventory -> ResultWrapper.result(itemInventory.getContainerSize()));
+    return withItemInventory(ExtendedArguments.checkSlot(args, inventory(), 0), itemInventory -> ResultWrapper.result(itemInventory.getSlots()));
   }
 
   @Callback(doc = "function(inventorySlot:number, slot:number[, count:number=64]):number -- Drops an item from the selected slot into the specified slot in the item inventory.")
@@ -21,7 +21,7 @@ public interface ItemInventoryControl extends InventoryAware {
       int slot = ExtendedArguments.checkSlot(args, itemInventory, 1);
       int count = ExtendedArguments.optItemCount(args, 2, 64);
       return ResultWrapper.result(InventoryUtils.extractFromInventorySlot(
-        stack -> InventoryUtils.insertIntoInventorySlot(stack, itemInventory, null, slot, count),
+        stack -> InventoryUtils.insertIntoInventorySlot(stack, itemInventory, slot, count),
         inventory(), null, selectedSlot(), count));
     });
   }
@@ -37,13 +37,13 @@ public interface ItemInventoryControl extends InventoryAware {
             if (InventoryUtils.insertIntoInventorySlot(extractedStack, inventory(), null, s, 64)) break;
           }
         },
-        itemInventory, null, slot, count));
+        itemInventory, slot, count));
     });
   }
 
-  default Object[] withItemInventory(int slot, java.util.function.Function<Container, Object[]> f) {
+  default Object[] withItemInventory(int slot, java.util.function.Function<li.cil.oc.core.impl.util.InventoryAccess, Object[]> f) {
     ItemStack stack = inventory().getItem(slot);
-    Container inv = li.cil.oc.api.Driver.inventoryFor(stack, fakePlayer());
+    var inv = InventoryUtils.itemInventoryFor(stack, fakePlayer());
     if (inv != null) return f.apply(inv);
     return ResultWrapper.result(0, "no item inventory");
   }

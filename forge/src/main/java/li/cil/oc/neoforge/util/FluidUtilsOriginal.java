@@ -53,6 +53,18 @@ public final class FluidUtilsOriginal {
     return moved.isEmpty() ? 0 : sink.fill(moved, IFluidHandler.FluidAction.EXECUTE);
   }
 
+  /**
+   * The handler of the block's face toward the asking device, as OC did. Asked for no side, Mekanism hands out a
+   * read-only view: every transposer move and tank_controller use into its tanks moved nothing.
+   */
+  public static IFluidHandler fluidHandlerAt(BlockPosition position, net.minecraft.core.Direction side) {
+    if (side != null && position.level() != null && position.level().isLoaded(position.toBlockPos())) {
+      IFluidHandler sided = li.cil.oc.neoforge.compat.Capabilities.FluidHandler.BLOCK.getCapability(position.level(), position.toBlockPos(), side);
+      if (sided != null) return sided;
+    }
+    return fluidHandlerAt(position);
+  }
+
   public static IFluidHandler fluidHandlerAt(BlockPosition position) {
     if (position.level() != null) {
       Level world = position.level();

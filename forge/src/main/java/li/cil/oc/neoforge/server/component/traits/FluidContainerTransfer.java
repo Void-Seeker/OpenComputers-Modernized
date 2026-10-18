@@ -35,7 +35,7 @@ public interface FluidContainerTransfer extends FluidContainerTransferBase {
       return withInventory(outputSide, output -> {
         Integer outputSlot = args.count() > 6 ? ExtendedArguments.checkSlot(args, output, 6) : null;
         return withReplayableMove(
-          FluidUtilsOriginal.fluidHandlerAt(tankPos),
+          FluidUtilsOriginal.fluidHandlerAt(tankPos, tankSide.getOpposite()),
           FluidContainerUtils.fluidHandlerIn(inventory, inventorySlot),
           (replayableTank, replayableContainer) -> FluidUtilsOriginal.doTransfer(replayableTank, tankSide, replayableContainer, null, count, sourceTank),
           (tank, container, tankReplay, containerReplay) -> {
@@ -67,7 +67,7 @@ public interface FluidContainerTransfer extends FluidContainerTransferBase {
         Integer outputSlot = args.count() > 5 ? ExtendedArguments.checkSlot(args, output, 5) : null;
         return withReplayableMove(
           FluidContainerUtils.fluidHandlerIn(inventory, inventorySlot),
-          FluidUtilsOriginal.fluidHandlerAt(tankPos),
+          FluidUtilsOriginal.fluidHandlerAt(tankPos, tankSide.getOpposite()),
           (replayableContainer, replayableTank) -> FluidUtilsOriginal.doTransfer(replayableContainer, null, replayableTank, tankSide, count),
           (container, tank, containerReplay, tankReplay) -> {
             containerReplay.accept(container);

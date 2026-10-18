@@ -308,7 +308,10 @@ public class Adapter extends BlockEntity implements li.cil.oc.api.network.Enviro
       if (te instanceof Environment) return;
       var currentBlock = level().getBlockState(neighborPos).getBlock();
       var blockChanged = lastBlocks[d.ordinal()] != currentBlock;
-      var newDriver = Driver.driverFor(level(), neighborPos, d);
+      // the block's own face toward the adapter, as the driver API says (this passed the far face: a block configured
+      // per side was asked about its other end)
+      var face = d.getOpposite();
+      var newDriver = Driver.driverFor(level(), neighborPos, face);
       if (newDriver != null && isSideOpen(d)) {
         if (blocks[d.ordinal()] != null) {
           var oldEnv = blocks[d.ordinal()];
@@ -318,7 +321,7 @@ public class Adapter extends BlockEntity implements li.cil.oc.api.network.Enviro
             updatingBlocks.remove(oldEnv);
             blocksData[d.ordinal()] = null;
             node.disconnect(oldEnv.node());
-            var environment = newDriver.createEnvironment(level(), neighborPos, d);
+            var environment = newDriver.createEnvironment(level(), neighborPos, face);
             if (environment != null) {
               blocks[d.ordinal()] = environment;
               if (environment.canUpdate()) updatingBlocks.add(environment);
@@ -329,7 +332,7 @@ public class Adapter extends BlockEntity implements li.cil.oc.api.network.Enviro
           }
         } else {
           if (!isSideOpen(d)) return;
-          var environment = newDriver.createEnvironment(level(), neighborPos, d);
+          var environment = newDriver.createEnvironment(level(), neighborPos, face);
           if (environment != null) {
             blocks[d.ordinal()] = environment;
             if (environment.canUpdate()) updatingBlocks.add(environment);

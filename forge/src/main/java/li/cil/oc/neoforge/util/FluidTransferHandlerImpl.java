@@ -87,9 +87,9 @@ public class FluidTransferHandlerImpl implements FluidUtils.FluidTransferHandler
 
   @Override
   public int transferBetweenFluidHandlersAt(BlockPosition sourcePos, Direction sourceSide, BlockPosition sinkPos, Direction sinkSide, int limit, int sourceTank) {
-    IFluidHandler sourceHandler = internalHandlerAt(sourcePos);
+    IFluidHandler sourceHandler = FluidUtilsOriginal.fluidHandlerAt(sourcePos, sourceSide);
     if (sourceHandler == null) return 0;
-    IFluidHandler sinkHandler = internalHandlerAt(sinkPos);
+    IFluidHandler sinkHandler = FluidUtilsOriginal.fluidHandlerAt(sinkPos, sinkSide);
     if (sinkHandler == null) return 0;
     return FluidUtilsOriginal.doTransfer(sourceHandler, sourceSide, sinkHandler, sinkSide, limit, sourceTank);
   }

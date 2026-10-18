@@ -51,6 +51,11 @@ public final class DriverItemHandler implements InventoryProvider {
     }
 
     @Override
+    public boolean canPlaceItem(int slot, @NotNull ItemStack stack) {
+      return handler.isItemValid(slot, stack); // what the handler takes (true for everything: it dropped the rest)
+    }
+
+    @Override
     public void setItem(int slot, ItemStack stack) {
       handler.extractItem(slot, handler.getStackInSlot(slot).getCount(), false);
       if (!stack.isEmpty()) {

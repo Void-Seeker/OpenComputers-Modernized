@@ -36,7 +36,9 @@ public final class ConverterItemStack implements Converter {
   public void convert(Object value, Map<Object, Object> output) {
     if (value instanceof ItemStack stack) {
       var customData = CustomData.get(stack);
-      boolean hasTag = stack.hasTag();
+      // as in OC: damage is no tag (1.20.1 writes Damage:0 into every tool, so all of them had one: filters on
+      // hasTag=false never matched a tool)
+      boolean hasTag = stack.hasTag() && stack.getTag().getAllKeys().stream().anyMatch(key -> !"Damage".equals(key));
       if (OCSettings.get().insertIdsInConverters) {
         output.put("id", BuiltInRegistries.ITEM.getId(stack.getItem()));
         output.put("oreNames", stack.getTags().map(t -> t.location().toString()).collect(Collectors.toList()));

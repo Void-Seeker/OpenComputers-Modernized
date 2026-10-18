@@ -40,6 +40,32 @@ public final class InventoryUtils {
     itemHandlers = lookup;
   }
 
+  /** The platform's item handler of an item (a backpack), or null if it has none. */
+  @FunctionalInterface
+  public interface ItemInventoryLookup {
+    @Nullable InventoryAccess itemInventory(ItemStack stack);
+  }
+
+  private static @Nullable ItemInventoryLookup itemInventories;
+
+  public static void setItemInventoryLookup(ItemInventoryLookup lookup) {
+    itemInventories = lookup;
+  }
+
+  /**
+   * The inventory in an item: its item handler if it has one (every move through the handler: as a container it
+   * dropped what the handler refused, and stacks changed in place were never saved by it), else a driver's container.
+   */
+  public static @Nullable InventoryAccess itemInventoryFor(ItemStack stack, @Nullable Player player) {
+    if (stack.isEmpty()) return null;
+    if (itemInventories != null) {
+      InventoryAccess handler = itemInventories.itemInventory(stack);
+      if (handler != null) return handler;
+    }
+    Container inv = li.cil.oc.api.Driver.inventoryFor(stack, player);
+    return inv != null ? InventoryAccess.of(inv, null) : null;
+  }
+
   /**
    * The inventory at the position, seen from the given face of it: the platform's item handler (Forge's item
    * capability) if the block entity has one there, else the block entity as a vanilla container, else the block's

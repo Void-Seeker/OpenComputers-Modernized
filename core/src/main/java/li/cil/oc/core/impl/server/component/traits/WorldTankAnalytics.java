@@ -16,7 +16,7 @@ public interface WorldTankAnalytics extends WorldAware, SideRestricted {
   @Callback(doc = "function(side:number [, tank:number]):number -- Get the amount of fluid in the tank on the specified side.")
   default Object[] getTankLevel(Context context, Arguments args) {
     Direction facing = checkSideForAction(args, 0);
-    var handler = FluidUtils.fluidHandlerAt(position().offset(facing));
+    var handler = FluidUtils.fluidHandlerAt(position().offset(facing), facing.getOpposite()); // the face toward us (no side: read-only on Mekanism)
     if (handler != null) {
       FluidTankInfo info = optTankInfo(args, handler, 1, null);
       if (info != null)
@@ -34,7 +34,7 @@ public interface WorldTankAnalytics extends WorldAware, SideRestricted {
   @Callback(doc = "function(side:number [, tank:number]):number -- Get the capacity of the tank on the specified side.")
   default Object[] getTankCapacity(Context context, Arguments args) {
     Direction facing = checkSideForAction(args, 0);
-    var handler = FluidUtils.fluidHandlerAt(position().offset(facing));
+    var handler = FluidUtils.fluidHandlerAt(position().offset(facing), facing.getOpposite()); // the face toward us (no side: read-only on Mekanism)
     if (handler != null) {
       FluidTankInfo info = optTankInfo(args, handler, 1, null);
       if (info != null) return result(info.capacity());
@@ -51,7 +51,7 @@ public interface WorldTankAnalytics extends WorldAware, SideRestricted {
   default Object[] getFluidInTank(Context context, Arguments args) {
     if (OCSettings.get().allowItemStackInspection) {
       Direction facing = checkSideForAction(args, 0);
-      var handler = FluidUtils.fluidHandlerAt(position().offset(facing));
+      var handler = FluidUtils.fluidHandlerAt(position().offset(facing), facing.getOpposite()); // the face toward us (no side: read-only on Mekanism)
       if (handler != null) {
         FluidTankInfo info = optTankInfo(args, handler, 1, null);
         if (info != null) return result(info);
@@ -69,7 +69,7 @@ public interface WorldTankAnalytics extends WorldAware, SideRestricted {
   @Callback(doc = "function(side:number):number -- Get the number of tanks available on the specified side.")
   default Object[] getTankCount(Context context, Arguments args) {
     Direction facing = checkSideForAction(args, 0);
-    var handler = FluidUtils.fluidHandlerAt(position().offset(facing));
+    var handler = FluidUtils.fluidHandlerAt(position().offset(facing), facing.getOpposite()); // the face toward us (no side: read-only on Mekanism)
     if (handler != null) return result(handler.getTanks());
     return result(null, "no tank");
   }

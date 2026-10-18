@@ -1,0 +1,225 @@
+package li.cil.oc.neoforge.gametest;
+
+import java.util.function.Consumer;
+import li.cil.oc.core.impl.util.BlockPosition;
+import li.cil.oc.core.impl.util.FluidUtils;
+import li.cil.oc.core.impl.util.InventoryUtils;
+import li.cil.oc.neoforge.OpenComputers;
+import li.cil.oc.neoforge.common.init.Blocks;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.gametest.framework.GameTest;
+import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.EnchantmentTableBlockEntity;
+import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.common.capabilities.Capability;
+import net.minecraftforge.common.capabilities.ForgeCapabilities;
+import net.minecraftforge.common.capabilities.ICapabilityProvider;
+import net.minecraftforge.common.util.LazyOptional;
+import net.minecraftforge.event.AttachCapabilitiesEvent;
+import net.minecraftforge.fluids.FluidStack;
+import net.minecraftforge.fluids.capability.IFluidHandler;
+import net.minecraftforge.fluids.capability.templates.FluidTank;
+import net.minecraftforge.gametest.GameTestHolder;
+import net.minecraftforge.gametest.PrefixGameTestTemplate;
+import net.minecraftforge.items.ItemStackHandler;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
+/**
+ * Other mods' blocks and items through their Forge capabilities: the face asked, the handler's own rules, the data
+ * reported.
+ */
+@GameTestHolder(OpenComputers.ID)
+@PrefixGameTestTemplate(false)
+public final class IntegrationTests {
+  private static final String EMPTY = "empty";
+  private static final BlockPos AT = new BlockPos(2, 2, 2);
+
+  private IntegrationTests() {
+  }
+
+  /** An enchanting table at pos carrying the given capability provider (attached while it is placed). */
+  private static void placeWithCapability(final GameTestHelper helper, final BlockPos pos, final ICapabilityProvider provider, final String name) {
+    final BlockPos abs = helper.absolutePos(pos);
+    final Consumer<AttachCapabilitiesEvent<BlockEntity>> attach = event -> {
+      if (event.getObject() instanceof EnchantmentTableBlockEntity && event.getObject().getBlockPos().equals(abs)) {
+        event.addCapability(new ResourceLocation(OpenComputers.ID, name), provider);
+      }
+    };
+    MinecraftForge.EVENT_BUS.addGenericListener(BlockEntity.class, attach);
+    try {
+      helper.setBlock(pos, net.minecraft.world.level.block.Blocks.ENCHANTING_TABLE);
+    } finally {
+      MinecraftForge.EVENT_BUS.unregister(attach);
+    }
+  }
+
+  private static BlockPosition at(final GameTestHelper helper, final BlockPos pos) {
+    final BlockPos abs = helper.absolutePos(pos);
+    return new BlockPosition(abs.getX(), abs.getY(), abs.getZ(), helper.getLevel());
+  }
+
+  /**
+   * Fluids move into a tank through the face toward the transposer: asked for no side, a tank like Mekanism's hands out
+   * a read-only view, and nothing moved.
+   */
+  @GameTest(template = EMPTY)
+  public static void fluidsMoveThroughTheFacingSide(final GameTestHelper helper) {
+    final FluidTank tank = new FluidTank(4000);
+    final IFluidHandler readOnly = new IFluidHandler() {
+      @Override
+      public int getTanks() {
+        return 1;
+      }
+
+      @Override
+      public @NotNull FluidStack getFluidInTank(int t) {
+        return tank.getFluid();
+      }
+
+      @Override
+      public int getTankCapacity(int t) {
+        return tank.getCapacity();
+      }
+
+      @Override
+      public boolean isFluidValid(int t, @NotNull FluidStack stack) {
+        return false;
+      }
+
+      @Override
+      public int fill(FluidStack resource, FluidAction action) {
+        return 0;
+      }
+
+      @Override
+      public @NotNull FluidStack drain(FluidStack resource, FluidAction action) {
+        return FluidStack.EMPTY;
+      }
+
+      @Override
+      public @NotNull FluidStack drain(int maxDrain, FluidAction action) {
+        return FluidStack.EMPTY;
+      }
+    };
+    final LazyOptional<IFluidHandler> sided = LazyOptional.of(() -> tank);
+    final LazyOptional<IFluidHandler> unsided = LazyOptional.of(() -> readOnly);
+    final BlockPos sink = AT.above();
+    placeWithCapability(helper, sink, new ICapabilityProvider() {
+      @Override
+      public <T> @NotNull LazyOptional<T> getCapability(@NotNull Capability<T> cap, @Nullable Direction side) {
+        if (cap != ForgeCapabilities.FLUID_HANDLER) return LazyOptional.empty();
+        return side == null ? unsided.cast() : sided.cast();
+      }
+    }, "test_fluid_tank");
+    helper.setBlock(AT, net.minecraft.world.level.block.Blocks.WATER_CAULDRON.defaultBlockState().setValue(net.minecraft.world.level.block.LayeredCauldronBlock.LEVEL, 3));
+    // what the transposer below the tank and beside the cauldron asks: each block's face toward it
+    final int moved = FluidUtils.transferBetweenFluidHandlersAt(at(helper, AT), Direction.UP, at(helper, sink), Direction.DOWN, 1000, -1);
+    helper.assertTrue(moved == 1000 && tank.getFluidAmount() == 1000, "moved " + moved + " mB, the tank holds " + tank.getFluidAmount());
+    helper.succeed();
+  }
+
+  // bundles carry the handler while the listener is registered (copies of a stack gather their capabilities anew)
+  private static Consumer<AttachCapabilitiesEvent<ItemStack>> bundlesCarry(final ItemStackHandler handler) {
+    final LazyOptional<net.minecraftforge.items.IItemHandler> holder = LazyOptional.of(() -> handler);
+    final ICapabilityProvider provider = new ICapabilityProvider() {
+      @Override
+      public <T> @NotNull LazyOptional<T> getCapability(@NotNull Capability<T> cap, @Nullable Direction side) {
+        return cap == ForgeCapabilities.ITEM_HANDLER ? holder.cast() : LazyOptional.empty();
+      }
+    };
+    final Consumer<AttachCapabilitiesEvent<ItemStack>> attach = event -> {
+      if (event.getObject().is(Items.BUNDLE)) event.addCapability(new ResourceLocation(OpenComputers.ID, "test_backpack"), provider);
+    };
+    MinecraftForge.EVENT_BUS.addGenericListener(ItemStack.class, attach);
+    return attach;
+  }
+
+  /**
+   * An item with an item handler (a backpack) is used through the handler: what it refuses stays where it was, and
+   * what is added to a stack in it is saved by it (as a container, refused items were deleted and stacks changed in
+   * place were never saved: lost or duplicated).
+   */
+  @GameTest(template = EMPTY)
+  public static void itemInventoriesGoThroughTheirHandler(final GameTestHelper helper) {
+    final int[] changes = {0};
+    final ItemStackHandler handler = new ItemStackHandler(2) {
+      @Override
+      public boolean isItemValid(int slot, @NotNull ItemStack stack) {
+        return stack.is(Items.STICK);
+      }
+
+      @Override
+      protected void onContentsChanged(int slot) {
+        changes[0]++;
+      }
+    };
+    handler.setStackInSlot(0, new ItemStack(Items.STICK, 10));
+    final var attach = bundlesCarry(handler);
+    try {
+      checkBackpack(helper, handler, changes);
+    } finally {
+      MinecraftForge.EVENT_BUS.unregister(attach);
+    }
+    helper.succeed();
+  }
+
+  private static void checkBackpack(final GameTestHelper helper, final ItemStackHandler handler, final int[] changes) {
+    final ItemStack backpack = new ItemStack(Items.BUNDLE);
+    final var inventory = InventoryUtils.itemInventoryFor(backpack, null);
+    helper.assertTrue(inventory != null, "the backpack has no item inventory");
+    final ItemStack dirt = new ItemStack(Items.DIRT, 4);
+    InventoryUtils.insertIntoInventorySlot(dirt, inventory, 1, 64);
+    helper.assertTrue(dirt.getCount() == 4 && handler.getStackInSlot(1).isEmpty(), "the backpack refused dirt, and " + (4 - dirt.getCount()) + " of 4 are gone");
+    changes[0] = 0;
+    final ItemStack sticks = new ItemStack(Items.STICK, 3);
+    InventoryUtils.insertIntoInventorySlot(sticks, inventory, 0, 64);
+    helper.assertTrue(handler.getStackInSlot(0).getCount() == 13 && changes[0] > 0,
+      "3 sticks onto 10: the backpack holds " + handler.getStackInSlot(0).getCount() + " and saved " + changes[0] + " times");
+  }
+
+  /** A fresh tool has no tag for programs (1.20.1 writes Damage:0 into every tool: all reported hasTag). */
+  @GameTest(template = EMPTY)
+  public static void toolsReportNoTagUntilTheyHaveOne(final GameTestHelper helper) {
+    final var converter = new li.cil.oc.core.impl.integration.vanilla.ConverterItemStack();
+    final java.util.Map<Object, Object> fresh = new java.util.HashMap<>();
+    converter.convert(new ItemStack(Items.DIAMOND_PICKAXE), fresh);
+    final ItemStack named = new ItemStack(Items.DIAMOND_PICKAXE);
+    named.setHoverName(net.minecraft.network.chat.Component.literal("digger"));
+    final java.util.Map<Object, Object> renamed = new java.util.HashMap<>();
+    converter.convert(named, renamed);
+    helper.assertTrue(Boolean.FALSE.equals(fresh.get("hasTag")) && Boolean.TRUE.equals(renamed.get("hasTag")),
+      "a fresh pickaxe reports hasTag " + fresh.get("hasTag") + ", a renamed one " + renamed.get("hasTag"));
+    helper.succeed();
+  }
+
+  /** The adapter asks a block about its face toward the adapter (it asked about the far face). */
+  @GameTest(template = EMPTY, timeoutTicks = 100)
+  public static void adapterAsksTheFacingSide(final GameTestHelper helper) {
+    final var storage = new net.minecraftforge.energy.EnergyStorage(1000);
+    final LazyOptional<net.minecraftforge.energy.IEnergyStorage> energy = LazyOptional.of(() -> storage);
+    final BlockPos device = AT.east();
+    placeWithCapability(helper, device, new ICapabilityProvider() {
+      @Override
+      public <T> @NotNull LazyOptional<T> getCapability(@NotNull Capability<T> cap, @Nullable Direction side) {
+        return cap == ForgeCapabilities.ENERGY && side == Direction.WEST ? energy.cast() : LazyOptional.empty();
+      }
+    }, "test_energy_west");
+    helper.setBlock(AT, Blocks.ADAPTER.get());
+    helper.runAfterDelay(10, () -> {
+      final var adapter = (li.cil.oc.core.impl.common.blockentity.Adapter) helper.getBlockEntity(AT);
+      adapter.neighborChanged(Direction.EAST);
+      boolean found = false;
+      for (final var node : adapter.node().reachableNodes()) {
+        if (node instanceof li.cil.oc.api.network.Component c && "energy_device".equals(c.name())) found = true;
+      }
+      helper.assertTrue(found, "an adapter west of a block with energy on its west face found no energy_device");
+      helper.succeed();
+    });
+  }
+}

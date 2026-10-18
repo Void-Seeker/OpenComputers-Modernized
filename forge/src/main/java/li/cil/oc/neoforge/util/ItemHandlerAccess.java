@@ -13,7 +13,13 @@ import org.jetbrains.annotations.Nullable;
  * A block entity's Forge item capability as OC's {@link InventoryAccess}: every move goes through the handler, so it
  * keeps its own rules (e.g. a machine that only lets spent fuel out of its fuel slot).
  */
-public record ItemHandlerAccess(IItemHandler handler, BlockEntity blockEntity) implements InventoryAccess {
+public record ItemHandlerAccess(IItemHandler handler, @Nullable BlockEntity blockEntity) implements InventoryAccess {
+  /** An item's item handler (a backpack): it saves itself when changed through it. */
+  public static @Nullable InventoryAccess lookupItem(final ItemStack stack) {
+    final IItemHandler handler = Capabilities.ItemHandler.ITEM.getCapability(stack);
+    return handler != null ? new ItemHandlerAccess(handler, null) : null;
+  }
+
   public static @Nullable InventoryAccess lookup(final BlockEntity blockEntity, final @Nullable Direction face) {
     final IItemHandler handler = Capabilities.ItemHandler.BLOCK.getCapability(blockEntity, face);
     return handler != null ? new ItemHandlerAccess(handler, blockEntity) : null;
@@ -46,16 +52,17 @@ public record ItemHandlerAccess(IItemHandler handler, BlockEntity blockEntity) i
 
   @Override
   public boolean stillValid(final Player player) {
-    return !blockEntity.isRemoved();
+    return blockEntity == null || !blockEntity.isRemoved();
   }
 
   @Override
   public void setChanged() {
-    blockEntity.setChanged();
+    if (blockEntity != null) blockEntity.setChanged();
   }
 
   @Override
   public String toString() {
-    return handler.getClass().getName() + " of " + blockEntity.getType() + " at " + blockEntity.getBlockPos();
+    return blockEntity == null ? handler.getClass().getName() + " of an item"
+      : handler.getClass().getName() + " of " + blockEntity.getType() + " at " + blockEntity.getBlockPos();
   }
 }

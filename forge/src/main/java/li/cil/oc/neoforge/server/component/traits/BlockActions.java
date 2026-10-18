@@ -48,7 +48,7 @@ public interface BlockActions extends WorldAware, SideRestricted {
     }
     IFluidHandler tank = null;
     if (tankSide != null) {
-      tank = FluidUtilsOriginal.fluidHandlerAt(position().offset(tankSide));
+      tank = FluidUtilsOriginal.fluidHandlerAt(position().offset(tankSide), tankSide.getOpposite());
       if (tank == null || tank.getTanks() == 0) return result(null, "no tank");
     }
     String reason = onTransferContents();

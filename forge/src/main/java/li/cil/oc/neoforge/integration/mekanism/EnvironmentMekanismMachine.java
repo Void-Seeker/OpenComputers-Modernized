@@ -19,16 +19,38 @@ import mekanism.common.integration.computer.MethodHelpData;
 
 public class EnvironmentMekanismMachine extends ManagedBlockEntityEnvironment<IComputerTile> implements ManagedPeripheral, NamedBlock, DocumentedPeripheral {
 
-  private final Holder holder = new Holder();
+  private Holder holder = new Holder();
+  private long boundAt = Long.MIN_VALUE;
 
   public EnvironmentMekanismMachine(final IComputerTile tile) {
     super(tile, componentName(tile));
     tile.getComputerMethods(holder);
+    boundAt = gameTime();
+  }
+
+  // A multiblock (induction matrix, dynamic tank, boiler, turbine, reactor ports) binds its methods to the multiblock
+  // formed at that moment, and says so with isComputerCapabilityPersistent() == false: bound once, the methods were
+  // missing when the adapter came before the multiblock, and stale after it re-formed. Bound again, once a tick.
+  private Holder holder() {
+    if (!BlockEntity.isComputerCapabilityPersistent()) {
+      final long now = gameTime();
+      if (now != boundAt) {
+        final Holder fresh = new Holder();
+        BlockEntity.getComputerMethods(fresh);
+        holder = fresh;
+        boundAt = now;
+      }
+    }
+    return holder;
+  }
+
+  private long gameTime() {
+    return BlockEntity instanceof net.minecraft.world.level.block.entity.BlockEntity be && be.getLevel() != null ? be.getLevel().getGameTime() : Long.MIN_VALUE + 1;
   }
 
   @Override
   public String doc(final String method) {
-    final var candidates = holder.methods(method);
+    final var candidates = holder().methods(method);
     if (candidates.isEmpty()) {
       return "";
     }
@@ -90,12 +112,12 @@ public class EnvironmentMekanismMachine extends ManagedBlockEntityEnvironment<IC
 
   @Override
   public String[] methods() {
-    return holder.methodNames();
+    return holder().methodNames();
   }
 
   @Override
   public Object[] invoke(final String method, final Context context, final Arguments args) {
-    final Collection<BoundMethodHolder.BoundMethodData<?>> candidates = holder.methods(method);
+    final Collection<BoundMethodHolder.BoundMethodData<?>> candidates = holder().methods(method);
     if (candidates.isEmpty()) {
       throw new IllegalArgumentException("no such method: " + method);
     }
