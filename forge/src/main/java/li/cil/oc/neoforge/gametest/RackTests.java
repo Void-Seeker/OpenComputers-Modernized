@@ -221,6 +221,7 @@ public final class RackTests {
   @GameTest(template = EMPTY, timeoutTicks = 200)
   public static void creativeDisassemblyLosesNothing(final GameTestHelper helper) {
     helper.setBlock(AT, Blocks.DISASSEMBLER.get());
+    helper.setBlock(AT.above(), net.minecraft.world.level.block.Blocks.CHEST);   // the parts go here, counted alone
     final var disassembler = (li.cil.oc.core.impl.common.blockentity.Disassembler) helper.getBlockEntity(AT);
     final FakePlayer player = playerAt(helper, helper.absolutePos(AT));
     player.setGameMode(GameType.CREATIVE);
@@ -238,9 +239,8 @@ public final class RackTests {
     helper.runAfterDelay(60, () -> {
       helper.assertTrue(!notInstant[0], "the creative job was not instant while it ran");
       int dropped = 0;
-      for (final ItemEntity e : helper.getLevel().getEntitiesOfClass(ItemEntity.class, new AABB(helper.absolutePos(BlockPos.ZERO), helper.absolutePos(new BlockPos(6, 6, 6))).inflate(2))) {
-        dropped += e.getItem().getCount();
-      }
+      final var chest = (net.minecraft.world.level.block.entity.ChestBlockEntity) helper.getBlockEntity(AT.above());
+      for (int i = 0; i < chest.getContainerSize(); i++) dropped += chest.getItem(i).getCount();
       helper.assertTrue(disassembler.queue.isEmpty() && dropped == expected, "a creative disassembly of " + expected + " parts gave " + dropped);
       helper.succeed();
     });

@@ -66,6 +66,13 @@ public class FileSystem extends AbstractManagedEnvironment implements DeviceInfo
     return deviceInfo;
   }
 
+  // What was written is saved with its host (a disk drive, a RAID): only the computer's own block was marked, and a
+  // drive in another chunk that nothing else changed was never saved - every write since its last save lost.
+  private void changed() {
+    var host = host();
+    if (host != null) host.markChanged();
+  }
+
   @Callback(direct = true, doc = "function():string -- Get the current label of the drive.")
   public Object @Nullable [] getLabel(Context ignoredContext, Arguments ignoredArgs) {
     synchronized (fileSystem) {
@@ -80,6 +87,7 @@ public class FileSystem extends AbstractManagedEnvironment implements DeviceInfo
       if (label == null) throw new RuntimeException("drive does not support labeling");
       if (args.checkAny(0) == null) label.setLabel(null);
       else label.setLabel(args.checkString(0));
+      changed();
       return ResultWrapper.result(label.getLabel());
     }
   }
@@ -156,6 +164,7 @@ public class FileSystem extends AbstractManagedEnvironment implements DeviceInfo
     synchronized (fileSystem) {
       boolean success = recurseMkdir(clean(args.checkString(0)));
       diskActivity();
+      changed();
       return ResultWrapper.result(success);
     }
   }
@@ -176,6 +185,7 @@ public class FileSystem extends AbstractManagedEnvironment implements DeviceInfo
     synchronized (fileSystem) {
       boolean success = recurseDelete(clean(args.checkString(0)));
       diskActivity();
+      changed();
       return ResultWrapper.result(success);
     }
   }
@@ -198,6 +208,7 @@ public class FileSystem extends AbstractManagedEnvironment implements DeviceInfo
     synchronized (fileSystem) {
       boolean success = fileSystem.rename(clean(args.checkString(0)), clean(args.checkString(1)));
       diskActivity();
+      changed();
       return ResultWrapper.result(success);
     }
   }
@@ -223,6 +234,7 @@ public class FileSystem extends AbstractManagedEnvironment implements DeviceInfo
       int handle = fileSystem.open(clean(path), parseMode(mode));
       if (handle > 0) {
         owners.computeIfAbsent(context.node().address(), k -> new HashSet<>()).add(handle);
+        if (!"r".equals(mode)) changed();
       }
       diskActivity();
       return ResultWrapper.result(new HandleValue(node.address(), handle));
@@ -297,6 +309,7 @@ public class FileSystem extends AbstractManagedEnvironment implements DeviceInfo
       if (file != null) {
         file.write(value);
         diskActivity();
+        changed();
         return ResultWrapper.result(true);
       }
       throw new RuntimeException(new IOException("bad file descriptor"));

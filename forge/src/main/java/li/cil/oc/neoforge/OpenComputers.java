@@ -200,6 +200,7 @@ public final class OpenComputers {
     MinecraftForge.EVENT_BUS.addGenericListener(net.minecraft.world.level.block.entity.BlockEntity.class, CapabilityRegistrar.INSTANCE::onAttachBlockEntity);
     MinecraftForge.EVENT_BUS.addGenericListener(net.minecraft.world.item.ItemStack.class, CapabilityRegistrar.INSTANCE::onAttachItemStack);
 
+    MinecraftForge.EVENT_BUS.addListener(this::serverAboutToStart);
     MinecraftForge.EVENT_BUS.addListener(this::serverStarting);
     MinecraftForge.EVENT_BUS.addListener(this::serverStop);
 
@@ -370,9 +371,14 @@ public final class OpenComputers {
     log().info("Done with pre init phase.");
   }
 
+  // fresh save pools once per server start: commands are registered again on /reload too, and a new pool there
+  // threw away the disk saves still queued in the old one
+  public void serverAboutToStart(final net.minecraftforge.event.server.ServerAboutToStartEvent e) {
+    ThreadPoolFactory.safePools.forEach(SafeThreadPool::newThreadPool);
+  }
+
   public void serverStarting(final RegisterCommandsEvent e) {
     CommandHandler.register(e.getDispatcher());
-    ThreadPoolFactory.safePools.forEach(SafeThreadPool::newThreadPool);
 
     if (OCSettings.get().internetAccessConfigured()) {
       if (OCSettings.get().internetFilteringRulesInvalid()) {

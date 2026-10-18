@@ -70,13 +70,26 @@ public class Drive extends AbstractManagedEnvironment implements DeviceInfo {
       ((2000 / writeByteCosts[speed]) / 100));
   }
 
+  // saved with its host, as FileSystem: its block's chunk was never marked for what was written here
+  private void changed() {
+    var host = host();
+    if (host != null) host.markChanged();
+  }
+
   private File savePath() {
+    // the address names the file: one from the item's tag that is no UUID (../../x) reached outside the save folder
+    var address = node.address();
+    try {
+      java.util.UUID.fromString(address);
+    } catch (IllegalArgumentException e) {
+      address = java.util.UUID.nameUUIDFromBytes(address.getBytes(java.nio.charset.StandardCharsets.UTF_8)).toString();
+    }
     var level = host().level();
     if (level != null && level.getServer() != null) {
       var saveDir = level.getServer().getWorldPath(net.minecraft.world.level.storage.LevelResource.ROOT);
-      return new File(saveDir.toFile(), OCSettings.savePath + node.address() + ".bin");
+      return new File(saveDir.toFile(), OCSettings.savePath + address + ".bin");
     }
-    return new File("saves", OCSettings.savePath + node.address() + ".bin");
+    return new File("saves", OCSettings.savePath + address + ".bin");
   }
 
   @Override
@@ -96,6 +109,7 @@ public class Drive extends AbstractManagedEnvironment implements DeviceInfo {
     if (label == null) throw new RuntimeException("drive does not support labeling");
     if (args.checkAny(0) == null) label.setLabel(null);
     else label.setLabel(args.checkString(0));
+    changed();
     return ResultWrapper.result(label.getLabel());
   }
 
@@ -133,6 +147,7 @@ public class Drive extends AbstractManagedEnvironment implements DeviceInfo {
     int sector = moveToSector(context, checkSector(args));
     diskActivity();
     System.arraycopy(sectorData, 0, data, sectorOffset(sector), Math.min(sectorSize, sectorData.length));
+    changed();
     return null;
   }
 
@@ -155,6 +170,7 @@ public class Drive extends AbstractManagedEnvironment implements DeviceInfo {
     moveToSector(context, checkSector(offset));
     diskActivity();
     data[offset] = (byte) value;
+    changed();
     return null;
   }
 

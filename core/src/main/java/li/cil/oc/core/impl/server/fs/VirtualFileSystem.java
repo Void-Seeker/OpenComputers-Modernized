@@ -79,16 +79,27 @@ public abstract class VirtualFileSystem extends OutputStreamFileSystem {
   public boolean rename(String from, String to) {
     if (from.isEmpty() || !exists(from)) throw new RuntimeException(new FileNotFoundException(from));
     List<String> segmentsTo = segments(to);
+    List<String> segmentsFrom = segments(from);
+    if (segmentsTo.isEmpty()) return false;
+    // onto itself: nothing moves (the capacity overrides still freed the target's size: space used went to 0)
+    if (segmentsTo.equals(segmentsFrom)) return true;
+    // into itself: refused (the directory was cut off the tree, and deleted from disk at the next save)
+    if (isInside(segmentsTo, segmentsFrom)) return false;
     VirtualObject toParentOpt = root.get(segmentsTo.subList(0, segmentsTo.size() - 1));
     if (toParentOpt instanceof VirtualDirectory toParent) {
       String toName = segmentsTo.get(segmentsTo.size() - 1);
-      List<String> segmentsFrom = segments(from);
       VirtualObject fromParentObj = root.get(segmentsFrom.subList(0, segmentsFrom.size() - 1));
       VirtualDirectory fromParent = (VirtualDirectory) fromParentObj;
       String fromName = segmentsFrom.get(segmentsFrom.size() - 1);
       VirtualObject obj = fromParent.children.get(fromName);
-      if (toParent.get(Collections.singletonList(toName)) != null) {
-        toParent.delete(toName);
+      VirtualObject target = toParent.children.get(toName);
+      if (target != null) {
+        // as POSIX: a file replaces a file, a directory an empty directory, and only what can be deleted (a non-empty
+        // directory's contents, or a directory replaced by a file, were lost)
+        boolean isDirectory = obj instanceof VirtualDirectory;
+        if (isDirectory != target instanceof VirtualDirectory) return false;
+        if (target instanceof VirtualDirectory dir && !dir.children.isEmpty()) return false;
+        if (!toParent.delete(toName)) return false;
       }
       fromParent.children.remove(fromName);
       fromParent.lastModified = System.currentTimeMillis();
@@ -98,6 +109,10 @@ public abstract class VirtualFileSystem extends OutputStreamFileSystem {
       return true;
     }
     return false;
+  }
+
+  private static boolean isInside(List<String> path, List<String> directory) {
+    return path.size() > directory.size() && path.subList(0, directory.size()).equals(directory);
   }
 
   @Override

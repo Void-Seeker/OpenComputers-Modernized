@@ -13,6 +13,10 @@ public class SafeThreadPool {
   private final int threads;
   private ScheduledExecutorService _threadPool;
 
+  public String name() {
+    return name;
+  }
+
   public SafeThreadPool(String name, int threads) {
     this.name = name;
     this.threads = threads;

@@ -55,10 +55,8 @@ public class Cable extends BlockEntity implements Environment, NotAnalyzable, Co
     return worldPosition.getZ() + 0.5;
   }
 
-  @Override
-  public void markChanged() {
-    setChanged();
-  }
+  // markChanged is the base class's: components call it from the computer threads, where setChanged() must not
+  // run (it touches the chunk); the base class marks the block entity on the next server tick
 
   @Override
   public void initialize() {

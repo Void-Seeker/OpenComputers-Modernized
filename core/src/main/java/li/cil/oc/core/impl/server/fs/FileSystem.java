@@ -51,6 +51,11 @@ public final class FileSystem implements li.cil.oc.api.detail.FileSystemAPI {
     environmentFactory = factory;
   }
 
+  private static boolean samePath(String a, String b) {
+    return java.util.Arrays.stream(a.split("/")).filter(p -> !p.isEmpty()).toList()
+      .equals(java.util.Arrays.stream(b.split("/")).filter(p -> !p.isEmpty()).toList());
+  }
+
   public static void removeAddress(ItemStack fsStack) {
     var item = fsStack.getItem();
     if (item instanceof FileSystemLike) {
@@ -72,6 +77,8 @@ public final class FileSystem implements li.cil.oc.api.detail.FileSystemAPI {
           nodeData.remove("address");
         }
       }
+      // into the item: this edited a copy, so switching a drive's mode kept its contents - and dropped its lock
+      CustomData.set(fsStack, li.cil.oc.compat.CustomData.of(data));
     }
   }
 
@@ -220,6 +227,17 @@ public final class FileSystem implements li.cil.oc.api.detail.FileSystemAPI {
       server.getWorldPath(net.minecraft.world.level.storage.LevelResource.ROOT).toFile() :
       new File(".");
     File path = new File(baseDir, OCSettings.savePath + root);
+    // inside the save folder only: the root is a drive's address from its item, and one like ../../x reached (and
+    // deleted, were it a file) anything the server can write
+    try {
+      if (!path.getCanonicalFile().toPath().startsWith(new File(baseDir, OCSettings.savePath).getCanonicalFile().toPath())) {
+        LOGGER.warn("Refusing a file system outside the save folder: {}", root);
+        return null;
+      }
+    } catch (java.io.IOException e) {
+      LOGGER.warn("Cannot resolve the file system folder {}", root, e);
+      return null;
+    }
     if (path.exists() && !path.isDirectory()) {
       if (!path.delete()) {
         LOGGER.warn("Failed to delete path: {}", path);
@@ -389,6 +407,7 @@ public final class FileSystem implements li.cil.oc.api.detail.FileSystemAPI {
 
     @Override
     public boolean rename(String from, String to) {
+      if (samePath(from, to)) return super.rename(from, to); // nothing is freed
       if (exists(to)) {
         long freed = OCSettings.get().fileCost + size(to);
         if (super.rename(from, to)) {
@@ -536,6 +555,7 @@ public final class FileSystem implements li.cil.oc.api.detail.FileSystemAPI {
 
     @Override
     public boolean rename(String from, String to) {
+      if (samePath(from, to)) return super.rename(from, to); // nothing is freed
       if (exists(to)) {
         long freed = OCSettings.get().fileCost + size(to);
         if (super.rename(from, to)) {
@@ -675,6 +695,9 @@ public final class FileSystem implements li.cil.oc.api.detail.FileSystemAPI {
     private long used;
     private boolean ignoreCapacity = false;
     private Future<?> saving = null;
+    // the save under way for each folder, whichever instance started it: a drive moved to another computer (or its
+    // chunk reloaded) right after an autosave read the folder before the old instance had written it
+    private static final Map<String, Future<?>> savingFolders = new java.util.concurrent.ConcurrentHashMap<>();
 
     BufferedFileSystem(File fileRoot, long capacity) {
       this.fileRoot = fileRoot;
@@ -715,6 +738,7 @@ public final class FileSystem implements li.cil.oc.api.detail.FileSystemAPI {
 
     @Override
     public boolean rename(String from, String to) {
+      if (samePath(from, to)) return super.rename(from, to); // nothing is freed, nothing deleted
       long freed = 0;
       boolean hadTarget = false;
       if (exists(to)) {
@@ -751,9 +775,10 @@ public final class FileSystem implements li.cil.oc.api.detail.FileSystemAPI {
 
     @Override
     public void load(CompoundTag nbt, HolderLookup.Provider provider) {
-      if (saving != null) {
+      for (var pending : new Future<?>[]{saving, savingFolders.get(folderKey())}) {
+        if (pending == null) continue;
         try {
-          saving.get(120L, TimeUnit.SECONDS);
+          pending.get(120L, TimeUnit.SECONDS);
         } catch (TimeoutException e) {
           LOGGER.warn("Waiting for filesystem to save took two minutes! Aborting.");
         } catch (CancellationException | InterruptedException | ExecutionException ignored) {
@@ -773,8 +798,25 @@ public final class FileSystem implements li.cil.oc.api.detail.FileSystemAPI {
     public void save(CompoundTag nbt, HolderLookup.Provider provider) {
       super.save(nbt, provider);
       nbt.putLong("capacity.used", used);
-      var f = fileSaveHandler.withPool(pool -> pool.submit(this::saveFiles));
-      if (f != null) saving = f;
+      var key = folderKey();
+      var self = new java.util.concurrent.atomic.AtomicReference<Future<?>>();
+      var f = fileSaveHandler.withPool(pool -> pool.submit(() -> {
+        try {
+          saveFiles();
+        } finally {
+          if (self.get() != null) savingFolders.remove(key, self.get());
+        }
+      }));
+      if (f != null) {
+        self.set(f);
+        saving = f;
+        savingFolders.put(key, f);
+        if (f.isDone()) savingFolders.remove(key, f);
+      }
+    }
+
+    private String folderKey() {
+      return fileRoot().getAbsolutePath();
     }
 
     private synchronized void loadFiles(CompoundTag ignoredNbt) {
@@ -882,13 +924,25 @@ public final class FileSystem implements li.cil.oc.api.detail.FileSystemAPI {
                 h.read(data);
                 h.close();
               }
-              try (FileOutputStream fos = new FileOutputStream(childFile)) {
+              // written aside and moved over it: a kill mid-save left the old file, not half of the new one (aside is
+              // outside the drive's folder, so a leftover never shows up in it)
+              File tempDir = new File(fileRoot().getParentFile(), ".oc-save-tmp");
+              if (!tempDir.isDirectory() && !tempDir.mkdirs()) throw new IOException("cannot create " + tempDir);
+              File temp = new File(tempDir, fileRoot().getName() + ".part");
+              try (FileOutputStream fos = new FileOutputStream(temp)) {
                 fos.write(data);
+              }
+              try {
+                java.nio.file.Files.move(temp.toPath(), childFile.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING, java.nio.file.StandardCopyOption.ATOMIC_MOVE);
+              } catch (java.nio.file.AtomicMoveNotSupportedException e) {
+                java.nio.file.Files.move(temp.toPath(), childFile.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
               }
               if (!childFile.setLastModified(lastModified(childPath))) {
                 LOGGER.warn("Failed to set last modified on: {}", childFile);
               }
-            } catch (Exception ignored) {
+            } catch (Exception e) {
+              // said, not swallowed: a name the host's file system refuses, or a full disk, lost the file at reload
+              LOGGER.warn("Could not save {} of the file system in {}", childPath, fileRoot(), e);
             }
           }
         }
