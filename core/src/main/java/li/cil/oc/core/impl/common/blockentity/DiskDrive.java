@@ -384,11 +384,12 @@ public class DiskDrive extends BlockEntity implements Environment, EnvironmentHo
   public void dropSlot(int slot, int count, Direction direction) {
     var stack = getItem(slot);
     if (!stack.isEmpty()) {
-      var toDrop = stack.copy();
-      toDrop.setCount(Math.min(count, stack.getCount()));
-      if (direction != null) spawnStackInWorld(toDrop, direction);
-      else spawnStackInWorld(toDrop);
-      setItem(slot, ItemStack.EMPTY);
+      // taken out first, which saves the disk's state (its label) into it - a copy taken before that dropped without it
+      var toDrop = removeItem(slot, Math.min(count, stack.getCount()));
+      if (!toDrop.isEmpty()) {
+        if (direction != null) spawnStackInWorld(toDrop, direction);
+        else spawnStackInWorld(toDrop);
+      }
     }
   }
 

@@ -302,6 +302,7 @@ public class Hologram extends BlockEntity implements Environment, SidedEnvironme
     PacketSender.sendHologramClear(this);
     resetDirtyFlag();
     litRatio = 0;
+    markChanged();   // saved (clears, palette, scale, offsets and rotations were not: a restart brought the old back)
     return null;
   }
 
@@ -374,10 +375,11 @@ public class Hologram extends BlockEntity implements Environment, SidedEnvironme
     int sz = tz > 0 ? -1 : 1;
     for (int nz = dz0; (sz > 0 ? nz <= dz1 : nz >= dz1); nz += sz) {
       int oz = nz - tz;
-      if (oz >= 0 && oz < WIDTH) {
+      // from inside the area copied (a target off the edge was clamped onto row/column 1 and filled from outside it)
+      if (oz >= z && oz < Math.min(z + h, WIDTH)) {
         for (int nx = dx0; (sx > 0 ? nx <= dx1 : nx >= dx1); nx += sx) {
           int ox = nx - tx;
-          if (ox >= 0 && ox < WIDTH) {
+          if (ox >= x && ox < Math.min(x + w, WIDTH)) {
             volume[nx + nz * WIDTH] = volume[ox + oz * WIDTH];
             volume[nx + nz * WIDTH + WIDTH * WIDTH] = volume[ox + oz * WIDTH + WIDTH * WIDTH];
             setDirty(nx, nz);
@@ -427,6 +429,7 @@ public class Hologram extends BlockEntity implements Environment, SidedEnvironme
   public Object[] setScale(Context context, Arguments args) {
     scale = MathCompat.clamp(args.checkDouble(0), 0.333333, OCSettings.get().hologramMaxScaleByTier[tier]);
     PacketSender.sendHologramScale(this, scale);
+    markChanged();
     return null;
   }
 
@@ -443,6 +446,7 @@ public class Hologram extends BlockEntity implements Environment, SidedEnvironme
     translationY = MathCompat.clamp(args.checkDouble(1), 0, maxTranslation * 2);
     translationZ = MathCompat.clamp(args.checkDouble(2), -maxTranslation, maxTranslation);
     PacketSender.sendHologramOffset(this, translationX, translationY, translationZ);
+    markChanged();
     return null;
   }
 
@@ -466,6 +470,7 @@ public class Hologram extends BlockEntity implements Environment, SidedEnvironme
     int oldValue = colors[index - 1];
     colors[index - 1] = convertColor(value);
     PacketSender.sendHologramColor(this, index - 1, colors[index - 1]);
+    markChanged();
     return (Object[]) result(oldValue);
   }
 
@@ -477,6 +482,7 @@ public class Hologram extends BlockEntity implements Environment, SidedEnvironme
       rotationY = (float) args.checkDouble(2);
       rotationZ = (float) args.checkDouble(3);
       PacketSender.sendHologramRotation(this, rotationAngle, rotationX, rotationY, rotationZ);
+      markChanged();
       return (Object[]) result(true);
     }
     return (Object[]) result(null, "not supported");
@@ -490,6 +496,7 @@ public class Hologram extends BlockEntity implements Environment, SidedEnvironme
       rotationSpeedY = (float) args.checkDouble(2);
       rotationSpeedZ = (float) args.checkDouble(3);
       PacketSender.sendHologramRotationSpeed(this, rotationSpeed, rotationSpeedX, rotationSpeedY, rotationSpeedZ);
+      markChanged();
       return (Object[]) result(true);
     }
     return (Object[]) result(null, "not supported");

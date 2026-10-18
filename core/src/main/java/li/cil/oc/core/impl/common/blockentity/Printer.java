@@ -256,7 +256,7 @@ public class Printer extends BlockEntity implements li.cil.oc.api.network.Enviro
 
   @Callback(doc = "function(minX:number, minY:number, minZ:number, maxX:number, maxY:number, maxZ:number, texture:string[, state:boolean=false][,tint:number]) -- Adds a shape to the printers configuration, optionally specifying whether it is for the off or on state.")
   public Object[] addShape(Context context, Arguments args) {
-    if (data.stateOff.size() > OCSettings.get().maxPrintComplexity || data.stateOn.size() > OCSettings.get().maxPrintComplexity) {
+    if (data.stateOff.size() >= OCSettings.get().maxPrintComplexity || data.stateOn.size() >= OCSettings.get().maxPrintComplexity) {
       return result(null, "model too complex");
     }
     float minX = MathCompat.clamp(args.checkInteger(0), 0, 16) / 16f;
@@ -314,10 +314,11 @@ public class Printer extends BlockEntity implements li.cil.oc.api.network.Enviro
 
   public void updateEntity() {
     super.updateEntity();
+    // room for one more of what is being set up (a full stack never counted: prints made then were thrown away)
     Supplier<Boolean> canMergeOutput = () -> {
       var presentStack = getItem(SLOT_OUTPUT);
       var outputStack = data.createItemStack();
-      return presentStack.isEmpty() || (ItemStack.isSameItemSameTags(presentStack, outputStack));
+      return presentStack.isEmpty() || (ItemStack.isSameItemSameTags(presentStack, outputStack) && presentStack.getCount() < presentStack.getMaxStackSize());
     };
 
     if (isActive && output == null && canMergeOutput.get()) {
@@ -340,19 +341,25 @@ public class Printer extends BlockEntity implements li.cil.oc.api.network.Enviro
     }
 
     if (output != null) {
-      double want = MathCompat.clamp(requiredEnergy, 1, OCSettings.get().printerTickAmount);
-      double have = want + (OCSettings.get().ignorePower ? 0 : ((li.cil.oc.api.network.Connector) node).changeBuffer(-want));
-      requiredEnergy -= have;
+      double have = 0;
+      if (requiredEnergy > 0) {
+        double want = MathCompat.clamp(requiredEnergy, 1, OCSettings.get().printerTickAmount);
+        have = want + (OCSettings.get().ignorePower ? 0 : ((li.cil.oc.api.network.Connector) node).changeBuffer(-want));
+        requiredEnergy -= have;
+      }
       if (requiredEnergy <= 0) {
+        requiredEnergy = 0;
+        // into the output slot, or it waits there until the slot has room (it was thrown away: the output slot full,
+        // or holding another print since the setup changed during the job)
         var result = getItem(SLOT_OUTPUT);
         if (result.isEmpty()) {
           setItem(SLOT_OUTPUT, output);
-        } else if (result.getCount() < result.getMaxStackSize() && canMergeOutput.get()) {
+          output = null;
+        } else if (ItemStack.isSameItemSameTags(result, output) && result.getCount() < result.getMaxStackSize()) {
           result.grow(1);
           setChanged();
+          output = null;
         }
-        requiredEnergy = 0;
-        output = null;
       }
       PacketSender.sendPrinting(this, have > 0.5 && output != null);
     }
@@ -370,7 +377,9 @@ public class Printer extends BlockEntity implements li.cil.oc.api.network.Enviro
         amountInk += inkValue;
         var remaining = ink.getItem().getCraftingRemainingItem();
         if (remaining != null) {
-          setItem(SLOT_INK, new ItemStack(remaining));
+          // the empty cartridge where the full one was only if that is empty now (it replaced the rest of a stack)
+          if (getItem(SLOT_INK).isEmpty()) setItem(SLOT_INK, new ItemStack(remaining));
+          else spawnStackInWorld(new ItemStack(remaining), Direction.UP);
         }
       }
     }

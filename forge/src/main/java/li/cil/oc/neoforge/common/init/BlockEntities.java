@@ -114,7 +114,9 @@ public final class BlockEntities {
     BLOCK_ENTITY_TYPES.register(key("Hologram"),
       () -> {
         var built = BlockEntityType.Builder.of(
-          Hologram::new,
+          // the block's tier: a loaded block entity is made from here (it was always tier 1: a tier 2 hologram lost its
+          // colours 2 and 3 when its chunk reloaded)
+          (pos, state) -> new Hologram(pos, state, state.getBlock() instanceof li.cil.oc.core.impl.common.block.Hologram h ? h.tier : 0),
           Blocks.HOLOGRAM_TIER_1.get(), Blocks.HOLOGRAM_TIER_2.get()
         ).build(null);
         Hologram.TYPE = built;

@@ -95,6 +95,8 @@ public class Print extends RedstoneAware implements CustomDrops<li.cil.oc.core.i
   @Override
   public @NotNull VoxelShape getCollisionShape(@NotNull BlockState state, @NotNull BlockGetter world, @NotNull BlockPos pos, @NotNull CollisionContext context) {
     if (world.getBlockEntity(pos) instanceof li.cil.oc.core.impl.common.blockentity.Print print) {
+      // setCollidable(false, ...) is paid for in chamelium: nothing collides then (it was ignored)
+      if (print.state ? print.data.noclipOn : print.data.noclipOff) return net.minecraft.world.phys.shapes.Shapes.empty();
       return print.state ? print.shapeOn : print.shapeOff;
     }
     return super.getCollisionShape(state, world, pos, context);

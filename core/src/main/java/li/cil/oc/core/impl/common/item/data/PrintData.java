@@ -258,6 +258,8 @@ public class PrintData extends ItemData {
       stateOn.add(nbtToShape(onList.getCompound(i)));
     }
     isBeaconBase = nbt.getBoolean("isBeaconBase");
+    // which item it is (a placed print's data comes from here when it loads: a beacon base dropped as a plain print)
+    itemName = isBeaconBase ? Constants.BlockName.BeaconBasePrint : Constants.BlockName.Print;
     lightLevel = MathCompat.clamp(nbt.getByte("lightLevel") & 0xFF, 0, 15);
     noclipOff = nbt.getBoolean("noclipOff");
     noclipOn = nbt.getBoolean("noclipOn");
