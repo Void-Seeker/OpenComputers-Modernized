@@ -116,7 +116,7 @@ public class Assembler extends DynamicGuiContainer<li.cil.oc.core.impl.common.co
   }
 
   @Override
-  protected void renderBg(GuiGraphics guiGraphics, float ignoredDt, int ignoredMouseX, int ignoredMouseY) {
+  protected void drawBackground(GuiGraphics guiGraphics, float ignoredDt, int ignoredMouseX, int ignoredMouseY) {
     guiGraphics.blit(Textures.guiRobotAssembler, leftPos, topPos, 0, 0, imageWidth, imageHeight, 256, 256);
     if (menu.isAssembling()) progress.level = menu.assemblyProgress() / 100.0;
     else progress.level = 0;

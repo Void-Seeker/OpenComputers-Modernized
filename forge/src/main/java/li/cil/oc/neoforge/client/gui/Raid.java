@@ -33,7 +33,7 @@ public class Raid extends DynamicGuiContainer<li.cil.oc.core.impl.common.contain
   }
 
   @Override
-  protected void renderBg(GuiGraphics guiGraphics, float ignoredDt, int ignoredMouseX, int ignoredMouseY) {
+  protected void drawBackground(GuiGraphics guiGraphics, float ignoredDt, int ignoredMouseX, int ignoredMouseY) {
     guiGraphics.blit(Textures.guiRaid, leftPos, topPos, 0, 0, imageWidth, imageHeight);
   }
 }

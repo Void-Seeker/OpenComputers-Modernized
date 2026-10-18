@@ -23,8 +23,8 @@ public class Relay extends DynamicGuiContainer<li.cil.oc.neoforge.common.contain
   }
 
   @Override
-  protected void renderBg(GuiGraphics guiGraphics, float dt, int mouseX, int mouseY) {
-    super.renderBg(guiGraphics, dt, mouseX, mouseY);
+  protected void drawBackground(GuiGraphics guiGraphics, float dt, int mouseX, int mouseY) {
+    super.drawBackground(guiGraphics, dt, mouseX, mouseY);
     int x = windowX() + imageWidth;
     int y = windowY() + 10;
     int w = 23;

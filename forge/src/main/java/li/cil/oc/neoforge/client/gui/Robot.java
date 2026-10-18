@@ -257,7 +257,7 @@ public class Robot extends DynamicGuiContainer<li.cil.oc.neoforge.common.contain
   }
 
   @Override
-  protected void renderBg(GuiGraphics guiGraphics, float ignoredDt, int ignoredMouseX, int ignoredMouseY) {
+  protected void drawBackground(GuiGraphics guiGraphics, float ignoredDt, int ignoredMouseX, int ignoredMouseY) {
     buffer();
     guiGraphics.blit(buffer != null ? Textures.guiRobot : Textures.guiRobotNoScreen, leftPos, topPos, 0, 0, imageWidth, imageHeight, 256, 256);
     power.level = current().globalBuffer / current().globalBufferSize;

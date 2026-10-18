@@ -155,7 +155,7 @@ public class Drone extends DynamicGuiContainer<li.cil.oc.core.impl.common.contai
   }
 
   @Override
-  protected void renderBg(GuiGraphics guiGraphics, float ignoredDt, int ignoredMouseX, int ignoredMouseY) {
+  protected void drawBackground(GuiGraphics guiGraphics, float ignoredDt, int ignoredMouseX, int ignoredMouseY) {
     guiGraphics.blit(Textures.guiDrone, leftPos, topPos, 0, 0, imageWidth, imageHeight, 256, 256);
     power.level = (double) drone.globalBuffer() / Math.max(drone.globalBufferSize(), 1.0);
     drawWidgets(guiGraphics);

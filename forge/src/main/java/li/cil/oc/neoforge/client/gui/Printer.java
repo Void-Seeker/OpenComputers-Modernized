@@ -131,7 +131,7 @@ public class Printer extends DynamicGuiContainer<li.cil.oc.core.impl.common.cont
   }
 
   @Override
-  protected void renderBg(GuiGraphics guiGraphics, float ignoredDt, int ignoredMouseX, int ignoredMouseY) {
+  protected void drawBackground(GuiGraphics guiGraphics, float ignoredDt, int ignoredMouseX, int ignoredMouseY) {
     guiGraphics.blit(Textures.guiPrinter, leftPos, topPos, 0, 0, imageWidth, imageHeight);
     materialBar.level = (double) menu.amountMaterial() / li.cil.oc.core.impl.common.blockentity.Printer.MAX_AMOUNT_MATERIAL;
     inkBar.level = (double) menu.amountInk() / li.cil.oc.core.impl.common.blockentity.Printer.MAX_AMOUNT_INK;

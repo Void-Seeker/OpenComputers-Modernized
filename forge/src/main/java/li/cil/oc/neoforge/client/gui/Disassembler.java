@@ -31,7 +31,7 @@ public class Disassembler extends DynamicGuiContainer<li.cil.oc.core.impl.common
   }
 
   @Override
-  protected void renderBg(GuiGraphics guiGraphics, float ignoredDt, int ignoredMouseX, int ignoredMouseY) {
+  protected void drawBackground(GuiGraphics guiGraphics, float ignoredDt, int ignoredMouseX, int ignoredMouseY) {
     guiGraphics.blit(Textures.guiDisassembler, leftPos, topPos, 0, 0, imageWidth, imageHeight, 256, 256);
     progress.level = menu.disassemblyProgress() / 100.0;
     drawWidgets(guiGraphics);

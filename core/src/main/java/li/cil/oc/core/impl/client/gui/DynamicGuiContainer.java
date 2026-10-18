@@ -39,10 +39,18 @@ public abstract class DynamicGuiContainer<C extends AbstractContainerMenu> exten
   protected void drawSecondaryBackgroundLayer(GuiGraphics guiGraphics) {
   }
 
-  @Override
-  protected void renderBg(GuiGraphics guiGraphics, float dt, int mouseX, int mouseY) {
+  /**
+   * The screen's background: screens with their own texture or widgets override this rather than renderBg, which
+   * draws the slot backgrounds (frames, type and tier icons) over it.
+   */
+  protected void drawBackground(GuiGraphics guiGraphics, float dt, int mouseX, int mouseY) {
     guiGraphics.blit(Textures.guiBackground, leftPos, topPos, 0, 0, imageWidth, imageHeight, 256, 256);
     drawSecondaryBackgroundLayer(guiGraphics);
+  }
+
+  @Override
+  protected final void renderBg(GuiGraphics guiGraphics, float dt, int mouseX, int mouseY) {
+    drawBackground(guiGraphics, dt, mouseX, mouseY);
     // 1.20.1: AbstractContainerScreen.renderSlot is private, so slot backgrounds are drawn
     // here, right before vanilla renders the slots themselves.
     guiGraphics.pose().pushPose();

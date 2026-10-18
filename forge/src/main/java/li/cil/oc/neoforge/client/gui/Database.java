@@ -62,7 +62,7 @@ public class Database extends DynamicGuiContainer<li.cil.oc.neoforge.common.cont
   }
 
   @Override
-  protected void renderBg(GuiGraphics guiGraphics, float ignoredDt, int ignoredMouseX, int ignoredMouseY) {
+  protected void drawBackground(GuiGraphics guiGraphics, float ignoredDt, int ignoredMouseX, int ignoredMouseY) {
     guiGraphics.blit(Textures.guiDatabase, leftPos, topPos, 0, 0, imageWidth, imageHeight, 256, 256);
     if (databaseInventory.tier() > Tier.One) {
       guiGraphics.blit(Textures.guiDatabase1, leftPos, topPos, 0, 0, imageWidth, imageHeight, 256, 256);
