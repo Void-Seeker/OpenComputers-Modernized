@@ -229,4 +229,24 @@ public final class RobotToolTests {
       "60 mana drawn at a wear rate of " + rate + " left " + tablet.getTag().getInt("mana"));
     helper.succeed();
   }
+
+  /**
+   * A robot's tool wears at the robot's rate on average: a pickaxe losing one point at a time at a rate of 0.1 keeps
+   * that point one time in ten (it used to be every other time).
+   */
+  @GameTest(template = EMPTY, timeoutTicks = 100)
+  public static void robotToolsWearAtTheRobotsRate(final GameTestHelper helper) {
+    final Robot robot = robot(helper, new BlockPos(2, 2, 2));
+    final int uses = 2000;
+    int kept = 0;
+    for (int i = 0; i < uses; i++) {
+      final ItemStack before = new ItemStack(Items.IRON_PICKAXE), after = before.copy();
+      after.setDamageValue(1);
+      net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(new li.cil.oc.api.event.RobotUsedToolEvent.ApplyDamageRate(robot, before, after, 0.1));
+      kept += after.getDamageValue();
+    }
+    // 200 expected, with a standard deviation of about 13
+    helper.assertTrue(kept > 140 && kept < 260, uses + " uses at a wear rate of 0.1 kept " + kept + " points");
+    helper.succeed();
+  }
 }

@@ -17,11 +17,12 @@ public final class RobotCommonHandler {
     if (e.toolAfterUse.isDamageableItem()) {
       int damage = e.toolAfterUse.getDamageValue() - e.toolBeforeUse.getDamageValue();
       if (damage > 0) {
-        double actualDamage = damage * e.getDamageRate();
-        int repairedDamage = e.agent.player().getRandom().nextDouble() > 0.5
-          ? damage - (int) Math.floor(actualDamage)
-          : damage - (int) Math.ceil(actualDamage);
-        e.toolAfterUse.setDamageValue(e.toolAfterUse.getDamageValue() - repairedDamage);
+        // the share of the damage the robot takes, rounded at random so that it averages out to the rate (a single
+        // point at a rate of 0.1 is taken one time in ten)
+        double actualDamage = Math.max(0, Math.min(damage, damage * e.getDamageRate()));
+        int keptDamage = (int) Math.floor(actualDamage);
+        if (e.agent.player().getRandom().nextDouble() < actualDamage - keptDamage) keptDamage++;
+        e.toolAfterUse.setDamageValue(e.toolAfterUse.getDamageValue() - (damage - keptDamage));
       }
     }
   }
