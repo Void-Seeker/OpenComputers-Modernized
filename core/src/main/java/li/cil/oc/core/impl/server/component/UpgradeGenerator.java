@@ -215,20 +215,12 @@ public class UpgradeGenerator extends AbstractManagedEnvironment implements Devi
     }
   }
 
+  // The fuel stays in the upgrade, saved with it (in the robot, the drone, the upgrade item taken out): it was also
+  // dropped here, whenever the node went - a drone through a portal (its copy in the new dimension kept the fuel), a
+  // robot broken with its parts saved first - and came back twice.
   @Override
   public void onDisconnect(Node node) {
     super.onDisconnect(node);
-    if (node == this.node) {
-      if (inventory != null) {
-        var world = host.level();
-        var entity = new ItemEntity(world, host.xPosition(), host.yPosition(), host.zPosition(), inventory.copy());
-        entity.setDeltaMovement(0, 0.04, 0);
-        entity.setPickUpDelay(5);
-        world.addFreshEntity(entity);
-        inventory = null;
-      }
-      remainingTicks = 0;
-    }
   }
 
   @Override

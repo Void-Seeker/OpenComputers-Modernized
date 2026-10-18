@@ -42,9 +42,9 @@ public final class WaypointManager {
     ResourceKey<Level> dim = pos.level() != null ? pos.level().dimension() : Level.OVERWORLD;
     RTree<Waypoint> set = dimensions.get(dim);
     if (set != null) {
-      double halfRange = range * 0.5;
-      double[] min = {pos.x() - halfRange, pos.y() - halfRange, pos.z() - halfRange};
-      double[] max = {pos.x() + 1 + halfRange, pos.y() + 1 + halfRange, pos.z() + 1 + halfRange};
+      // the whole range around (the box reached half of it, and the distance filter after it the whole)
+      double[] min = {pos.x() - range, pos.y() - range, pos.z() - range};
+      double[] max = {pos.x() + 1 + range, pos.y() + 1 + range, pos.z() + 1 + range};
       Iterable<Waypoint> results = set.query(min, max);
       return () -> com.google.common.collect.Iterators.transform(results.iterator(), tile ->
         new WaypointData(

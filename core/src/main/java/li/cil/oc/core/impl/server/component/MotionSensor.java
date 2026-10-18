@@ -145,6 +145,7 @@ public class MotionSensor extends AbstractManagedEnvironment implements DeviceIn
   public Object[] setSensitivity(Context context, Arguments args) {
     double oldValue = sensitivity;
     sensitivity = Math.max(0.2, args.checkDouble(0));
+    host.markChanged(); // saved (it reverted after a restart)
     return ResultWrapper.result(oldValue);
   }
 

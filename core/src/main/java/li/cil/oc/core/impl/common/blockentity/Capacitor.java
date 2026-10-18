@@ -176,6 +176,6 @@ public class Capacitor extends BlockEntity implements Environment, DeviceInfo {
   }
 
   protected double maxCapacity() {
-    return OCSettings.get().bufferCapacitorAdjacencyBonus + OCSettings.get().bufferCapacitorAdjacencyBonus * 9;
+    return OCSettings.get().bufferCapacitor + OCSettings.get().bufferCapacitorAdjacencyBonus * 9; // as OC: the base buffer too
   }
 }
