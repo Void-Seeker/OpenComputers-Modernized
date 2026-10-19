@@ -412,4 +412,19 @@ public final class ScreenTests {
       });
     });
   }
+
+  /** A screen placed against a powered block, then powered on another side too, stays on (it toggled as if it had no input). */
+  @GameTest(template = EMPTY, timeoutTicks = 100)
+  public static void screenPoweredOnASecondSideStaysOn(final GameTestHelper helper) {
+    helper.setBlock(AT.east(), net.minecraft.world.level.block.Blocks.REDSTONE_BLOCK);
+    helper.setBlock(AT, Blocks.SCREEN_TIER_1.get());
+    helper.runAfterDelay(5, () -> {
+      final var screen = (li.cil.oc.core.impl.common.blockentity.Screen) helper.getBlockEntity(AT);
+      helper.setBlock(AT.west(), net.minecraft.world.level.block.Blocks.REDSTONE_BLOCK);
+      helper.runAfterDelay(2, () -> {
+        helper.assertTrue(screen.buffer.getPowerState(), "power on a second side turned the screen off");
+        helper.succeed();
+      });
+    });
+  }
 }

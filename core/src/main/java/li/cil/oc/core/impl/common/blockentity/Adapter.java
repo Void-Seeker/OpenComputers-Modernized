@@ -38,6 +38,8 @@ public class Adapter extends BlockEntity implements li.cil.oc.api.network.Enviro
 
   public final Node node = Network.newNode(this, Visibility.Network).create();
   private final li.cil.oc.api.network.Environment[] blocks = new li.cil.oc.api.network.Environment[6];
+  // the block entity each side's environment was made for
+  private final net.minecraft.world.level.block.entity.BlockEntity[] boundEntities = new net.minecraft.world.level.block.entity.BlockEntity[6];
   private final ArrayList<ManagedEnvironment> updatingBlocks = new ArrayList<>();
   private final BlockData[] blocksData = new BlockData[6];
   // per side, whether its block has changed (or it was empty) since the adapter first looked: data saved before blocks
@@ -138,13 +140,10 @@ public class Adapter extends BlockEntity implements li.cil.oc.api.network.Enviro
     if (node == this.node) {
       connectComponents();
       neighborChanged();
-      // back in a network: what updates ticks again (the disconnect cleared the list, and nothing put back the parts
-      // and blocks it already had: an MFU stopped drawing energy, a Mekanism port stopped following its multiblock)
+      // back in a network: its parts tick again (the disconnect cleared the list, and nothing put them back: an MFU
+      // stopped drawing energy); the blocks were let go and are bound again above
       for (var component : componentEnvironments()) {
         if (component != null && component.canUpdate() && !updatingBlocks.contains(component)) updatingBlocks.add(component);
-      }
-      for (var block : blocks) {
-        if (block instanceof ManagedEnvironment managed && managed.canUpdate() && !updatingBlocks.contains(managed)) updatingBlocks.add(managed);
       }
     }
   }
@@ -152,7 +151,11 @@ public class Adapter extends BlockEntity implements li.cil.oc.api.network.Enviro
   @Override
   public void onDisconnect(Node node) {
     ComponentInventory.super.onDisconnect(node);
-    if (node == this.node) updatingBlocks.clear();
+    if (node == this.node) {
+      updatingBlocks.clear();
+      // its blocks go with it, their data and addresses kept (back in a network they stayed cut off from it)
+      for (int i = 0; i < blocks.length; i++) releaseSide(i);
+    }
   }
 
   @Override
@@ -307,6 +310,32 @@ public class Adapter extends BlockEntity implements li.cil.oc.api.network.Enviro
     if (!updatingBlocks.isEmpty()) {
       for (var block : updatingBlocks) block.update();
     }
+    if (isServer() && level().getGameTime() % OCSettings.get().tickFrequency == 0) {
+      for (var d : Direction.values()) {
+        var bound = boundEntities[d.ordinal()];
+        if (blocks[d.ordinal()] != null && bound != null && bound.isRemoved() && level().isLoaded(worldPosition.relative(d))) {
+          // the block's chunk came back with new block entities and no block update: it kept the removed one (frozen
+          // values; items taken from it were still in the block)
+          releaseSide(d.ordinal());
+          neighborChanged(d);
+        }
+      }
+    }
+  }
+
+  /** Lets go of a side's block environment, its data (with its address) kept for when the block is bound again. */
+  private void releaseSide(int i) {
+    var env = blocks[i];
+    if (env == null) return;
+    blocks[i] = null;
+    lastBlocks[i] = null;
+    boundEntities[i] = null;
+    if (env instanceof ManagedEnvironment managed) {
+      updatingBlocks.remove(managed);
+      if (blocksData[i] != null && level() != null) managed.save(blocksData[i].data, level().registryAccess());
+    }
+    if (env.node() != null) env.node().remove();
+    markChanged();
   }
 
   @SuppressWarnings("SuspiciousMethodCalls")
@@ -358,6 +387,7 @@ public class Adapter extends BlockEntity implements li.cil.oc.api.network.Enviro
                 compound.loadAddress(kept, level().registryAccess());
               }
               blocks[d.ordinal()] = environment;
+              boundEntities[d.ordinal()] = te;
               if (environment.canUpdate()) updatingBlocks.add(environment);
               blocksData[d.ordinal()] = new BlockData(environment.getClass().getName(), new CompoundTag(), newDriver, blockId(currentBlock),
                 same ? carried(keptIdentity, identityOf(environment)) : identityOf(environment));
@@ -371,6 +401,7 @@ public class Adapter extends BlockEntity implements li.cil.oc.api.network.Enviro
           var environment = newDriver.createEnvironment(level(), neighborPos, face);
           if (environment != null) {
             blocks[d.ordinal()] = environment;
+            boundEntities[d.ordinal()] = te;
             if (environment.canUpdate()) updatingBlocks.add(environment);
             var saved = blocksData[d.ordinal()];
             // only the same block (the same id, the same device of those it holds) gets its data and address back; its
@@ -397,15 +428,7 @@ public class Adapter extends BlockEntity implements li.cil.oc.api.network.Enviro
           }
         }
       } else {
-        if (blocks[d.ordinal()] != null) {
-          var environment = (ManagedEnvironment) blocks[d.ordinal()];
-          node.disconnect(environment.node());
-          environment.save(blocksData[d.ordinal()].data, level().registryAccess());
-          if (environment.node() != null) environment.node().remove();
-          blocks[d.ordinal()] = null;
-          updatingBlocks.remove(environment);
-          markChanged();
-        }
+        releaseSide(d.ordinal());
         lastBlocks[d.ordinal()] = null;
       }
     }

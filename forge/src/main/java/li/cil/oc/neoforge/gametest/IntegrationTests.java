@@ -1090,4 +1090,48 @@ public final class IntegrationTests {
       helper.succeed();
     }));
   }
+
+  /**
+   * An adapter follows the new block entity its neighbour's chunk comes back with, keeping the address, though nothing
+   * updates the block (it kept the removed one: frozen values, items taken from a copy).
+   */
+  @GameTest(template = EMPTY, timeoutTicks = 100)
+  public static void adapterFollowsANeighbourReloadedWithItsChunk(final GameTestHelper helper) {
+    helper.setBlock(AT.east(), net.minecraft.world.level.block.Blocks.FURNACE);
+    helper.setBlock(AT, Blocks.ADAPTER.get());
+    helper.runAfterDelay(10, () -> {
+      final var adapter = (li.cil.oc.core.impl.common.blockentity.Adapter) helper.getBlockEntity(AT);
+      adapter.neighborChanged(Direction.EAST);
+      final var first = blockNode(adapter);
+      helper.assertTrue(first != null, "the adapter attached no furnace");
+      final BlockPos abs = helper.absolutePos(AT.east());
+      helper.getLevel().removeBlockEntity(abs); // what a chunk unload and load does, without a block update
+      final var fresh = new net.minecraft.world.level.block.entity.FurnaceBlockEntity(abs, helper.getLevel().getBlockState(abs));
+      helper.getLevel().setBlockEntity(fresh);
+      TestMachines.when(helper, () -> blockNode(adapter) != null && heldBlockEntity(blockNode(adapter)) == fresh, 40, () -> {
+        final var then = blockNode(adapter);
+        helper.assertTrue(then != null && heldBlockEntity(then) == fresh, "the adapter's furnace environment holds the removed block entity");
+        helper.assertTrue(first.address().equals(then.address()), "the furnace got " + then.address() + " instead of " + first.address());
+        helper.succeed();
+      });
+    });
+  }
+
+  /** An adapter whose node leaves its network and joins again gets its blocks back with their addresses (they stayed cut off). */
+  @GameTest(template = EMPTY, timeoutTicks = 100)
+  public static void adapterTakesItsBlocksBackWhenItRejoins(final GameTestHelper helper) {
+    helper.setBlock(AT.east(), net.minecraft.world.level.block.Blocks.FURNACE);
+    helper.setBlock(AT, Blocks.ADAPTER.get());
+    helper.runAfterDelay(10, () -> {
+      final var adapter = (li.cil.oc.core.impl.common.blockentity.Adapter) helper.getBlockEntity(AT);
+      adapter.neighborChanged(Direction.EAST);
+      final var first = blockNode(adapter);
+      helper.assertTrue(first != null, "the adapter attached no furnace");
+      adapter.node().remove();
+      li.cil.oc.api.Network.joinOrCreateNetwork(adapter);
+      final var again = blockNode(adapter);
+      helper.assertTrue(again != null && first.address().equals(again.address()), "after the rejoin the furnace is " + (again == null ? null : again.address()) + " instead of " + first.address());
+      helper.succeed();
+    });
+  }
 }

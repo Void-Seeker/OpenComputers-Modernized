@@ -125,6 +125,13 @@ public final class SaveMarkTests {
     TestMachines.runRobot(helper, AT, List.of(Constants.ItemName.TankUpgrade), "error('done:stopped')", 20, (robot, result) -> {
       helper.assertTrue(!robot.machine().isRunning(), "the robot still runs");
       marked(robot, true);
+      try { // (no mark left from before)
+        final var field = li.cil.oc.core.impl.common.blockentity.RobotBase.class.getDeclaredField("changeScheduled");
+        field.setAccessible(true);
+        field.setBoolean(robot, false);
+      } catch (ReflectiveOperationException e) {
+        throw new RuntimeException(e);
+      }
       final int filled = ((li.cil.oc.neoforge.common.blockentity.Robot) robot).fill(
         new net.minecraftforge.fluids.FluidStack(net.minecraft.world.level.material.Fluids.WATER, 1000),
         net.minecraftforge.fluids.capability.IFluidHandler.FluidAction.EXECUTE);
