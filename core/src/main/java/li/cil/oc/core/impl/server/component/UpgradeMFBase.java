@@ -37,6 +37,8 @@ public abstract class UpgradeMFBase extends AbstractManagedEnvironment implement
   protected Environment otherEnv = null;
   protected li.cil.oc.api.network.ManagedEnvironment otherDrvEnv = null;
   protected DriverBlock otherDrvDriver = null;
+  // the block entity the bound block's environment was made for
+  private BlockEntity boundBlockEntity = null;
   protected BlockData blockData = null;
 
   public UpgradeMFBase(EnvironmentHost host, BlockPosition coord, Direction dir) {
@@ -72,14 +74,7 @@ public abstract class UpgradeMFBase extends AbstractManagedEnvironment implement
         otherEnv = null;
       }
       if (te instanceof Environment) {
-        if (otherDrvEnv != null) {
-          node.disconnect(otherDrvEnv.node());
-          otherDrvEnv.save(blockData.data, host.level().registryAccess());
-          if (otherDrvEnv.node() != null) otherDrvEnv.node().remove();
-          otherDrvEnv = null;
-          otherDrvDriver = null;
-          host.markChanged();
-        }
+        letGoOfBlock(true);
         otherEnv = (Environment) te;
         connectToTileNode(te, node::connect);
       } else {
@@ -87,29 +82,23 @@ public abstract class UpgradeMFBase extends AbstractManagedEnvironment implement
         DriverBlock newDriver = li.cil.oc.api.API.driver.driverFor(w, blockPos, dir);
         if (newDriver != null) {
           // as OC: by equality (a driver is made anew for each look: every block update at the bound place, a furnace
-          // lighting up, gave the block a new address), and a block not yet known gets its saved data back (its
-          // address came anew with each load)
+          // lighting up, gave the block a new address). Other drivers: another block, a new address, as OC. The same
+          // drivers with another block entity (the block replaced by its like): made anew with its data and address
+          // (the environment held on to the removed block entity).
           if (otherDrvEnv != null) {
-            if (!java.util.Objects.equals(otherDrvDriver, newDriver)) {
-              node.disconnect(otherDrvEnv.node());
-              if (otherDrvEnv.node() != null) otherDrvEnv.node().remove();
-              otherDrvEnv = null;
-              otherDrvDriver = null;
-              blockData = null;
-              var environment = newDriver.createEnvironment(w, blockPos, dir);
-              if (environment != null) {
-                otherDrvEnv = environment;
-                otherDrvDriver = newDriver;
-                blockData = new BlockData(environment.getClass().getName(), new CompoundTag());
-                node.connect(environment.node());
-              }
-              host.markChanged();
+            boolean driversChanged = !java.util.Objects.equals(otherDrvDriver, newDriver);
+            if (driversChanged || te != boundBlockEntity) {
+              letGoOfBlock(!driversChanged);
+              if (driversChanged) blockData = null;
             }
-          } else {
+          }
+          if (otherDrvEnv == null) {
+            // a block not yet known gets its saved data back (its address came anew with each load)
             var environment = newDriver.createEnvironment(w, blockPos, dir);
             if (environment != null) {
               otherDrvEnv = environment;
               otherDrvDriver = newDriver;
+              boundBlockEntity = te;
               if (blockData != null && blockData.name.equals(environment.getClass().getName())) {
                 environment.load(blockData.data, host.level().registryAccess());
               }
@@ -119,17 +108,26 @@ public abstract class UpgradeMFBase extends AbstractManagedEnvironment implement
             }
           }
         } else {
-          if (otherDrvEnv != null) {
-            node.disconnect(otherDrvEnv.node());
-            otherDrvEnv.save(blockData.data, host.level().registryAccess());
-            if (otherDrvEnv.node() != null) otherDrvEnv.node().remove();
-            otherDrvEnv = null;
-            otherDrvDriver = null;
-            host.markChanged();
-          }
+          letGoOfBlock(true);
         }
       }
     }
+  }
+
+  /**
+   * Lets go of the bound block's environment, keeping its data for when it comes back if asked. Taken from the field
+   * first: the disconnect clears the field (onDisconnect), and the lines after it threw.
+   */
+  private void letGoOfBlock(boolean keepData) {
+    var env = otherDrvEnv;
+    otherDrvEnv = null;
+    otherDrvDriver = null;
+    boundBlockEntity = null;
+    if (env == null) return;
+    if (keepData && blockData != null) env.save(blockData.data, host.level().registryAccess());
+    node.disconnect(env.node());
+    if (env.node() != null) env.node().remove();
+    host.markChanged();
   }
 
   private void disconnect() {
@@ -137,14 +135,7 @@ public abstract class UpgradeMFBase extends AbstractManagedEnvironment implement
       connectToTileNode((BlockEntity) otherEnv, node::disconnect);
       otherEnv = null;
     }
-    if (otherDrvEnv != null) {
-      node.disconnect(otherDrvEnv.node());
-      otherDrvEnv.save(blockData.data, host.level().registryAccess());
-      if (otherDrvEnv.node() != null) otherDrvEnv.node().remove();
-      otherDrvEnv = null;
-      otherDrvDriver = null;
-      host.markChanged();
-    }
+    letGoOfBlock(true);
   }
 
   @Override

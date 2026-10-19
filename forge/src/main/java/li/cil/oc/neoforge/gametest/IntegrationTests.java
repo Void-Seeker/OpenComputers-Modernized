@@ -912,4 +912,122 @@ public final class IntegrationTests {
       });
     });
   }
+
+  private static final BlockPos MFU_ADAPTER = new BlockPos(1, 2, 2);
+  private static final BlockPos MFU_FURNACE = new BlockPos(3, 2, 2);
+
+  /** An adapter with an MFU bound to a furnace two blocks away (powered by a capacitor below if asked). */
+  private static void mfuBoundToAFurnace(final GameTestHelper helper, final boolean powered,
+                                         final java.util.function.Consumer<li.cil.oc.core.impl.common.blockentity.Adapter> then) {
+    helper.setBlock(MFU_FURNACE, net.minecraft.world.level.block.Blocks.FURNACE);
+    helper.setBlock(MFU_ADAPTER, Blocks.ADAPTER.get());
+    if (powered) helper.setBlock(MFU_ADAPTER.below(), Blocks.CAPACITOR.get());
+    helper.runAfterDelay(10, () -> {
+      if (powered) {
+        final var capacitor = (li.cil.oc.api.network.Environment) helper.getBlockEntity(MFU_ADAPTER.below());
+        ((li.cil.oc.api.network.Connector) capacitor.node()).changeBuffer(100000);
+      }
+      final var adapter = (li.cil.oc.core.impl.common.blockentity.Adapter) helper.getBlockEntity(MFU_ADAPTER);
+      final BlockPos abs = helper.absolutePos(MFU_FURNACE);
+      final var mfu = li.cil.oc.api.Items.get(li.cil.oc.core.Constants.ItemName.MFU).createItemStack(1);
+      final var tag = new net.minecraft.nbt.CompoundTag();
+      tag.putIntArray(li.cil.oc.core.impl.OCSettings.namespace + "coord",
+        new int[]{abs.getX(), abs.getY(), abs.getZ(), helper.getLevel().dimension().location().hashCode(), Direction.UP.ordinal()});
+      li.cil.oc.compat.CustomData.set(mfu, li.cil.oc.compat.CustomData.of(tag));
+      adapter.setItem(0, mfu);
+      then.accept(adapter);
+    });
+  }
+
+  private static li.cil.oc.api.network.Node blockNode(final li.cil.oc.core.impl.common.blockentity.Adapter adapter) {
+    for (final var node : adapter.node().reachableNodes()) {
+      if (node.host() instanceof li.cil.oc.core.impl.server.driver.CompoundBlockEnvironment) return node;
+    }
+    return null;
+  }
+
+  /** An MFU lets go of its removed block (it threw: the field it used was cleared by the disconnect) and takes it back with its address. */
+  @GameTest(template = EMPTY, timeoutTicks = 100)
+  public static void mfuLetsGoOfARemovedBlockAndTakesItBack(final GameTestHelper helper) {
+    mfuBoundToAFurnace(helper, true, adapter -> helper.runAfterDelay(5, () -> {
+      final var first = blockNode(adapter);
+      helper.assertTrue(first != null, "the MFU bound nothing");
+      saveMarked(adapter, true);
+      helper.setBlock(MFU_FURNACE, net.minecraft.world.level.block.Blocks.AIR);
+      helper.assertTrue(blockNode(adapter) == null && first.network() == null, "the removed furnace's node is still there");
+      helper.assertTrue(saveMarked(adapter, true), "letting go did not mark the adapter to be saved");
+      helper.setBlock(MFU_FURNACE, net.minecraft.world.level.block.Blocks.FURNACE);
+      final var again = blockNode(adapter);
+      helper.assertTrue(again != null && first.address().equals(again.address()), "the furnace put back got " + (again == null ? null : again.address()) + " instead of " + first.address());
+      helper.succeed();
+    }));
+  }
+
+  /** An MFU's block whose drivers change is made anew (it threw), as another block. */
+  @GameTest(template = EMPTY, timeoutTicks = 100)
+  public static void mfuSurvivesItsBlocksDriversChanging(final GameTestHelper helper) {
+    registerSecondDriver();
+    mfuBoundToAFurnace(helper, true, adapter -> helper.runAfterDelay(5, () -> {
+      final var first = blockNode(adapter);
+      final BlockPos abs = helper.absolutePos(MFU_FURNACE);
+      SECOND_DRIVER_AT.add(abs);
+      try {
+        helper.setBlock(MFU_FURNACE, helper.getBlockState(MFU_FURNACE).setValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.LIT, true));
+      } finally {
+        SECOND_DRIVER_AT.remove(abs);
+      }
+      final var then = blockNode(adapter);
+      helper.assertTrue(first != null && first.network() == null, "the old environment's node is still in a network");
+      helper.assertTrue(then != null && then != first, "the MFU has no environment for the furnace's new drivers");
+      helper.succeed();
+    }));
+  }
+
+  /** An MFU out of energy lets go of its block (it threw) and takes it back with its address once powered. */
+  @GameTest(template = EMPTY, timeoutTicks = 150)
+  public static void mfuLetsGoWithoutEnergyAndTakesItBack(final GameTestHelper helper) {
+    mfuBoundToAFurnace(helper, false, adapter -> {
+      final var first = blockNode(adapter);
+      helper.assertTrue(first != null, "the MFU bound nothing");
+      helper.runAfterDelay(30, () -> {
+        helper.assertTrue(blockNode(adapter) == null && first.network() == null, "the MFU kept its block without energy");
+        helper.setBlock(MFU_ADAPTER.below(), Blocks.CAPACITOR.get());
+        helper.runAfterDelay(5, () -> {
+          final var capacitor = (li.cil.oc.api.network.Environment) helper.getBlockEntity(MFU_ADAPTER.below());
+          ((li.cil.oc.api.network.Connector) capacitor.node()).changeBuffer(100000);
+          helper.setBlock(MFU_FURNACE, helper.getBlockState(MFU_FURNACE).setValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.LIT, true));
+          final var again = blockNode(adapter);
+          helper.assertTrue(again != null && first.address().equals(again.address()), "the powered MFU gave the furnace " + (again == null ? null : again.address()) + " instead of " + first.address());
+          helper.succeed();
+        });
+      });
+    });
+  }
+
+  /** An MFU follows its block's new block entity, keeping the address (it held on to the removed one). */
+  @GameTest(template = EMPTY, timeoutTicks = 100)
+  public static void mfuFollowsAReplacedBlockEntity(final GameTestHelper helper) {
+    mfuBoundToAFurnace(helper, true, adapter -> helper.runAfterDelay(5, () -> {
+      final var first = blockNode(adapter);
+      final BlockPos abs = helper.absolutePos(MFU_FURNACE);
+      helper.getLevel().removeBlockEntity(abs);
+      final var fresh = new net.minecraft.world.level.block.entity.FurnaceBlockEntity(abs, helper.getLevel().getBlockState(abs));
+      helper.getLevel().setBlockEntity(fresh);
+      helper.getLevel().updateNeighborsAt(abs, helper.getLevel().getBlockState(abs).getBlock());
+      final var then = blockNode(adapter);
+      Object held = null;
+      try {
+        final var field = li.cil.oc.core.impl.integration.ManagedBlockEntityEnvironment.class.getDeclaredField("BlockEntity");
+        field.setAccessible(true);
+        for (final var env : ((li.cil.oc.core.impl.server.driver.CompoundBlockEnvironment) then.host()).environments()) {
+          if (env instanceof li.cil.oc.core.impl.integration.ManagedBlockEntityEnvironment<?>) held = field.get(env);
+        }
+      } catch (ReflectiveOperationException e) {
+        throw new RuntimeException(e);
+      }
+      helper.assertTrue(held == fresh, "the MFU's furnace environment holds " + held + ", not the furnace's block entity now");
+      helper.assertTrue(first.address().equals(then.address()), "the furnace got " + then.address() + " instead of " + first.address());
+      helper.succeed();
+    }));
+  }
 }
