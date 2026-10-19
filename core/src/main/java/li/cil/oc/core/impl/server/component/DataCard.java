@@ -126,7 +126,15 @@ public abstract class DataCard extends AbstractManagedEnvironment implements Dev
     @Callback(direct = true, limit = 4, doc = "function(data:string):string -- Applies inflate decompression to the data.")
     public Object[] inflate(Context context, Arguments args) {
       byte[] data = complexCost(context, args);
-      ByteArrayOutputStream baos = new ByteArrayOutputStream(512);
+      // capped as what the card takes: a megabyte of input inflated to a gigabyte on the server's heap (twice)
+      int limit = OCSettings.get().dataCardHardLimit;
+      ByteArrayOutputStream baos = new ByteArrayOutputStream(512) {
+        @Override
+        public synchronized void write(byte[] b, int off, int len) {
+          if (size() + (long) len > limit) throw new IllegalArgumentException("data size limit exceeded");
+          super.write(b, off, len);
+        }
+      };
       try (InflaterOutputStream inos = new InflaterOutputStream(baos)) {
         inos.write(data);
         inos.finish();

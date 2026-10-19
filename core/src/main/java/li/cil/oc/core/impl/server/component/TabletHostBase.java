@@ -38,6 +38,10 @@ public abstract class TabletHostBase implements ComponentInventory, MachineHost,
   public Level creationLevel;
   // the energy last written into the item: more in the item is what a charger put there since
   private double savedEnergy = Double.NaN;
+  // OC: false when its state was written for its successor (a dimension change), which its removal must not undo
+  public boolean autoSave = true;
+  // dropped from the cache: its stack may be its successor's (its last slice's scheduled write put back old parts)
+  private volatile boolean released = false;
 
   protected TabletHostBase() {
     deviceInfo = Map.of(
@@ -93,22 +97,60 @@ public abstract class TabletHostBase implements ComponentInventory, MachineHost,
         if (tabletComponent != null) {
           var tabletData = new li.cil.oc.core.impl.common.item.data.TabletData(getStack());
           if (tabletComponent.node instanceof Connector connector) {
-            var charge = Math.max(0, tabletData.energy - connector.localBuffer());
-            connector.changeBuffer(charge);
+            // the item's energy is the tablet's (written every tick, and by chargers); the component's buffer is the
+            // last full save's: max(0, energy - buffer) kept an older, fuller buffer (back from a chest with more)
+            connector.changeBuffer(tabletData.energy - connector.localBuffer());
             savedEnergy = connector.localBuffer();
           }
         }
-        persistMachineState();
+        persistMachineState(true);
       }
     }
     return _machine;
   }
 
-  public void persistMachineState() {
+  /**
+   * Writes the machine, its parts and its energy into the stack together (OC: writeToNBT). Without its state if
+   * clearState, as OC: the stack may be one the machine no longer follows (moved, dropped), and a tablet resumed from
+   * an older save ran its program on a newer drive - it comes back off.
+   */
+  public void writeToNBT(boolean clearState) {
+    if (level().isClientSide()) return;
+    persistMachineState(clearState); // first: its save pauses it, so the parts are saved as it left them
+    saveComponents(level().registryAccess());
+    setChanged(); // the parts with their saved data into the stack (they were saved into the copies only)
+    var data = new li.cil.oc.core.impl.common.item.data.TabletData(getStack());
+    saveEnergy(data);
+    data.save(getStack());
+  }
+
+  private void saveEnergy(li.cil.oc.core.impl.common.item.data.TabletData data) {
+    // (not before its machine took the item's energy: until then the buffer is the last full save's)
+    if (Double.isNaN(savedEnergy)) return;
+    var c = serverComponent();
+    if (c != null && c.node instanceof Connector connector) {
+      // chargers charge the item (Tablet.charge); this overwrote that with the machine's buffer every tick, so a
+      // carried tablet never charged while the charger's energy was spent
+      if (data.energy > savedEnergy) {
+        connector.changeBuffer(data.energy - savedEnergy);
+      }
+      data.energy = connector.localBuffer();
+      data.maxEnergy = connector.localBufferSize();
+      savedEnergy = data.energy;
+    }
+  }
+
+  /** It was dropped from the cache: it writes nothing more into its stack. */
+  public void release() {
+    released = true;
+  }
+
+  private void persistMachineState(boolean clearState) {
     if (_machine != null) {
       if (!level().isClientSide() && _machine.node() != null) {
         var tag = new CompoundTag();
         _machine.save(tag, level().registryAccess());
+        if (clearState) tag.remove("state");
         saveMachineTag(tag);
       }
     }
@@ -250,9 +292,7 @@ public abstract class TabletHostBase implements ComponentInventory, MachineHost,
 
   @Override
   public void save(CompoundTag nbt, HolderLookup.Provider provider) {
-    saveComponents(provider);
-    persistMachineState();
-    new li.cil.oc.core.impl.common.item.data.TabletData(getStack()).save(getStack());
+    writeToNBT(true);
   }
 
   public void update() {
@@ -281,24 +321,14 @@ public abstract class TabletHostBase implements ComponentInventory, MachineHost,
       var data = new li.cil.oc.core.impl.common.item.data.TabletData(getStack());
       var running = m.isRunning();
       data.isRunning = running;
-      var c = serverComponent();
-      if (c != null && c.node instanceof Connector connector) {
-        // chargers charge the item (Tablet.charge); this overwrote that with the machine's buffer every tick, so a
-        // carried tablet never charged while the charger's energy was spent
-        if (!Double.isNaN(savedEnergy) && data.energy > savedEnergy) {
-          connector.changeBuffer(data.energy - savedEnergy);
-        }
-        data.energy = connector.localBuffer();
-        data.maxEnergy = connector.localBufferSize();
-        savedEnergy = data.energy;
-      }
+      saveEnergy(data);
       data.save(getStack());
       if (player() != null) {
         player().getInventory().setChanged();
       }
       if (lastRunning != running) {
         lastRunning = running;
-        persistMachineState();
+        persistMachineState(true);
         if (player() instanceof net.minecraft.server.level.ServerPlayer sp) {
           li.cil.oc.core.impl.common.PacketSender.sendMachineItemState(sp, getStack(), running);
         }
@@ -346,7 +376,7 @@ public abstract class TabletHostBase implements ComponentInventory, MachineHost,
     if (!changeScheduled.getAndSet(true)) {
       li.cil.oc.core.impl.util.EventHandlerDelegate.get().scheduleServer(() -> {
         changeScheduled.set(false);
-        setChanged();
+        if (!released) setChanged();
       });
     }
   }

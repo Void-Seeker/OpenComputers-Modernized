@@ -496,6 +496,11 @@ public class InternetCard extends AbstractManagedEnvironment implements DeviceIn
     private volatile boolean eof = false;
     // a read that failed (connection reset, premature end): said once the data before it is read
     private volatile String readError = null;
+    // the response, closed with the request: it was left to the garbage collector, its socket open meanwhile (and
+    // one that came after the request was closed - its computer stopped - was never even seen)
+    private InputStream input;
+    private HttpURLConnection connection;
+    private boolean closed = false;
 
     @SuppressWarnings("unused")
     public HTTPRequest() {
@@ -559,6 +564,32 @@ public class InternetCard extends AbstractManagedEnvironment implements DeviceIn
         owner = null;
         stream = null;
         reader = null;
+      }
+      InputStream in;
+      HttpURLConnection http;
+      synchronized (this) {
+        closed = true;
+        in = input;
+        http = connection;
+        input = null;
+        connection = null;
+      }
+      if (http != null) release(in, http);
+    }
+
+    // on a request thread: closing may wait for a read under way
+    private static void release(InputStream in, HttpURLConnection http) {
+      Runnable release = () -> {
+        try {
+          in.close();
+        } catch (IOException ignored) {
+        }
+        http.disconnect();
+      };
+      try {
+        threadPool.submit(release);
+      } catch (java.util.concurrent.RejectedExecutionException e) {
+        release.run();
       }
     }
 
@@ -659,12 +690,16 @@ public class InternetCard extends AbstractManagedEnvironment implements DeviceIn
                 http.disconnect();
                 continue;
               }
+              InputStream in = http.getInputStream();
               synchronized (HTTPRequest.this) {
+                if (closed) throw new IOException("connection lost"); // (disconnected below)
                 responseCode = code;
                 responseMessage = http.getResponseMessage();
                 responseHeaders = http.getHeaderFields();
+                input = in;
+                connection = http;
               }
-              return http.getInputStream();
+              return in;
             } catch (Throwable t) {
               http.disconnect();
               throw t;

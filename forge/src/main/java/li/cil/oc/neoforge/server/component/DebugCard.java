@@ -102,17 +102,17 @@ public class DebugCard extends DebugCardBase {
 
   @Override
   protected @NotNull PlayerValue createPlayerValue(@NotNull String name) {
-    return new PlayerValue(name);
+    return new PlayerValue(name, access);
   }
 
-  public class PlayerValue extends DebugCardBase.PlayerValue {
+  public static class PlayerValue extends DebugCardBase.PlayerValue {
     @SuppressWarnings("unused")
     public PlayerValue() {
       super();
     }
 
-    public PlayerValue(String name) {
-      super(name);
+    public PlayerValue(String name, DebugCardBase.AccessContext access) {
+      super(name, access);
     }
 
     @Override

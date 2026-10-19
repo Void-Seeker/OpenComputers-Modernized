@@ -13,8 +13,10 @@ public final class ConverterLinkedCard implements Converter {
   @Override
   public void convert(Object value, Map<Object, Object> output) {
     if (value instanceof ItemStack stack && linkedCard.equals(li.cil.oc.api.Items.get(stack))) {
-      li.cil.oc.core.impl.server.component.LinkedCard card = new li.cil.oc.core.impl.server.component.LinkedCard();
-      output.put("linkChannel", card.tunnel);
+      // the card's own channel (a new card's default was given for every card: "creative")
+      var data = Item.peekDataTag(stack);
+      var key = li.cil.oc.core.impl.OCSettings.namespace + "tunnel";
+      output.put("linkChannel", data.contains(key) ? data.getString(key) : new li.cil.oc.core.impl.server.component.LinkedCard().tunnel);
     }
   }
 }

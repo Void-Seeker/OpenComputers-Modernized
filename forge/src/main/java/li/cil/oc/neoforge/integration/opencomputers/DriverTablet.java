@@ -24,6 +24,9 @@ public final class DriverTablet extends Item {
   @Override
   public li.cil.oc.api.network.ManagedEnvironment createEnvironment(ItemStack stack, EnvironmentHost host) {
     if (host.level() != null && host.level().isClientSide()) return null;
+    // as OC: the tablet's machine saves into this stack and goes, its drive with it - left running, its unsaved files
+    // were missing here, and this file system's later save put back what the tablet had deleted since
+    li.cil.oc.core.impl.util.TabletCache.get().invalidate(stack);
     TabletData data = new TabletData(stack);
     for (ItemStack fs : data.items) {
       if (fs != null && !fs.isEmpty()) {

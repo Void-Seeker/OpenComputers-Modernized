@@ -210,6 +210,37 @@ public final class EventHandler {
     for (Keyboard kb : keyboards) kb.releasePressedKeys(e.getEntity());
   }
 
+  private static final net.minecraft.resources.ResourceLocation TABLET_SAVER = new net.minecraft.resources.ResourceLocation(OpenComputers.ID, "tablets");
+
+  /**
+   * Players' tablets are written into their stacks as the player is saved: a player's capabilities are saved before its
+   * inventory. (LevelEvent.Save comes after the players' files, PlayerEvent.SaveToFile once the file is written: what a
+   * tablet did since the save before was lost at quitting.)
+   */
+  @SubscribeEvent
+  @SuppressWarnings("unused")
+  public static void onAttachEntityCapabilities(net.minecraftforge.event.AttachCapabilitiesEvent<net.minecraft.world.entity.Entity> e) {
+    if (e.getObject() instanceof ServerPlayer player && !(player instanceof FakePlayer)) {
+      e.addCapability(TABLET_SAVER, new net.minecraftforge.common.capabilities.ICapabilitySerializable<net.minecraft.nbt.CompoundTag>() {
+        @Override
+        public <T> net.minecraftforge.common.util.@org.jetbrains.annotations.NotNull LazyOptional<T> getCapability(
+          net.minecraftforge.common.capabilities.@org.jetbrains.annotations.NotNull Capability<T> cap, @org.jetbrains.annotations.Nullable net.minecraft.core.Direction side) {
+          return net.minecraftforge.common.util.LazyOptional.empty();
+        }
+
+        @Override
+        public net.minecraft.nbt.CompoundTag serializeNBT() {
+          TabletCache.get().saveAll(player);
+          return new net.minecraft.nbt.CompoundTag();
+        }
+
+        @Override
+        public void deserializeNBT(net.minecraft.nbt.CompoundTag nbt) {
+        }
+      });
+    }
+  }
+
   @SubscribeEvent
   @SuppressWarnings("unused")
   public static void onEntityJoinWorld(EntityJoinLevelEvent e) {

@@ -118,7 +118,7 @@ public abstract class DebugCardBase extends AbstractManagedEnvironment implement
   @Callback(doc = "function():userdata -- Get the world object of the container.")
   public Object[] getWorld(Context context, Arguments args) {
     checkAccess();
-    return ResultWrapper.result(new WorldValue(host().level()));
+    return ResultWrapper.result(new WorldValue(host().level(), access));
   }
 
   @Callback(doc = "function(name:string):userdata -- Get the entity of a player.")
@@ -139,7 +139,7 @@ public abstract class DebugCardBase extends AbstractManagedEnvironment implement
   @Callback(doc = "function():userdata -- Get the scoreboard object for the world")
   public Object[] getScoreboard(Context context, Arguments args) {
     checkAccess();
-    return ResultWrapper.result(new ScoreboardValue(host().level()));
+    return ResultWrapper.result(new ScoreboardValue(host().level(), access));
   }
 
   @Callback(doc = "function(x: number, y: number, z: number):boolean, string, table -- returns contents at the location in the host world")
@@ -360,16 +360,30 @@ public abstract class DebugCardBase extends AbstractManagedEnvironment implement
     }
   }
 
-  public class WorldValue extends AbstractValue {
-    public final Level world;
+  // values are static with a no-arg constructor (as OC's): a program holding one comes back from a save (an inner
+  // class has none: "could not restore the computer's state"); each keeps the card's access when it was made, as OC
+  private static Level levelOf(String dimension) {
+    var server = li.cil.oc.core.impl.util.SideTracker.getCurrentServer();
+    var id = ResourceLocation.tryParse(dimension);
+    return server == null || id == null ? null : server.getLevel(net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.DIMENSION, id));
+  }
+
+  public static class WorldValue extends AbstractValue {
+    public Level world;
+    public AccessContext access;
 
     @SuppressWarnings("unused")
     public WorldValue() {
-      this(null);
+      this(null, null);
     }
 
-    public WorldValue(Level world) {
+    public WorldValue(Level world, AccessContext access) {
       this.world = world;
+      this.access = access;
+    }
+
+    private void checkAccess() {
+      DebugCardBase.checkAccess(access);
     }
 
     @Callback(doc = "function():string -- Gets the name of the current dimension.")
@@ -663,24 +677,33 @@ public abstract class DebugCardBase extends AbstractManagedEnvironment implement
     @Override
     public void load(CompoundTag nbt, HolderLookup.Provider provider) {
       super.load(nbt, provider);
+      access = AccessContext.load(nbt);
+      world = levelOf(nbt.getString("dimension"));
     }
 
     @Override
     public void save(CompoundTag nbt, HolderLookup.Provider provider) {
       super.save(nbt, provider);
-      nbt.putInt("dimension", world.dimension().location().hashCode());
+      if (access != null) access.save(nbt);
+      if (world != null) nbt.putString("dimension", world.dimension().location().toString());
     }
   }
 
-  public abstract class PlayerValue extends AbstractValue {
+  public abstract static class PlayerValue extends AbstractValue {
     public String name;
+    public AccessContext access;
 
     public PlayerValue() {
-      this(null);
+      this(null, null);
     }
 
-    public PlayerValue(String name) {
+    public PlayerValue(String name, AccessContext access) {
       this.name = name;
+      this.access = access;
+    }
+
+    private void checkAccess() {
+      DebugCardBase.checkAccess(access);
     }
 
     protected abstract ServerPlayer getServerPlayer(String name);
@@ -694,7 +717,7 @@ public abstract class DebugCardBase extends AbstractManagedEnvironment implement
 
     @Callback(doc = "function():userdata -- Get the player's world object.")
     public Object[] getWorld(Context context, Arguments args) {
-      return withPlayer(p -> ResultWrapper.result(new WorldValue(p.serverLevel())));
+      return withPlayer(p -> ResultWrapper.result(new WorldValue(p.serverLevel(), access)));
     }
 
     @Callback(doc = "function():string -- Get the player's game type.")
@@ -813,26 +836,36 @@ public abstract class DebugCardBase extends AbstractManagedEnvironment implement
     @Override
     public void load(CompoundTag nbt, HolderLookup.Provider provider) {
       super.load(nbt, provider);
+      access = AccessContext.load(nbt);
       name = nbt.getString("name");
     }
 
     @Override
     public void save(CompoundTag nbt, HolderLookup.Provider provider) {
       super.save(nbt, provider);
+      if (access != null) access.save(nbt);
       nbt.putString("name", name);
     }
   }
 
-  public class ScoreboardValue extends AbstractValue {
-    public final Scoreboard scoreboard;
+  public static class ScoreboardValue extends AbstractValue {
+    public Scoreboard scoreboard;
+    public AccessContext access;
+    private String dimension;
 
     @SuppressWarnings("unused")
     public ScoreboardValue() {
-      this.scoreboard = null;
+      this(null, null);
     }
 
-    public ScoreboardValue(Level world) {
+    public ScoreboardValue(Level world, AccessContext access) {
       this.scoreboard = world != null ? world.getScoreboard() : null;
+      this.dimension = world != null ? world.dimension().location().toString() : "";
+      this.access = access;
+    }
+
+    private void checkAccess() {
+      DebugCardBase.checkAccess(access);
     }
 
     @SuppressWarnings("SameReturnValue")
@@ -961,11 +994,17 @@ public abstract class DebugCardBase extends AbstractManagedEnvironment implement
     @Override
     public void load(CompoundTag nbt, HolderLookup.Provider provider) {
       super.load(nbt, provider);
+      access = AccessContext.load(nbt);
+      dimension = nbt.getString("dimension");
+      var world = levelOf(dimension);
+      scoreboard = world != null ? world.getScoreboard() : null;
     }
 
     @Override
     public void save(CompoundTag nbt, HolderLookup.Provider provider) {
       super.save(nbt, provider);
+      if (access != null) access.save(nbt);
+      nbt.putString("dimension", dimension);
     }
   }
 

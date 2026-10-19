@@ -62,11 +62,10 @@ public abstract class TabletCache {
         if (wrapper != null) {
           wrapper.stopMachine();
           var level = wrapper.level();
-          if (level != null && !level.isClientSide()) {
-            var provider = level.registryAccess();
-            wrapper.saveComponents(provider);
-            wrapper.persistMachineState();
+          if (level != null && !level.isClientSide() && wrapper.autoSave) {
+            wrapper.writeToNBT(true);
           }
+          wrapper.release();
           if (wrapper.node() != null && wrapper.node().network() != null) {
             wrapper.node().remove();
           }
@@ -86,12 +85,16 @@ public abstract class TabletCache {
         // the old host leaves from its own level: set to the new one first, its wireless card left the new
         // dimension's network and stayed in the old one's (with the whole tablet machine)
         if (!player.level().isClientSide) {
-          host.stopMachine();
-          if (host.machine().node() != null && host.machine().node().network() != null) {
-            var provider = player.level().registryAccess();
-            host.saveComponents(provider);
-            host.persistMachineState();
+          // it runs on there, as in OC (it was stopped): paused first, as no slice may run while it is saved (mid-slice
+          // its save is the one before); busy, it moves once the slice is over
+          if (host.getStack() != stack) host.rebind(stack);
+          var machine = host.machine();
+          if (machine.isRunning() && ((machine instanceof li.cil.oc.core.impl.server.machine.MachineBase mb && mb.isExecuting())
+            || (!machine.pause(0.05) && !machine.isPaused()))) {
+            return host;
           }
+          host.writeToNBT(false);
+          host.autoSave = false;
         }
         cache.invalidate(id);
         cache.cleanUp();
@@ -100,7 +103,13 @@ public abstract class TabletCache {
       if (host.getStack() != stack) host.rebind(stack);
       return host;
     } catch (Exception e) {
-      return createHost(stack, player);
+      // the cached one (or one cached now): a new one each call made a machine and a Lua state each time
+      var host = cache.getIfPresent(id);
+      if (host == null) {
+        host = createHost(stack, player);
+        cache.put(id, host);
+      }
+      return host;
     }
   }
 
@@ -108,9 +117,21 @@ public abstract class TabletCache {
     for (var entry : cache.asMap().entrySet()) {
       var wrapper = entry.getValue();
       if (wrapper.level() == level && !level.isClientSide()) {
-        var provider = level.registryAccess();
-        wrapper.saveComponents(provider);
-        wrapper.persistMachineState();
+        wrapper.writeToNBT(true);
+      }
+    }
+  }
+
+  /**
+   * Writes the player's tablets into their stacks as the player is saved (LevelEvent.Save comes after the players are
+   * written: what a tablet did since the save before was lost at quitting).
+   */
+  public void saveAll(Player player) {
+    if (player.level().isClientSide()) return;
+    for (var wrapper : cache.asMap().values()) {
+      var holder = wrapper.player();
+      if (holder != null && holder.getUUID().equals(player.getUUID())) {
+        wrapper.writeToNBT(true);
       }
     }
   }
@@ -137,9 +158,12 @@ public abstract class TabletCache {
     return cache.getAllPresent(cache.asMap().keySet());
   }
 
+  /** Drops the stack's tablet machine, which saves into this stack (it may follow an older one). */
   public void invalidate(ItemStack stack) {
     var id = getId(stack);
     if (id != null) {
+      var host = cache.getIfPresent(id);
+      if (host != null && host.getStack() != stack) host.rebind(stack);
       cache.invalidate(id);
     }
   }
