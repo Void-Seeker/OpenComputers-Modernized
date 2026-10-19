@@ -829,4 +829,87 @@ public final class IntegrationTests {
       });
     });
   }
+
+  /** A side whose block changes with nothing attached there (closed) marks the adapter to be saved too. */
+  @GameTest(template = EMPTY, timeoutTicks = 100)
+  public static void adapterMarksItselfToBeSavedWhenAClosedSideChanges(final GameTestHelper helper) {
+    final BlockPos device = AT.east();
+    placeWithCapability(helper, device, energyProvider(), "test_energy_closed_mark");
+    helper.setBlock(AT, Blocks.ADAPTER.get());
+    helper.runAfterDelay(10, () -> {
+      final var adapter = (li.cil.oc.core.impl.common.blockentity.Adapter) helper.getBlockEntity(AT);
+      adapter.neighborChanged(Direction.EAST);
+      adapter.setSideOpen(Direction.EAST, false);
+      saveMarked(adapter, true);
+      helper.setBlock(device, net.minecraft.world.level.block.Blocks.FURNACE);
+      adapter.neighborChanged(Direction.EAST);
+      helper.assertTrue(saveMarked(adapter, false), "a closed side whose block changed did not mark the adapter to be saved");
+      helper.succeed();
+    });
+  }
+
+  /** What a database upgrade in an adapter is told to hold marks the adapter to be saved (its entries were lost). */
+  @GameTest(template = EMPTY, timeoutTicks = 100)
+  public static void adapterDatabaseWritesAreSaved(final GameTestHelper helper) {
+    helper.setBlock(AT, Blocks.ADAPTER.get());
+    helper.runAfterDelay(10, () -> {
+      final var adapter = (li.cil.oc.core.impl.common.blockentity.Adapter) helper.getBlockEntity(AT);
+      adapter.setItem(0, li.cil.oc.api.Items.get(li.cil.oc.core.Constants.ItemName.DatabaseUpgradeTier1).createItemStack(1));
+      helper.runAfterDelay(5, () -> {
+        li.cil.oc.core.impl.server.component.UpgradeDatabase database = null;
+        for (final var env : adapter.componentEnvironments()) {
+          if (env instanceof li.cil.oc.core.impl.server.component.UpgradeDatabase db) database = db;
+        }
+        helper.assertTrue(database != null, "the adapter made no database");
+        saveMarked(adapter, true);
+        database.setStackInSlot(0, new ItemStack(Items.STONE));
+        helper.assertTrue(saveMarked(adapter, false), "a database entry written did not mark the adapter to be saved");
+        helper.succeed();
+      });
+    });
+  }
+
+  /**
+   * An MFU keeps its block's address through block updates there and across a load (a furnace lighting up gave it a new
+   * one; so did every load).
+   */
+  @GameTest(template = EMPTY, timeoutTicks = 150)
+  public static void mfuKeepsItsBlocksAddress(final GameTestHelper helper) {
+    final BlockPos adapterPos = new BlockPos(1, 2, 2);
+    final BlockPos furnacePos = new BlockPos(3, 2, 2);
+    helper.setBlock(furnacePos, net.minecraft.world.level.block.Blocks.FURNACE);
+    helper.setBlock(adapterPos, Blocks.ADAPTER.get());
+    helper.setBlock(adapterPos.below(), Blocks.CAPACITOR.get()); // the MFU draws energy
+    helper.runAfterDelay(10, () -> {
+      final var capacitor = (li.cil.oc.api.network.Environment) helper.getBlockEntity(adapterPos.below());
+      ((li.cil.oc.api.network.Connector) capacitor.node()).changeBuffer(100000);
+      final var adapter = (li.cil.oc.core.impl.common.blockentity.Adapter) helper.getBlockEntity(adapterPos);
+      final BlockPos abs = helper.absolutePos(furnacePos);
+      final var mfu = li.cil.oc.api.Items.get(li.cil.oc.core.Constants.ItemName.MFU).createItemStack(1);
+      final var tag = new net.minecraft.nbt.CompoundTag();
+      tag.putIntArray(li.cil.oc.core.impl.OCSettings.namespace + "coord",
+        new int[]{abs.getX(), abs.getY(), abs.getZ(), helper.getLevel().dimension().location().hashCode(), Direction.UP.ordinal()});
+      li.cil.oc.compat.CustomData.set(mfu, li.cil.oc.compat.CustomData.of(tag));
+      adapter.setItem(0, mfu);
+      helper.runAfterDelay(5, () -> {
+        final String first = blockAddress(adapter);
+        final var furnace = helper.getBlockState(furnacePos);
+        helper.setBlock(furnacePos, furnace.setValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.LIT, true));
+        helper.runAfterDelay(2, () -> {
+          final String lit = blockAddress(adapter);
+          final var saved = adapter.saveWithFullMetadata();
+          final BlockPos at = helper.absolutePos(adapterPos);
+          helper.getLevel().removeBlockEntity(at);
+          final var loaded = (li.cil.oc.core.impl.common.blockentity.Adapter) BlockEntity.loadStatic(at, helper.getLevel().getBlockState(at), saved);
+          helper.getLevel().getChunkAt(at).addAndRegisterBlockEntity(loaded);
+          TestMachines.when(helper, () -> blockAddress(loaded) != null, 50, () -> {
+            final String reloaded = blockAddress(loaded);
+            helper.assertTrue(first != null && first.equals(lit), "the MFU's furnace got " + lit + " instead of " + first + " when it lit up");
+            helper.assertTrue(first.equals(reloaded), "the MFU's furnace got " + reloaded + " instead of " + first + " after a load");
+            helper.succeed();
+          });
+        });
+      });
+    });
+  }
 }

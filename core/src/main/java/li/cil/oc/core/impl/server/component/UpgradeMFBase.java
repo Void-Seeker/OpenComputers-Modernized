@@ -78,6 +78,7 @@ public abstract class UpgradeMFBase extends AbstractManagedEnvironment implement
           if (otherDrvEnv.node() != null) otherDrvEnv.node().remove();
           otherDrvEnv = null;
           otherDrvDriver = null;
+          host.markChanged();
         }
         otherEnv = (Environment) te;
         connectToTileNode(te, node::connect);
@@ -85,19 +86,36 @@ public abstract class UpgradeMFBase extends AbstractManagedEnvironment implement
         var w = coord.level();
         DriverBlock newDriver = li.cil.oc.api.API.driver.driverFor(w, blockPos, dir);
         if (newDriver != null) {
-          if (otherDrvDriver != newDriver) {
-            if (otherDrvEnv != null) {
+          // as OC: by equality (a driver is made anew for each look: every block update at the bound place, a furnace
+          // lighting up, gave the block a new address), and a block not yet known gets its saved data back (its
+          // address came anew with each load)
+          if (otherDrvEnv != null) {
+            if (!java.util.Objects.equals(otherDrvDriver, newDriver)) {
               node.disconnect(otherDrvEnv.node());
+              if (otherDrvEnv.node() != null) otherDrvEnv.node().remove();
               otherDrvEnv = null;
               otherDrvDriver = null;
               blockData = null;
+              var environment = newDriver.createEnvironment(w, blockPos, dir);
+              if (environment != null) {
+                otherDrvEnv = environment;
+                otherDrvDriver = newDriver;
+                blockData = new BlockData(environment.getClass().getName(), new CompoundTag());
+                node.connect(environment.node());
+              }
+              host.markChanged();
             }
+          } else {
             var environment = newDriver.createEnvironment(w, blockPos, dir);
             if (environment != null) {
               otherDrvEnv = environment;
               otherDrvDriver = newDriver;
+              if (blockData != null && blockData.name.equals(environment.getClass().getName())) {
+                environment.load(blockData.data, host.level().registryAccess());
+              }
               blockData = new BlockData(environment.getClass().getName(), new CompoundTag());
               node.connect(environment.node());
+              host.markChanged();
             }
           }
         } else {
@@ -107,6 +125,7 @@ public abstract class UpgradeMFBase extends AbstractManagedEnvironment implement
             if (otherDrvEnv.node() != null) otherDrvEnv.node().remove();
             otherDrvEnv = null;
             otherDrvDriver = null;
+            host.markChanged();
           }
         }
       }
@@ -124,6 +143,7 @@ public abstract class UpgradeMFBase extends AbstractManagedEnvironment implement
       if (otherDrvEnv.node() != null) otherDrvEnv.node().remove();
       otherDrvEnv = null;
       otherDrvDriver = null;
+      host.markChanged();
     }
   }
 
@@ -183,7 +203,7 @@ public abstract class UpgradeMFBase extends AbstractManagedEnvironment implement
     if (blockData != null) {
       if (otherDrvEnv != null) otherDrvEnv.save(blockData.data, provider);
       blockNbt.putString("name", blockData.name);
-      blockNbt.put("data", blockData.data);
+      blockNbt.put("data", blockData.data.copy()); // the chunk is written later, off the server thread
     }
     nbt.put(OCSettings.namespace + "adapter.block", blockNbt);
   }

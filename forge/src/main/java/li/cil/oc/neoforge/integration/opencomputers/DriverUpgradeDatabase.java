@@ -47,6 +47,9 @@ public final class DriverUpgradeDatabase extends Item implements li.cil.oc.api.d
       @Override
       public void setChanged() {
         setChanged(lookupProvider);
+        // the entries are in the host's own item: it has to be saved (an adapter whose chunk nothing else marked lost
+        // what db.set wrote)
+        host.markChanged();
       }
 
       @Override
