@@ -160,6 +160,16 @@ public final class NanomachinesHandler {
       }
     }
 
+    // the players of a stopped server go: their logout's uninstall, scheduled for the next tick, never ran, and a
+    // controller holds its player (the map's key) for good
+    @SuppressWarnings("unused")
+    @SubscribeEvent
+    public static void onServerStopped(net.minecraftforge.event.server.ServerStoppedEvent e) {
+      if (li.cil.oc.api.API.nanomachines instanceof li.cil.oc.core.impl.common.nanomachines.Nanomachines nanomachines) {
+        nanomachines.serverControllers.clear();
+      }
+    }
+
     @SuppressWarnings("unused")
     @SubscribeEvent
     public static void onPlayerDisconnect(PlayerEvent.PlayerLoggedOutEvent e) {

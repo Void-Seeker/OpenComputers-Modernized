@@ -217,6 +217,10 @@ public class GraphicsCardBase extends AbstractManagedEnvironment implements Devi
     int height = args.optInteger(1, maxResolution[1]);
     if (width <= 0 || height <= 0)
       return ResultWrapper.result(null, "invalid page dimensions: must be greater than zero");
+    // what a buffer can load with: a wider one came back cut off, its colours read with the cut width (saves, clients)
+    int max = li.cil.oc.core.impl.util.TextBuffer.maxDimension();
+    if (width > max || height > max)
+      return ResultWrapper.result(null, "invalid page dimensions: must not exceed " + max);
     long size = (long) width * (long) height;
     if (size > (long) (totalVRAM - calculateUsedMemory()))
       return ResultWrapper.result(null, "not enough video memory");

@@ -753,27 +753,38 @@ public interface NetworkControl<AETile extends IActionHost> extends Persistable,
     }
   }
 
+  // Weakly held: a side never matched (a status the program dropped, a craftable whose status is gone) was kept for
+  // good, its host and level with it, across worlds too.
   final class LinkCache {
-    private static final java.util.Map<String, ICraftingLink> linkCache = new java.util.concurrent.ConcurrentHashMap<>();
-    private static final java.util.Map<String, CraftingStatus> statusCache = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final java.util.Map<String, java.lang.ref.WeakReference<ICraftingLink>> linkCache = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final java.util.Map<String, java.lang.ref.WeakReference<CraftingStatus>> statusCache = new java.util.concurrent.ConcurrentHashMap<>();
 
     static void store(ICraftingLink link) {
+      purge();
       var id = link.getCraftingID().toString();
-      var status = statusCache.remove(id);
+      var entry = statusCache.remove(id);
+      var status = entry != null ? entry.get() : null;
       if (status != null) {
         status.setLink(link);
       } else {
-        linkCache.put(id, link);
+        linkCache.put(id, new java.lang.ref.WeakReference<>(link));
       }
     }
 
     static void store(CraftingStatus status, String id) {
-      var link = linkCache.remove(id);
+      purge();
+      var entry = linkCache.remove(id);
+      var link = entry != null ? entry.get() : null;
       if (link != null) {
         status.setLink(link);
       } else {
-        statusCache.put(id, status);
+        statusCache.put(id, new java.lang.ref.WeakReference<>(status));
       }
+    }
+
+    private static void purge() {
+      linkCache.values().removeIf(r -> r.get() == null);
+      statusCache.values().removeIf(r -> r.get() == null);
     }
   }
 }

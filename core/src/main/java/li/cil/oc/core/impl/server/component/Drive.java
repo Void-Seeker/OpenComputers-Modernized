@@ -205,7 +205,8 @@ public class Drive extends AbstractManagedEnvironment implements DeviceInfo {
   @Override
   public synchronized void save(CompoundTag nbt, HolderLookup.Provider provider) {
     super.save(nbt, provider);
-    if (node != null && node.address() != null) try {
+    // not for a host's update packet (as the file system's): the whole disk was gzipped and written for each
+    if (node != null && node.address() != null && !li.cil.oc.core.impl.common.blockentity.traits.BlockEntity.savingForClients) try {
       File path = savePath();
       if (!path.getParentFile().mkdirs()) {
         LOGGER.warn("Failed to create directory: {}", path.getParentFile());

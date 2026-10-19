@@ -124,30 +124,14 @@ public final class SaveMarkTests {
   public static void stoppedRobotChangesAreSaved(final GameTestHelper helper) {
     TestMachines.runRobot(helper, AT, List.of(Constants.ItemName.TankUpgrade), "error('done:stopped')", 20, (robot, result) -> {
       helper.assertTrue(!robot.machine().isRunning(), "the robot still runs");
-      marked(robot, true);
-      try { // (no mark left from before)
-        final var field = li.cil.oc.core.impl.common.blockentity.RobotBase.class.getDeclaredField("changeScheduled");
-        field.setAccessible(true);
-        field.setBoolean(robot, false);
-      } catch (ReflectiveOperationException e) {
-        throw new RuntimeException(e);
-      }
+      marked(robot, true); // (no mark left from before)
       final int filled = ((li.cil.oc.neoforge.common.blockentity.Robot) robot).fill(
         new net.minecraftforge.fluids.FluidStack(net.minecraft.world.level.material.Fluids.WATER, 1000),
         net.minecraftforge.fluids.capability.IFluidHandler.FluidAction.EXECUTE);
       helper.assertTrue(filled > 0, "the robot's tank took no water");
       final boolean tank = marked(robot, true);
-      final boolean resent;
-      try {
-        final var field = li.cil.oc.core.impl.common.blockentity.RobotBase.class.getDeclaredField("changeScheduled");
-        field.setAccessible(true);
-        resent = field.getBoolean(robot);
-      } catch (ReflectiveOperationException e) {
-        throw new RuntimeException(e);
-      }
       robot.proxy.setName(context(), new ArgumentsImpl(new Object[]{"renamed"}));
       final boolean name = marked(robot, true);
-      helper.assertTrue(!resent, "filling the tank sends the whole robot to its clients again");
       helper.assertTrue(tank, "filling a stopped robot's tank did not mark it to be saved");
       helper.assertTrue(name, "renaming a stopped robot did not mark it to be saved");
       helper.succeed();

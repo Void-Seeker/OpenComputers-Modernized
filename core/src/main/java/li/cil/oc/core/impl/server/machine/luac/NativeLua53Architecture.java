@@ -6,8 +6,9 @@ public class NativeLua53Architecture extends NativeLuaArchitecture {
     super(machine);
   }
 
+  // the one factory (a new one per start rewrote the native library, moved it over the loaded one and made a test state)
   @Override
   public LuaStateFactory factory() {
-    return new LuaStateFactory.Lua53();
+    return LuaStateFactory.Lua53.INSTANCE;
   }
 }

@@ -54,4 +54,13 @@ public final class ClientEventHandler {
     LootManager.disksForCyclingClient.clear();
     LootManager.pendingDiskSync = true;
   }
+
+  // the world left: its players' nanomachine controllers go (each holds its player, the key of its weak map)
+  @SubscribeEvent
+  @SuppressWarnings("unused")
+  public static void clientLoggedOut(ClientPlayerNetworkEvent.LoggingOut e) {
+    if (li.cil.oc.api.API.nanomachines instanceof li.cil.oc.core.impl.common.nanomachines.Nanomachines nanomachines) {
+      nanomachines.clientControllers.clear();
+    }
+  }
 }

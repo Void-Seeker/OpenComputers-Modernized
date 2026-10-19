@@ -246,9 +246,11 @@ public abstract class ServerBase implements ComponentInventory, MachineHost, Ser
     return rack.level();
   }
 
+  // the rack saved only, as OC: the machine marks this on every slice, and the slot's mark sent its data and the rack's
+  // whole inventory to the clients (and updated the neighbours) every tick (its state changes mark the slot in update)
   @Override
   public void markChanged() {
-    rack.markChanged(slot);
+    rack.markChanged();
   }
 
   @Override

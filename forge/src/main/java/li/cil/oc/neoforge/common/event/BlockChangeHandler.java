@@ -7,6 +7,7 @@ import li.cil.oc.neoforge.common.EventHandler;
 import net.minecraft.world.level.Level;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.event.level.BlockEvent;
+import net.minecraftforge.event.server.ServerStoppedEvent;
 
 public final class BlockChangeHandler {
   private static final Map<ChangeListener, BlockPosition> changeListeners = new HashMap<>();
@@ -17,6 +18,14 @@ public final class BlockChangeHandler {
 
   public static void removeListener(ChangeListener listener) {
     EventHandler.scheduleServer(() -> changeListeners.remove(listener));
+  }
+
+  // a stopped server's listeners go: their removal, scheduled as their nodes left, never ran (the queue is dropped),
+  // and each kept its MFU's host and level for the rest of the game
+  @SuppressWarnings("unused")
+  @SubscribeEvent
+  public static void onServerStopped(ServerStoppedEvent e) {
+    changeListeners.clear();
   }
 
   @SuppressWarnings("unused")

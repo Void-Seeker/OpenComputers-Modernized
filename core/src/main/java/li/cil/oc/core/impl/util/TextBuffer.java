@@ -74,11 +74,24 @@ public class TextBuffer {
           rowColor[col] = PackedColor.pack(fg, bg, value);
         }
       }
+      // a palette colour the new depth has no palette for becomes the colour it showed (kept, it threw on every load:
+      // the screen was dropped with its address, and the clients failed on it every few seconds)
+      _foreground = fit(_foreground, _format, value);
+      _background = fit(_background, _format, value);
       _format = value;
       packed = PackedColor.pack(_foreground, _background, _format);
       return true;
     }
     return false;
+  }
+
+  private static PackedColor.Color fit(PackedColor.Color color, PackedColor.ColorFormat from, PackedColor.ColorFormat to) {
+    try {
+      to.validate(color);
+      return color;
+    } catch (IllegalArgumentException e) {
+      return new PackedColor.Color(from.inflate(from.deflate(color) & 0xFF));
+    }
   }
 
   public int[] size() {
@@ -276,8 +289,13 @@ public class TextBuffer {
     return changed;
   }
 
+  /** The most columns and rows a buffer loads with (what is beyond is cut off). */
+  public static int maxDimension() {
+    return Math.max(OCSettings.screenResolutionsByTier[OCSettings.screenResolutionsByTier.length - 1][0], OCSettings.screenResolutionsByTier[OCSettings.screenResolutionsByTier.length - 1][1]);
+  }
+
   public void load(CompoundTag nbt, net.minecraft.core.HolderLookup.Provider provider) {
-    int maxResolution = Math.max(OCSettings.screenResolutionsByTier[OCSettings.screenResolutionsByTier.length - 1][0], OCSettings.screenResolutionsByTier[OCSettings.screenResolutionsByTier.length - 1][1]);
+    int maxResolution = maxDimension();
     int w = Math.min(nbt.getInt("width"), maxResolution);
     w = Math.max(w, 1);
     int h = Math.min(nbt.getInt("height"), maxResolution);
@@ -301,8 +319,10 @@ public class TextBuffer {
     li.cil.oc.api.internal.TextBuffer.ColorDepth depth = depths[depthIdx];
     _format = PackedColor.Depth.format(depth);
     _format.load(nbt, provider);
-    foreground_$eq(new PackedColor.Color(nbt.getInt("foreground"), nbt.getBoolean("foregroundIsPalette")));
-    background_$eq(new PackedColor.Color(nbt.getInt("background"), nbt.getBoolean("backgroundIsPalette")));
+    // (saved before the depth change converted them: read from the default palette)
+    var palette = PackedColor.Depth.format(li.cil.oc.api.internal.TextBuffer.ColorDepth.FourBit);
+    foreground_$eq(fit(new PackedColor.Color(nbt.getInt("foreground"), nbt.getBoolean("foregroundIsPalette")), palette, _format));
+    background_$eq(fit(new PackedColor.Color(nbt.getInt("background"), nbt.getBoolean("backgroundIsPalette")), palette, _format));
 
     if (!NbtDataStream.getShortArray(nbt, "colors", color, w, h)) {
       NbtDataStream.getIntArrayLegacy(nbt, "color", color, w, h);

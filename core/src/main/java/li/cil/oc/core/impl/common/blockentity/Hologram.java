@@ -419,6 +419,20 @@ public class Hologram extends BlockEntity implements Environment, SidedEnvironme
     return null;
   }
 
+  // NaN got through the clamps: as the scale it made the power needed NaN, and the hologram stayed dark (saved so);
+  // an infinity is clamped where there is a clamp (as OC), and refused where there is none
+  private static double number(Arguments args, int index) {
+    double value = args.checkDouble(index);
+    if (Double.isNaN(value)) throw new IllegalArgumentException("bad argument #" + (index + 1) + " (number expected, got NaN)");
+    return value;
+  }
+
+  private static double finite(Arguments args, int index) {
+    double value = number(args, index);
+    if (Double.isInfinite(value)) throw new IllegalArgumentException("bad argument #" + (index + 1) + " (finite number expected)");
+    return value;
+  }
+
   @Callback(direct = true, doc = "function():number -- Returns the render scale of the hologram.")
   public Object[] getScale(Context context, Arguments args) {
     return (Object[]) result(scale);
@@ -427,7 +441,7 @@ public class Hologram extends BlockEntity implements Environment, SidedEnvironme
   @SuppressWarnings("SameReturnValue")
   @Callback(doc = "function(value:number) -- Set the render scale. A larger scale consumes more energy.")
   public Object[] setScale(Context context, Arguments args) {
-    scale = MathCompat.clamp(args.checkDouble(0), 0.333333, OCSettings.get().hologramMaxScaleByTier[tier]);
+    scale = MathCompat.clamp(number(args, 0), 0.333333, OCSettings.get().hologramMaxScaleByTier[tier]);
     PacketSender.sendHologramScale(this, scale);
     markChanged();
     return null;
@@ -442,9 +456,9 @@ public class Hologram extends BlockEntity implements Environment, SidedEnvironme
   @Callback(doc = "function(tx:number, ty:number, tz:number) -- Sets the relative render projection offsets of the hologram.")
   public Object[] setTranslation(Context context, Arguments args) {
     double maxTranslation = OCSettings.get().hologramMaxTranslationByTier[tier];
-    translationX = MathCompat.clamp(args.checkDouble(0), -maxTranslation, maxTranslation);
-    translationY = MathCompat.clamp(args.checkDouble(1), 0, maxTranslation * 2);
-    translationZ = MathCompat.clamp(args.checkDouble(2), -maxTranslation, maxTranslation);
+    translationX = MathCompat.clamp(number(args, 0), -maxTranslation, maxTranslation);
+    translationY = MathCompat.clamp(number(args, 1), 0, maxTranslation * 2);
+    translationZ = MathCompat.clamp(number(args, 2), -maxTranslation, maxTranslation);
     PacketSender.sendHologramOffset(this, translationX, translationY, translationZ);
     markChanged();
     return null;
@@ -477,10 +491,10 @@ public class Hologram extends BlockEntity implements Environment, SidedEnvironme
   @Callback(doc = "function(angle:number, x:number, y:number, z:number):boolean -- Set the base rotation of the displayed hologram.")
   public Object[] setRotation(Context context, Arguments args) {
     if (tier > 0) {
-      rotationAngle = (float) (args.checkDouble(0) % 360);
-      rotationX = (float) args.checkDouble(1);
-      rotationY = (float) args.checkDouble(2);
-      rotationZ = (float) args.checkDouble(3);
+      rotationAngle = (float) (finite(args, 0) % 360);
+      rotationX = (float) finite(args, 1);
+      rotationY = (float) finite(args, 2);
+      rotationZ = (float) finite(args, 3);
       PacketSender.sendHologramRotation(this, rotationAngle, rotationX, rotationY, rotationZ);
       markChanged();
       return (Object[]) result(true);
@@ -491,10 +505,10 @@ public class Hologram extends BlockEntity implements Environment, SidedEnvironme
   @Callback(doc = "function(speed:number, x:number, y:number, z:number):boolean -- Set the rotation speed of the displayed hologram.")
   public Object[] setRotationSpeed(Context context, Arguments args) {
     if (tier > 0) {
-      rotationSpeed = (float) MathCompat.clamp(args.checkDouble(0), -360 * 4, 360 * 4);
-      rotationSpeedX = (float) args.checkDouble(1);
-      rotationSpeedY = (float) args.checkDouble(2);
-      rotationSpeedZ = (float) args.checkDouble(3);
+      rotationSpeed = (float) MathCompat.clamp(number(args, 0), -360 * 4, 360 * 4);
+      rotationSpeedX = (float) finite(args, 1);
+      rotationSpeedY = (float) finite(args, 2);
+      rotationSpeedZ = (float) finite(args, 3);
       PacketSender.sendHologramRotationSpeed(this, rotationSpeed, rotationSpeedX, rotationSpeedY, rotationSpeedZ);
       markChanged();
       return (Object[]) result(true);

@@ -25,7 +25,7 @@ public abstract class HubBlockEntity extends BlockEntity implements Hub {
 
   public final Plug[] plugs = new Plug[6];
   public final Queue<QueuedPacket> packetQueue = new LinkedList<>();
-  protected boolean isChangeScheduled = false;
+  protected volatile boolean isChangeScheduled = false; // (set by the computer threads)
   public int relayDelay = OCSettings.get().switchDefaultRelayDelay;
   public int relayAmount = OCSettings.get().switchDefaultRelayAmount;
   public int maxQueueSize = OCSettings.get().switchDefaultMaxQueueSize;
@@ -315,8 +315,9 @@ public abstract class HubBlockEntity extends BlockEntity implements Hub {
   public void updateEntity() {
     super.updateEntity();
     if (isChangeScheduled) {
-      setChanged();
+      // saved only, as OC's markChunkDirty (a rack's setChanged sends its whole inventory to the clients)
       isChangeScheduled = false;
+      if (level != null) level.blockEntityChanged(worldPosition);
     }
     if (isServer()) {
       var queueSize = packetQueue.size();

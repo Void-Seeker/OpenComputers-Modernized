@@ -619,13 +619,6 @@ public abstract class RobotBase extends BlockEntity implements li.cil.oc.core.im
       saveScheduled = false;
       setChanged();
     }
-    if (changeScheduled) {
-      setChanged();
-      changeScheduled = false;
-      if (level != null && !level.isClientSide()) {
-        level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 2);
-      }
-    }
     if (isServer()) {
       if (node != null && node.network() != null) {
         // its machine is updated with the running robots each tick, as in OC (updated here too, a running robot's
@@ -999,20 +992,21 @@ public abstract class RobotBase extends BlockEntity implements li.cil.oc.core.im
   @Override
   public abstract double zPosition();
 
-  private boolean changeScheduled = false;
   private volatile boolean saveScheduled = false;
 
   /**
-   * Asks for the robot to be saved, without sending it to the clients again (markChanged does both: a pipe filling a
-   * stopped robot's tank sent the whole robot every tick).
+   * Asks for the robot to be saved, without sending it to the clients again (a pipe filling a stopped robot's tank sent
+   * the whole robot every tick).
    */
   public void markForSave() {
     saveScheduled = true;
   }
 
+  // saved only, as OC's markChunkDirty: its machine marks it on every slice, and this sent the whole robot (its drives'
+  // contents written out with it) to the clients each time; what they show has packets of its own
   @Override
   public void markChanged() {
-    changeScheduled = true;
+    saveScheduled = true;
     renderingErrored = false;
   }
 

@@ -958,7 +958,7 @@ public class Rack extends HubBlockEntity implements PowerAcceptor, PowerBalancer
       var globalY = (int) (hitY * 16);
       int l = 2, h = 14;
       var slot = (15 - globalY - l) * getContainerSize() / (h - l);
-      return Optional.of(MathCompat.clamp(getContainerSize() - 1, 0, slot));
+      return Optional.of(MathCompat.clamp(slot, 0, getContainerSize() - 1)); // (reversed, the very top threw)
     }
     return Optional.empty();
   }

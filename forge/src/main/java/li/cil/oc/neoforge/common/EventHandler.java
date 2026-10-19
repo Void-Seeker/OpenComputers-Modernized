@@ -51,7 +51,8 @@ public final class EventHandler {
   }
 
   private static final Set<Robot> runningRobots = ConcurrentHashMap.newKeySet();
-  private static final Set<Keyboard> keyboards = ConcurrentHashMap.newKeySet();
+  // weak, as OC's: every keyboard that ever connected was kept with its host (blocks of each chunk load, tablets remade)
+  private static final Set<Keyboard> keyboards = Collections.synchronizedSet(Collections.newSetFromMap(new java.util.WeakHashMap<>()));
   private static final Set<Machine> machines = ConcurrentHashMap.newKeySet();
 
   public static void onRobotStart(Robot robot) {
@@ -86,6 +87,14 @@ public final class EventHandler {
 
   public static void addKeyboard(Keyboard keyboard) {
     keyboards.add(keyboard);
+  }
+
+  private static void releasePressedKeys(net.minecraft.world.entity.player.Player player) {
+    List<Keyboard> all;
+    synchronized (keyboards) {
+      all = new ArrayList<>(keyboards);
+    }
+    for (Keyboard kb : all) kb.releasePressedKeys(player);
   }
 
   public static void scheduleServer(BlockEntity blockEntity) {
@@ -195,19 +204,19 @@ public final class EventHandler {
   @SubscribeEvent
   @SuppressWarnings("unused")
   public static void onPlayerRespawn(PlayerEvent.PlayerRespawnEvent e) {
-    for (Keyboard kb : keyboards) kb.releasePressedKeys(e.getEntity());
+    releasePressedKeys(e.getEntity());
   }
 
   @SubscribeEvent
   @SuppressWarnings("unused")
   public static void onPlayerChangedDimension(PlayerEvent.PlayerChangedDimensionEvent e) {
-    for (Keyboard kb : keyboards) kb.releasePressedKeys(e.getEntity());
+    releasePressedKeys(e.getEntity());
   }
 
   @SubscribeEvent
   @SuppressWarnings("unused")
   public static void onPlayerLogout(PlayerEvent.PlayerLoggedOutEvent e) {
-    for (Keyboard kb : keyboards) kb.releasePressedKeys(e.getEntity());
+    releasePressedKeys(e.getEntity());
   }
 
   private static final net.minecraft.resources.ResourceLocation TABLET_SAVER = new net.minecraft.resources.ResourceLocation(OpenComputers.ID, "tablets");

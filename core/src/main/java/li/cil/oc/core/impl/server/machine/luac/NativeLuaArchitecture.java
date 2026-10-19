@@ -32,7 +32,11 @@ public abstract class NativeLuaArchitecture implements Architecture {
   LuaState lua = null;
   int kernelMemory = 0;
   double ramScale = 1.0;
-  private volatile boolean luaBusy = false;
+  // What the RAM gives, set by onHostChanged on the server thread. The Lua state's limit follows it only where the
+  // state is ours (a slice's start on the computer thread, load and save under the machine's lock), and only when it
+  // changed: set from the server thread it waited out a running slice, or let one run with no limit between the calls.
+  private volatile int memoryBytes = 0;
+  private int appliedMemory = -1; // what the limit was last set for; -1 = none (Integer.MAX_VALUE)
 
   public NativeLuaArchitecture(li.cil.oc.api.machine.Machine machine) {
     this.machine = machine;
@@ -151,14 +155,22 @@ public abstract class NativeLuaArchitecture implements Architecture {
 
   @Override
   public boolean recomputeMemory(Iterable<ItemStack> components) {
-    int memoryBytes = memoryInBytes(components);
-    if (lua != null && OCSettings.get().limitMemory && !luaBusy) {
-      lua.setTotalMemory(Integer.MAX_VALUE);
-      if (kernelMemory > 0) {
-        lua.setTotalMemory(kernelMemory + (int) Math.ceil(memoryBytes * ramScale));
-      }
-    }
+    memoryBytes = memoryInBytes(components);
     return memoryBytes > 0;
+  }
+
+  private void applyMemory() {
+    int bytes = memoryBytes;
+    if (lua == null || !OCSettings.get().limitMemory || kernelMemory <= 0 || bytes == appliedMemory) return;
+    lua.setTotalMemory(Integer.MAX_VALUE);
+    lua.setTotalMemory(kernelMemory + (int) Math.ceil(bytes * ramScale));
+    appliedMemory = bytes;
+  }
+
+  // (the limit taken off: Integer.MAX_VALUE)
+  private void unlimitMemory() {
+    if (OCSettings.get().limitMemory) lua.setTotalMemory(Integer.MAX_VALUE);
+    appliedMemory = -1;
   }
 
   private int memoryInBytes(Iterable<ItemStack> components) {
@@ -191,39 +203,34 @@ public abstract class NativeLuaArchitecture implements Architecture {
     try {
       assert lua.isThread(1);
 
-      luaBusy = true;
+      applyMemory();
       int results;
-      try {
-        if (isSynchronizedReturn) {
-          assert lua.getTop() == 2;
-          assert lua.isTable(2);
-          results = lua.resume(1, 1);
-        } else if (kernelMemory == 0) {
-          if (lua.resume(1, 0) > 0) {
-            results = 0;
-          } else {
-            lua.gc(LuaState.GcAction.COLLECT, 0);
-            kernelMemory = Math.max(lua.getTotalMemory() - lua.getFreeMemory(), 1);
-            luaBusy = false;
-            recomputeMemory(machine.host().internalComponents());
-            luaBusy = true;
-            lua.pushInteger(0);
-            results = 1;
-          }
+      if (isSynchronizedReturn) {
+        assert lua.getTop() == 2;
+        assert lua.isTable(2);
+        results = lua.resume(1, 1);
+      } else if (kernelMemory == 0) {
+        if (lua.resume(1, 0) > 0) {
+          results = 0;
         } else {
-          li.cil.oc.api.machine.Signal signal = machine.popSignal();
-          if (signal != null) {
-            lua.pushString(signal.name());
-            for (Object arg : signal.args()) {
-              ExtendedLuaState.pushValue(lua, arg);
-            }
-            results = lua.resume(1, 1 + signal.args().length);
-          } else {
-            results = lua.resume(1, 0);
-          }
+          lua.gc(LuaState.GcAction.COLLECT, 0);
+          kernelMemory = Math.max(lua.getTotalMemory() - lua.getFreeMemory(), 1);
+          recomputeMemory(machine.host().internalComponents());
+          applyMemory();
+          lua.pushInteger(0);
+          results = 1;
         }
-      } finally {
-        luaBusy = false;
+      } else {
+        li.cil.oc.api.machine.Signal signal = machine.popSignal();
+        if (signal != null) {
+          lua.pushString(signal.name());
+          for (Object arg : signal.args()) {
+            ExtendedLuaState.pushValue(lua, arg);
+          }
+          results = lua.resume(1, 1 + signal.args().length);
+        } else {
+          results = lua.resume(1, 0);
+        }
       }
 
       if (lua.status(1) == LuaState.YIELD) {
@@ -245,9 +252,7 @@ public abstract class NativeLuaArchitecture implements Architecture {
           LOGGER.warn("Kernel stopped unexpectedly.");
           return new ExecutionResult.Shutdown(false);
         } else {
-          if (OCSettings.get().limitMemory) {
-            lua.setTotalMemory(Integer.MAX_VALUE);
-          }
+          unlimitMemory();
           String error;
           if (lua.isJavaObjectRaw(3)) {
             error = lua.toJavaObjectRaw(3).toString();
@@ -307,22 +312,19 @@ public abstract class NativeLuaArchitecture implements Architecture {
   @Override
   public void close() {
     if (lua != null) {
-      if (OCSettings.get().limitMemory) {
-        lua.setTotalMemory(Integer.MAX_VALUE);
-      }
+      unlimitMemory();
       lua.close();
     }
     lua = null;
     kernelMemory = 0;
+    appliedMemory = -1;
   }
 
   @Override
   public void load(CompoundTag nbt) {
     if (!machine.isRunning()) return;
 
-    if (OCSettings.get().limitMemory) {
-      lua.setTotalMemory(Integer.MAX_VALUE);
-    }
+    unlimitMemory();
 
     try {
       lua.setTop(0);
@@ -356,13 +358,12 @@ public abstract class NativeLuaArchitecture implements Architecture {
     }
 
     recomputeMemory(machine.host().internalComponents());
+    applyMemory();
   }
 
   @Override
   public void save(CompoundTag nbt) {
-    if (OCSettings.get().limitMemory) {
-      lua.setTotalMemory(Integer.MAX_VALUE);
-    }
+    unlimitMemory();
 
     try {
       assert lua.isThread(1);
@@ -395,5 +396,6 @@ public abstract class NativeLuaArchitecture implements Architecture {
     }
 
     recomputeMemory(machine.host().internalComponents());
+    applyMemory();
   }
 }

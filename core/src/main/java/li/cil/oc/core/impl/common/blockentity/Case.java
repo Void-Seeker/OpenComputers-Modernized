@@ -141,7 +141,7 @@ public class Case extends BlockEntity implements PowerAcceptor, Computer, Colore
     }
   }
 
-  private boolean isChangeScheduled = false;
+  private volatile boolean isChangeScheduled = false; // (set by the computer threads)
   private CompoundTag pendingMachineNbt;
 
   // taken before loading, as a robot's (a load that threw left it pending, and it was saved in place of the machine)
@@ -157,9 +157,12 @@ public class Case extends BlockEntity implements PowerAcceptor, Computer, Colore
         org.slf4j.LoggerFactory.getLogger(Case.class).warn("Could not load a computer case's computer.", e);
       }
       setRunning(m.isRunning());
+      setOutputEnabled(hasRedstoneCard()); // as OC (only the per-slice marks below turned a loaded case's outputs on)
     }
   }
 
+  // Saved only, as OC's markChunkDirty: a running machine marks its host on every slice, and this sent the whole case
+  // (its drives' contents written out with it) to the clients and recomputed the machine's parts each time.
   public void markChanged() {
     isChangeScheduled = true;
   }
@@ -736,11 +739,8 @@ public class Case extends BlockEntity implements PowerAcceptor, Computer, Colore
   public void updateEntity() {
     super.updateEntity();
     if (isChangeScheduled) {
-      setChanged();
       isChangeScheduled = false;
-      if (level != null) {
-        level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 2);
-      }
+      if (level != null) level.blockEntityChanged(worldPosition);
     }
     if (isServer() && isCreative() && level().getGameTime() % (long) OCSettings.get().tickFrequency == 0) {
       if (node() instanceof Connector c) c.changeBuffer(Double.POSITIVE_INFINITY);
