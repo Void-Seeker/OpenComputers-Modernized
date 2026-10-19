@@ -515,4 +515,41 @@ public final class ScreenTests {
       });
     });
   }
+
+  /**
+   * A display that comes back with power that came while it was away toggles once, as a display (its screens read their
+   * inputs before it formed again: the powered screen toggled its own hidden buffer, and the display stayed as it was).
+   */
+  @GameTest(template = EMPTY, timeoutTicks = 100)
+  public static void displayReloadedWithNewPowerTogglesThoughUpdatedEarly(final GameTestHelper helper) {
+    helper.setBlock(AT, Blocks.SCREEN_TIER_1.get());
+    helper.setBlock(AT.east(), Blocks.SCREEN_TIER_1.get());
+    helper.runAfterDelay(10, () -> {
+      final var a = (li.cil.oc.core.impl.common.blockentity.Screen) helper.getBlockEntity(AT);
+      final var b = (li.cil.oc.core.impl.common.blockentity.Screen) helper.getBlockEntity(AT.east());
+      helper.assertTrue(a.screens.size() == 2, "the two screens did not merge");
+      final boolean before = a.origin.buffer.getPowerState();
+      final var level = helper.getLevel();
+      final BlockPos absA = helper.absolutePos(AT);
+      final BlockPos absB = helper.absolutePos(AT.east());
+      a.markUnloading();
+      b.markUnloading();
+      final var savedA = a.saveWithFullMetadata();
+      final var savedB = b.saveWithFullMetadata();
+      level.removeBlockEntity(absA);
+      level.removeBlockEntity(absB);
+      // power behind the second screen while the display is away (no block update reaches it)
+      level.setBlock(helper.absolutePos(AT.east().below()), net.minecraft.world.level.block.Blocks.REDSTONE_BLOCK.defaultBlockState(), 2);
+      final var la = (li.cil.oc.core.impl.common.blockentity.Screen) net.minecraft.world.level.block.entity.BlockEntity.loadStatic(absA, level.getBlockState(absA), savedA);
+      final var lb = (li.cil.oc.core.impl.common.blockentity.Screen) net.minecraft.world.level.block.entity.BlockEntity.loadStatic(absB, level.getBlockState(absB), savedB);
+      level.getChunkAt(absA).addAndRegisterBlockEntity(la);
+      level.getChunkAt(absB).addAndRegisterBlockEntity(lb);
+      lb.checkRedstoneInputChanged(); // a neighbour update before the display formed again
+      helper.runAfterDelay(10, () -> {
+        helper.assertTrue(la.screens.size() == 2, "the display did not form again");
+        helper.assertTrue(la.origin.buffer.getPowerState() != before, "power that came while the display was away did not toggle it");
+        helper.succeed();
+      });
+    });
+  }
 }

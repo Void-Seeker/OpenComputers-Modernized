@@ -47,7 +47,8 @@ public class Screen extends BlockEntity implements TextBufferHost, SidedEnvironm
   public int width = 1, height = 1;
   public Screen origin = this;
   public boolean hadRedstoneInput = false;
-  private boolean readInputsAfterMerge = false;
+  // from the start (a neighbour update can come before initialize): the inputs are read once the display has formed
+  private boolean readInputsAfterMerge = true;
   private final int[] _input = new int[]{-1, -1, -1, -1, -1, -1};
   public AABB cachedBounds = null;
   public boolean invertTouchMode = false;
@@ -79,9 +80,6 @@ public class Screen extends BlockEntity implements TextBufferHost, SidedEnvironm
     super.initialize();
     if (isServer() && getLevel() != null) {
       EventHandlerDelegate.get().scheduleServer(this);
-      // what is powered around it is read once the display has formed again (read before, a change made while it was
-      // away was judged by this screen alone: it toggled its own hidden buffer, and the display missed it)
-      readInputsAfterMerge = true;
     }
   }
 
@@ -564,8 +562,12 @@ public class Screen extends BlockEntity implements TextBufferHost, SidedEnvironm
     }
   }
 
+  // What is powered around it is read once the display has formed again: read before (on load, or on a neighbour update
+  // before the display formed), a change made while it was away was judged by this screen alone: it toggled its own
+  // hidden buffer, and the display missed it. The read then sees the same values.
   @Override
   public void checkRedstoneInputChanged() {
+    if (readInputsAfterMerge) return;
     if (getLevel() != null && !getLevel().isClientSide) {
       for (Direction side : Direction.values()) {
         updateRedstoneInput(side);
