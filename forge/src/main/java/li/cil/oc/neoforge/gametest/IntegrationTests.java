@@ -612,4 +612,40 @@ public final class IntegrationTests {
       helper.succeed();
     });
   }
+
+  /**
+   * An adapter saved before it recorded the blocks gives the old block's address only to the same set of drivers, as OC
+   * did (any block placed there took it: a furnace became the enchanting table's component).
+   */
+  @GameTest(template = EMPTY, timeoutTicks = 100)
+  public static void adapterSavedBeforeRecordingBlocksFollowsOC(final GameTestHelper helper) {
+    final BlockPos device = AT.east();
+    final ICapabilityProvider provider = energyProvider();
+    placeWithCapability(helper, device, provider, "test_energy_unrecorded");
+    helper.setBlock(AT, Blocks.ADAPTER.get());
+    helper.runAfterDelay(10, () -> {
+      final var adapter = (li.cil.oc.core.impl.common.blockentity.Adapter) helper.getBlockEntity(AT);
+      adapter.neighborChanged(Direction.EAST);
+      final String table = blockAddress(adapter);
+      helper.setBlock(device, net.minecraft.world.level.block.Blocks.AIR);
+      adapter.neighborChanged(Direction.EAST); // the table's data stays with the adapter
+      final var tag = adapter.saveWithFullMetadata();
+      final var blocks = tag.getList(li.cil.oc.core.impl.OCSettings.namespace + "adapter.blocks", net.minecraft.nbt.Tag.TAG_COMPOUND);
+      for (int i = 0; i < blocks.size(); i++) {
+        blocks.getCompound(i).remove("block");
+        blocks.getCompound(i).remove("identity");
+      }
+      final BlockPos abs = helper.absolutePos(AT);
+      helper.getLevel().removeBlockEntity(abs);
+      final var loaded = (li.cil.oc.core.impl.common.blockentity.Adapter) BlockEntity.loadStatic(abs, helper.getLevel().getBlockState(abs), tag);
+      helper.getLevel().getChunkAt(abs).addAndRegisterBlockEntity(loaded);
+      helper.runAfterDelay(10, () -> {
+        helper.setBlock(device, net.minecraft.world.level.block.Blocks.FURNACE);
+        loaded.neighborChanged(Direction.EAST);
+        final String furnace = blockAddress(loaded);
+        helper.assertTrue(table != null && furnace != null && !furnace.equals(table), "a furnace placed where an unrecorded enchanting table was got its address " + furnace);
+        helper.succeed();
+      });
+    });
+  }
 }

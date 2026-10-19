@@ -353,15 +353,18 @@ public class Adapter extends BlockEntity implements li.cil.oc.api.network.Enviro
             blocks[d.ordinal()] = environment;
             if (environment.canUpdate()) updatingBlocks.add(environment);
             var saved = blocksData[d.ordinal()];
-            // only the same block (the same id, the same device of those it holds) gets its data and address back (saved before
-            // ids: taken as its own block); its address even if other drivers make it up now. A different block placed
-            // there is a device of its own (one made up of the same drivers took over the old one's address and data).
-            boolean sameBlock = saved != null && (saved.block == null || saved.block.isEmpty()
-              || (blockId(currentBlock).equals(saved.block)
-              && sameDevice(saved.identity, identityOf(environment))));
-            if (sameBlock && saved.name.equals(environment.getClass().getName())) {
+            // only the same block (the same id, the same device of those it holds) gets its data and address back; its
+            // address even if other drivers make it up now. A different block placed there is a device of its own (one
+            // made up of the same drivers took over the old one's address and data). Saved before blocks were recorded
+            // (no id, no identity): as OC, both only for the same set of drivers, which load checks (any block placed
+            // there took the old one's address).
+            boolean unrecorded = saved != null && (saved.block == null || saved.block.isEmpty()) && saved.identity == null;
+            boolean sameBlock = saved != null && !unrecorded
+              && (saved.block == null || saved.block.isEmpty() || blockId(currentBlock).equals(saved.block))
+              && sameDevice(saved.identity, identityOf(environment));
+            if ((sameBlock || unrecorded) && saved.name.equals(environment.getClass().getName())) {
               environment.load(saved.data, level().registryAccess());
-              if (environment instanceof li.cil.oc.core.impl.server.driver.CompoundBlockEnvironment compound) {
+              if (sameBlock && environment instanceof li.cil.oc.core.impl.server.driver.CompoundBlockEnvironment compound) {
                 compound.loadAddress(saved.data, level().registryAccess());
               }
             }
@@ -507,8 +510,8 @@ public class Adapter extends BlockEntity implements li.cil.oc.api.network.Enviro
     if (before == null || before.isEmpty() || now.isEmpty()) return true;
     var specificBefore = specific(before);
     var specificNow = specific(now);
-    // generic parts alone on both sides: nothing tells them apart but the block, which matched (a machine's side set
-    // from energy to items got a new address)
+    // generic parts alone on both sides: nothing tells them apart but the block, which matched (with the tank driver on,
+    // a face whose energy gave way to a fluid handler got a new address)
     if (specificBefore.isEmpty() && specificNow.isEmpty()) return true;
     var a = specificBefore.isEmpty() || specificNow.isEmpty() ? before : specificBefore;
     var b = specificBefore.isEmpty() || specificNow.isEmpty() ? now : specificNow;

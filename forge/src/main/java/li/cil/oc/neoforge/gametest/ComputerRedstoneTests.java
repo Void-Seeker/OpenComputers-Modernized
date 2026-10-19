@@ -442,9 +442,10 @@ public final class ComputerRedstoneTests {
         helper.assertTrue(robot.machine().isRunning() && total(robot.output()) >= 1, "the robot does not listen yet: " + robot.machine().lastError());
         final int atReload = total(robot.output());
         final var loaded = reloadRobot(helper, unload(helper));
-        TestMachines.when(helper, () -> total(loaded.robot.output()) != atReload, 100, () -> {
+        // (the program writes 2 to 15 once it runs on; outputs falling to 0 is not that)
+        TestMachines.when(helper, () -> total(loaded.robot.output()) >= 2 && total(loaded.robot.output()) != atReload, 100, () -> {
           helper.assertTrue(loaded.robot.machine().isRunning(), "the reloaded robot stopped: " + loaded.robot.machine().lastError());
-          helper.assertTrue(total(loaded.robot.output()) != atReload, "the reloaded robot's program did not run on");
+          helper.assertTrue(total(loaded.robot.output()) >= 2 && total(loaded.robot.output()) != atReload, "the reloaded robot's program did not run on: " + java.util.Arrays.toString(loaded.robot.output()));
           helper.succeed();
         });
       }));
