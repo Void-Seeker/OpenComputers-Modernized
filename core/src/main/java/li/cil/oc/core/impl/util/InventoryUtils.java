@@ -75,7 +75,7 @@ public final class InventoryUtils {
     Level world = position.level();
     if (world == null) return null;
     BlockPos pos = position.toBlockPos();
-    if (!world.isLoaded(pos)) return null;
+    if (!li.cil.oc.core.impl.util.LoadedChunks.isReady(world, pos)) return null; // (not one still loading: it waited)
     BlockEntity te = world.getBlockEntity(pos);
     if (te != null && itemHandlers != null) {
       InventoryAccess handler = itemHandlers.itemHandler(te, face);

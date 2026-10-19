@@ -565,7 +565,8 @@ public class Network implements li.cil.oc.api.detail.NetworkAPI, Distributor {
   private void send(Node source, Iterable<Node> targets, String name, Object... args) {
     Message message = new Message(source, name, args);
     for (Node target : targets) {
-      target.host().onMessage(message);
+      var host = target.host();
+      if (host != null) host.onMessage(message); // (a simple component's node has none: the send stopped there)
       if (message.isCanceled) break;
     }
   }
