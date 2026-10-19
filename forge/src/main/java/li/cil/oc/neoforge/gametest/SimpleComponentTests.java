@@ -133,6 +133,22 @@ public final class SimpleComponentTests {
     }
   }
 
+  /** One of a class other code cannot reach, with an onConnect of its own. */
+  private static final class HiddenFurnace extends SimpleFurnace {
+    private int hiddenConnects;
+
+    private HiddenFurnace(final BlockPos pos, final BlockState state) {
+      super(pos, state);
+      name = "hidden_furnace";
+    }
+
+    @Override
+    public void onConnect(final Node node) {
+      hiddenConnects++;
+      super.onConnect(node);
+    }
+  }
+
   /** Puts the furnace where a furnace block was placed, as a mod's block would have it. */
   private static <T extends SimpleFurnace> T placeFurnace(final GameTestHelper helper, final BlockPos pos, final Direction closed,
                                                          final java.util.function.BiFunction<BlockPos, BlockState, T> make) {
@@ -163,8 +179,25 @@ public final class SimpleComponentTests {
     return ((li.cil.oc.api.network.Environment) helper.getBlockEntity(pos)).node();
   }
 
+  /** Runs the action with the player taken for a real one by the class's fakePlayerCheck (the analyzer's, the debugger's). */
+  private static void asRealPlayer(final Class<?> owner, final Player player, final Runnable action) {
+    try {
+      final var check = owner.getDeclaredField("fakePlayerCheck");
+      check.setAccessible(true);
+      @SuppressWarnings("unchecked") final Predicate<Player> previous = (Predicate<Player>) check.get(null);
+      check.set(null, (Predicate<Player>) p -> p != player && previous.test(p));
+      try {
+        action.run();
+      } finally {
+        check.set(null, previous);
+      }
+    } catch (ReflectiveOperationException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
   /** What the analyzer tells a player about the block entity: the arguments of its messages. */
-  private static List<Object> analyze(final GameTestHelper helper, final Object blockEntity) throws ReflectiveOperationException {
+  private static List<Object> analyze(final GameTestHelper helper, final Object blockEntity) {
     final List<Object> said = new ArrayList<>();
     final FakePlayer player = new FakePlayer(helper.getLevel(), new GameProfile(UUID.randomUUID(), "oc-analyzer")) {
       @Override
@@ -172,15 +205,8 @@ public final class SimpleComponentTests {
         if (message.getContents() instanceof TranslatableContents translatable) said.addAll(List.of(translatable.getArgs()));
       }
     };
-    final var check = li.cil.oc.core.impl.common.item.Analyzer.class.getDeclaredField("fakePlayerCheck");
-    check.setAccessible(true);
-    @SuppressWarnings("unchecked") final Predicate<Player> previous = (Predicate<Player>) check.get(null);
-    li.cil.oc.core.impl.common.item.Analyzer.setFakePlayerCheck(p -> p != player && previous.test(p));
-    try {
-      helper.assertTrue(li.cil.oc.core.impl.common.item.Analyzer.analyze(blockEntity, player, Direction.UP, 0, 0, 0), "the analyzer does not take " + blockEntity);
-    } finally {
-      li.cil.oc.core.impl.common.item.Analyzer.setFakePlayerCheck(previous);
-    }
+    asRealPlayer(li.cil.oc.core.impl.common.item.Analyzer.class, player, () ->
+      helper.assertTrue(li.cil.oc.core.impl.common.item.Analyzer.analyze(blockEntity, player, Direction.UP, 0, 0, 0), "the analyzer does not take " + blockEntity));
     return said;
   }
 
@@ -224,12 +250,8 @@ public final class SimpleComponentTests {
           final var devices = (Map<?, ?>) ((li.cil.oc.core.impl.server.machine.MachineBase) computer.machine()).getDeviceInfo(context(), new ArgumentsImpl(new Object[0]))[0];
           final var info = (Map<?, ?>) devices.get(node.address());
           helper.assertTrue(info != null && "simple".equals(info.get(DeviceInfo.DeviceAttribute.Description)), "the computer's device info for the simple furnace is " + info);
-          try {
-            final List<Object> said = analyze(helper, furnace);
-            helper.assertTrue(said.contains(node.address()), "the analyzer told " + said + ", not the simple furnace's address");
-          } catch (ReflectiveOperationException e) {
-            throw new RuntimeException(e);
-          }
+          final List<Object> said = analyze(helper, furnace);
+          helper.assertTrue(said.contains(node.address()), "the analyzer told " + said + ", not the simple furnace's address");
           helper.succeed();
         });
       });
@@ -274,6 +296,19 @@ public final class SimpleComponentTests {
         helper.assertTrue(again.network() == null && network.network().node(address) == null, "the unloaded simple furnace's node stayed in the network");
         helper.succeed();
       });
+    });
+  }
+
+  /** The own onConnect of a simple component is called when inherited, and in a class other code cannot reach. */
+  @GameTest(template = EMPTY, timeoutTicks = 100)
+  public static void ownMethodsOfInheritingAndHiddenClassesAreCalled(final GameTestHelper helper) {
+    helper.setBlock(AT, Blocks.CAPACITOR.get());
+    final PeripheralFurnace inheriting = placeFurnace(helper, AT.east(), null, PeripheralFurnace::new);
+    final HiddenFurnace hidden = placeFurnace(helper, AT.west(), null, HiddenFurnace::new);
+    helper.runAfterDelay(5, () -> {
+      helper.assertTrue(!inheriting.connected.isEmpty(), "the inherited onConnect was not called");
+      helper.assertTrue(hidden.hiddenConnects > 0, "the onConnect of a class other code cannot reach was not called");
+      helper.succeed();
     });
   }
 
@@ -475,7 +510,54 @@ public final class SimpleComponentTests {
     });
   }
 
-  /** An MFU bound to a simple component connects to its node, as to an environment's (it bound a driver for the block). */
+  /**
+   * A simple component readdressed in a merge (another node with its address joined it) is saved with its new address:
+   * marked on connect (only its own join marked it, and there is none in a merge).
+   */
+  @GameTest(template = EMPTY, timeoutTicks = 100)
+  public static void readdressedSimpleComponentsAreSaved(final GameTestHelper helper) {
+    final SimpleFurnace furnace = placeFurnace(helper, AT, null);
+    helper.runAfterDelay(3, () -> {
+      final Node node = node(furnace);
+      helper.assertTrue(node != null && node.network() != null, "the simple furnace is in no network: " + node);
+      final String address = node.address();
+      furnace.changed = 0;
+      final li.cil.oc.api.network.Environment host = new li.cil.oc.api.network.Environment() {
+        @Override
+        public Node node() {
+          return null;
+        }
+
+        @Override
+        public void onConnect(final Node node) {
+        }
+
+        @Override
+        public void onDisconnect(final Node node) {
+        }
+
+        @Override
+        public void onMessage(final Message message) {
+        }
+      };
+      final Node other = li.cil.oc.api.Network.newNode(host, li.cil.oc.api.network.Visibility.Network).create();
+      ((li.cil.oc.core.impl.server.network.Node) other).address_$eq(address);
+      li.cil.oc.api.Network.joinNewNetwork(other);
+      try {
+        other.connect(node); // (the joined network's duplicates take new addresses)
+        helper.assertTrue(!address.equals(node.address()) && node.network() == other.network(), "the simple furnace was not readdressed into the other node's network: " + node.address());
+        helper.assertTrue(furnace.changed == 1, "the readdressed simple furnace was marked changed " + furnace.changed + " times instead of once");
+      } finally {
+        other.remove();
+      }
+      helper.succeed();
+    });
+  }
+
+  /**
+   * An MFU bound to a simple component connects to its node, as to an environment's (it bound a driver for the block),
+   * and lets go of it when out of energy (the capacitor's network has none).
+   */
   @GameTest(template = EMPTY, timeoutTicks = 100)
   public static void mfusConnectToSimpleComponents(final GameTestHelper helper) {
     helper.setBlock(AT, Blocks.CAPACITOR.get());
@@ -485,13 +567,25 @@ public final class SimpleComponentTests {
       final var mfu = new li.cil.oc.neoforge.server.component.UpgradeMF((EnvironmentHost) helper.getBlockEntity(AT),
         BlockPosition.apply(abs.getX(), abs.getY(), abs.getZ(), helper.getLevel()), Direction.WEST);
       li.cil.oc.api.Network.joinNewNetwork(mfu.node());
+      boolean handedOn = false;
       try {
         final Node node = node(furnace);
         helper.assertTrue(node != null && mfu.node().isNeighborOf(node), "the MFU did not connect to the simple furnace's node");
+        // (its energy is taken every tickFrequency ticks)
+        final double frequency = li.cil.oc.core.impl.OCSettings.get().tickFrequency;
+        handedOn = true;
+        TestMachines.when(helper, () -> helper.getLevel().getGameTime() % frequency == 0, 40, () -> {
+          try {
+            mfu.update();
+            helper.assertTrue(!mfu.node().isNeighborOf(node), "the MFU out of energy kept the simple furnace's node");
+          } finally {
+            mfu.node().remove();
+          }
+          helper.succeed();
+        });
       } finally {
-        mfu.node().remove();
+        if (!handedOn) mfu.node().remove();
       }
-      helper.succeed();
     });
   }
 
@@ -510,6 +604,54 @@ public final class SimpleComponentTests {
         helper.assertTrue(node != null && card.node().isNeighborOf(node), "the debug card did not connect to the simple furnace's node: " + java.util.Arrays.toString(result));
       } finally {
         card.node().remove();
+      }
+      helper.succeed();
+    });
+  }
+
+  /**
+   * A debug card whose remote block has no node any more forgets it when it joins, as in OC 1.12 (it connected to none,
+   * which threw, and kept the place).
+   */
+  @GameTest(template = EMPTY, timeoutTicks = 100)
+  public static void debugCardsForgetRemoteBlocksWithoutANode(final GameTestHelper helper) {
+    helper.setBlock(AT, Blocks.CAPACITOR.get());
+    final BlockPos air = helper.absolutePos(AT.east());
+    helper.runAfterDelay(3, () -> {
+      final var card = new li.cil.oc.neoforge.server.component.DebugCard((EnvironmentHost) helper.getBlockEntity(AT));
+      final String prefix = li.cil.oc.core.impl.OCSettings.namespace;
+      final var nbt = new net.minecraft.nbt.CompoundTag();
+      nbt.putInt(prefix + "remoteX", air.getX());
+      nbt.putInt(prefix + "remoteY", air.getY());
+      nbt.putInt(prefix + "remoteZ", air.getZ());
+      card.load(nbt, helper.getLevel().registryAccess());
+      li.cil.oc.api.Network.joinNewNetwork(card.node());
+      try {
+        final var saved = new net.minecraft.nbt.CompoundTag();
+        card.save(saved, helper.getLevel().registryAccess());
+        helper.assertTrue(!saved.contains(prefix + "remoteX"), "the debug card kept a remote place with no node: " + saved);
+      } finally {
+        card.node().remove();
+      }
+      helper.succeed();
+    });
+  }
+
+  /** The debugger, used on a simple component, connects to its node (it found none). */
+  @GameTest(template = EMPTY, timeoutTicks = 100)
+  public static void debuggersConnectToSimpleComponents(final GameTestHelper helper) {
+    final SimpleFurnace furnace = placeFurnace(helper, AT, null);
+    final BlockPos abs = helper.absolutePos(AT);
+    helper.runAfterDelay(3, () -> {
+      final var debugger = (li.cil.oc.core.impl.common.item.Debugger) li.cil.oc.neoforge.common.init.Items.DEBUGGER.get();
+      final FakePlayer player = new FakePlayer(helper.getLevel(), new GameProfile(UUID.randomUUID(), "oc-debugger"));
+      try {
+        asRealPlayer(li.cil.oc.core.impl.common.item.Debugger.class, player, () -> debugger.useOn(new net.minecraft.world.item.context.UseOnContext(player,
+          net.minecraft.world.InteractionHand.MAIN_HAND, new net.minecraft.world.phys.BlockHitResult(net.minecraft.world.phys.Vec3.atCenterOf(abs), Direction.UP, abs, false))));
+        final Node node = node(furnace);
+        helper.assertTrue(node != null && debugger.node() != null && debugger.node().isNeighborOf(node), "the debugger did not connect to the simple furnace's node");
+      } finally {
+        if (debugger.node() != null) debugger.node().remove();
       }
       helper.succeed();
     });

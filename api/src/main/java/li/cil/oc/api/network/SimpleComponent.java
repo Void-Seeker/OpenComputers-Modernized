@@ -18,7 +18,12 @@ package li.cil.oc.api.network;
  * when the block entity is removed or unloaded. A block entity that implements
  * {@link li.cil.oc.api.network.Environment} itself is treated as that instead.
  * Implement {@link li.cil.oc.api.network.SidedComponent} as well to connect on
- * some sides only. If things don't work, check your logs, first.
+ * some sides only. Public <code>onConnect(Node)</code>,
+ * <code>onDisconnect(Node)</code> and <code>onMessage(Message)</code> methods of
+ * the block entity are called as an Environment's would be. The node's host is
+ * the capability, not the block entity: to recognise the block entity's own
+ * node, compare with the capability's <code>node()</code>. If things don't
+ * work, check your logs, first.
  * <br>
  * To expose methods to OC, tag them with {@link li.cil.oc.api.machine.Callback}
  * and have them use the according signature (see the documentation on the

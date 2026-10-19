@@ -12,7 +12,6 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import java.util.ArrayList;
 import java.util.List;
 import li.cil.oc.api.network.Environment;
-import li.cil.oc.api.network.SidedEnvironment;
 import li.cil.oc.core.impl.OCSettings;
 import li.cil.oc.core.impl.common.blockentity.Cable;
 import li.cil.oc.core.impl.util.Color;
@@ -212,7 +211,7 @@ public class CablePartRenderer implements PartRenderer<CablePart> {
       BlockPos neighbor = pos.relative(side);
       if (!level.isLoaded(neighbor)) continue;
       BlockEntity neighborTE = level.getBlockEntity(neighbor);
-      if (isOCNeighbor(neighborTE)) {
+      if (isOCNeighbor(neighborTE, side.getOpposite())) {
         BlockEntity localTE = level.getBlockEntity(pos);
         if (localTE instanceof TileMultipart localTileMP) {
           if (!MultipartNetworkBridge.canConnectFromSide(localTileMP, side)) {
@@ -233,8 +232,9 @@ public class CablePartRenderer implements PartRenderer<CablePart> {
     return connections;
   }
 
-  private static boolean isOCNeighbor(BlockEntity te) {
-    if (te instanceof Environment || te instanceof SidedEnvironment) return true;
+  // as block cables (their shape, model and highlight): faces, robots, SimpleComponents; then multipart parts
+  private static boolean isOCNeighbor(BlockEntity te, Direction face) {
+    if (li.cil.oc.core.impl.common.block.Cable.hasNetworkNode(te, face)) return true;
     if (te instanceof TileMultipart tileMP) {
       for (MultiPart part : tileMP.getPartList()) {
         if (part instanceof Environment) return true;

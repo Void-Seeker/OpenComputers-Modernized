@@ -261,7 +261,9 @@ public abstract class DebugCardBase extends AbstractManagedEnvironment implement
       DebugNetwork.add(this);
       if (remoteNodePosition != null) {
         remoteNode = findNode(remoteNodePosition[0], remoteNodePosition[1], remoteNodePosition[2]);
-        this.node.connect(remoteNode);
+        // as OC: a place with no node any more is forgotten (connecting to none threw, and it was kept)
+        if (remoteNode != null) this.node.connect(remoteNode);
+        else remoteNodePosition = null;
       }
     }
   }
