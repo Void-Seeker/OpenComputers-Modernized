@@ -80,6 +80,12 @@ public class Screen extends BlockEntity implements TextBufferHost, SidedEnvironm
     super.initialize();
     if (isServer() && getLevel() != null) {
       EventHandlerDelegate.get().scheduleServer(this);
+      // in a chunk that does not tick, no tick reads its inputs once its display has formed: the check does it, right
+      // after the network join (else what came while it was away waited for an update next to it)
+      EventHandlerDelegate.get().scheduleServer(() -> {
+        var level = getLevel();
+        if (!isRemoved() && readInputsAfterMerge && level != null && !level.shouldTickBlocksAt(worldPosition)) checkRedstoneInputChanged();
+      });
     }
   }
 

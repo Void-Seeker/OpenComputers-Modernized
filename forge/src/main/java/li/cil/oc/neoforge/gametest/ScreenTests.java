@@ -553,6 +553,37 @@ public final class ScreenTests {
     });
   }
 
+  /** A far chunk kept loaded at the border (no ticking), with a spot in its middle; the ticket is removed by the cleanup. */
+  private static void inAChunkThatDoesNotTick(final GameTestHelper helper, final java.util.function.BiConsumer<BlockPos, Runnable> then) {
+    final var level = helper.getLevel();
+    final BlockPos far = new BlockPos(30000 + level.random.nextInt(64) * 16 + 8, 100, -30000 + 8); // its neighbours in its chunk
+    final var chunk = new net.minecraft.world.level.ChunkPos(far);
+    final var type = net.minecraft.server.level.TicketType.<net.minecraft.world.level.ChunkPos>create("oc_test_border",
+      java.util.Comparator.comparingLong(net.minecraft.world.level.ChunkPos::toLong));
+    level.getChunkSource().addRegionTicket(type, chunk, 0, chunk); // loaded, at the border: no ticking
+    final Runnable cleanup = () -> {
+      for (int dx = -2; dx <= 2; dx++) {
+        for (int dy = -1; dy <= 1; dy++) {
+          final BlockPos pos = far.offset(dx, dy, 0);
+          level.removeBlockEntity(pos);
+          level.setBlock(pos, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 2);
+        }
+      }
+      level.getChunkSource().removeRegionTicket(type, chunk, 0, chunk);
+    };
+    TestMachines.when(helper, () -> level.getChunkSource().getChunkNow(chunk.x, chunk.z) != null, 100, () -> {
+      boolean handedOver = false;
+      try {
+        helper.assertTrue(level.getChunkSource().getChunkNow(chunk.x, chunk.z) != null, "the far chunk did not load");
+        helper.assertTrue(!level.shouldTickBlocksAt(chunk.toLong()), "the far chunk ticks");
+        then.accept(far, cleanup);
+        handedOver = true;
+      } finally {
+        if (!handedOver) cleanup.run();
+      }
+    });
+  }
+
   /**
    * A screen in a chunk that is loaded but does not tick (beyond the simulation distance, around forced chunks) follows
    * redstone (it waited for a tick to form its display and read its inputs, which never came: redstone was ignored).
@@ -560,28 +591,64 @@ public final class ScreenTests {
   @GameTest(template = EMPTY, timeoutTicks = 200)
   public static void screenInAChunkThatDoesNotTickFollowsRedstone(final GameTestHelper helper) {
     final var level = helper.getLevel();
-    final BlockPos far = new BlockPos(30000 + level.random.nextInt(64) * 16 + 8, 100, -30000 + 8); // its neighbours in its chunk
-    final var chunk = new net.minecraft.world.level.ChunkPos(far);
-    final var type = net.minecraft.server.level.TicketType.<net.minecraft.world.level.ChunkPos>create("oc_test_border",
-      java.util.Comparator.comparingLong(net.minecraft.world.level.ChunkPos::toLong));
-    level.getChunkSource().addRegionTicket(type, chunk, 0, chunk); // loaded, at the border: no ticking
-    TestMachines.when(helper, () -> level.getChunkSource().getChunkNow(chunk.x, chunk.z) != null, 100, () -> {
-      helper.assertTrue(level.getChunkSource().getChunkNow(chunk.x, chunk.z) != null, "the far chunk did not load");
-      helper.assertTrue(!level.shouldTickBlocksAt(chunk.toLong()), "the far chunk ticks");
+    inAChunkThatDoesNotTick(helper, (far, cleanup) -> {
       level.setBlock(far, Blocks.SCREEN_TIER_1.get().defaultBlockState(), 3);
       final var screen = (li.cil.oc.core.impl.common.blockentity.Screen) level.getBlockEntity(far);
       helper.runAfterDelay(5, () -> { // initialize and the network join come from the scheduler, ticking or not
         try {
-          level.setBlock(far.east(), net.minecraft.world.level.block.Blocks.STONE.defaultBlockState(), 3); // a first reading
+          level.setBlock(far.east(), net.minecraft.world.level.block.Blocks.STONE.defaultBlockState(), 3);
           final boolean before = screen.buffer.getPowerState();
           level.setBlock(far.west(), net.minecraft.world.level.block.Blocks.REDSTONE_BLOCK.defaultBlockState(), 3);
           helper.assertTrue(screen.buffer.getPowerState() != before, "power next to a screen in a chunk that does not tick did not toggle it");
         } finally {
-          level.removeBlockEntity(far);
-          for (final BlockPos pos : List.of(far, far.east(), far.west())) level.setBlock(pos, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 3);
-          level.getChunkSource().removeRegionTicket(type, chunk, 0, chunk);
+          cleanup.run();
         }
         helper.succeed();
+      });
+    });
+  }
+
+  /**
+   * A display in a chunk that does not tick, back with power that came while it was away, toggles once without any
+   * update next to it (nothing read its inputs until something changed next to the powered screen).
+   */
+  @GameTest(template = EMPTY, timeoutTicks = 200)
+  public static void displayInAChunkThatDoesNotTickReloadsWithNewPower(final GameTestHelper helper) {
+    final var level = helper.getLevel();
+    inAChunkThatDoesNotTick(helper, (far, cleanup) -> {
+      final BlockPos posB = far.east();
+      level.setBlock(far, Blocks.SCREEN_TIER_1.get().defaultBlockState(), 3);
+      level.setBlock(posB, Blocks.SCREEN_TIER_1.get().defaultBlockState(), 3);
+      helper.runAfterDelay(10, () -> {
+        try {
+          final var a = (li.cil.oc.core.impl.common.blockentity.Screen) level.getBlockEntity(far);
+          final var b = (li.cil.oc.core.impl.common.blockentity.Screen) level.getBlockEntity(posB);
+          helper.assertTrue(a.screens.size() == 2, "the two screens did not form a display");
+          final boolean before = a.origin.buffer.getPowerState();
+          a.markUnloading();
+          b.markUnloading();
+          final var savedA = a.saveWithFullMetadata();
+          final var savedB = b.saveWithFullMetadata();
+          level.removeBlockEntity(far);
+          level.removeBlockEntity(posB);
+          level.setBlock(posB.below(), net.minecraft.world.level.block.Blocks.REDSTONE_BLOCK.defaultBlockState(), 2); // while away
+          final var la = (li.cil.oc.core.impl.common.blockentity.Screen) net.minecraft.world.level.block.entity.BlockEntity.loadStatic(far, level.getBlockState(far), savedA);
+          final var lb = (li.cil.oc.core.impl.common.blockentity.Screen) net.minecraft.world.level.block.entity.BlockEntity.loadStatic(posB, level.getBlockState(posB), savedB);
+          level.getChunkAt(far).addAndRegisterBlockEntity(la);
+          level.getChunkAt(posB).addAndRegisterBlockEntity(lb);
+          TestMachines.when(helper, () -> la.origin.buffer.getPowerState() != before, 40, () -> {
+            try {
+              helper.assertTrue(la.screens.size() == 2, "the display did not form again");
+              helper.assertTrue(la.origin.buffer.getPowerState() != before, "power that came while the display was away did not toggle it");
+            } finally {
+              cleanup.run();
+            }
+            helper.succeed();
+          });
+        } catch (RuntimeException e) {
+          cleanup.run();
+          throw e;
+        }
       });
     });
   }
