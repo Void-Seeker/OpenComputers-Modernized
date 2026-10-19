@@ -16,6 +16,18 @@ public class Cable extends li.cil.oc.core.impl.common.block.Cable {
   @Override
   public @NotNull VoxelShape getShape(@NotNull BlockState ignoredState, @NotNull BlockGetter getter, @NotNull BlockPos pos, @NotNull CollisionContext ignoredContext) {
     VoxelShape shape = CENTER;
+    final int connections = connections(getter, pos);
+    for (Direction side : Direction.values()) {
+      if ((connections & (1 << side.get3DDataValue())) != 0) shape = Shapes.joinUnoptimized(shape, armFor(side), BooleanOp.OR);
+    }
+    return shape;
+  }
+
+  /**
+   * The sides (bits by 3D data value) a cable at the place, a block or a multipart one, reaches to: its shape, model and
+   * highlight (the model and highlight had their own, without multipart neighbours, their colours and covers).
+   */
+  public static int connections(final BlockGetter getter, final BlockPos pos) {
     int selfColor;
     BlockEntity te = getter.getBlockEntity(pos);
     if (te instanceof li.cil.oc.core.impl.common.blockentity.Cable cable) {
@@ -23,6 +35,7 @@ public class Cable extends li.cil.oc.core.impl.common.block.Cable {
     } else {
       selfColor = li.cil.oc.neoforge.common.MultipartHooks.getCableColor(te);
     }
+    int connections = 0;
     for (Direction side : Direction.values()) {
       BlockPos neighborPos = pos.relative(side);
       BlockEntity neighbor = getter.getBlockEntity(neighborPos);
@@ -45,12 +58,10 @@ public class Cable extends li.cil.oc.core.impl.common.block.Cable {
       if (canConnect && li.cil.oc.neoforge.common.MultipartHooks.denyConnect(neighbor, side.getOpposite())) {
         canConnect = false;
       }
-      if (canConnect) {
-        if (selfColor == neighborColor || selfColor == Color.LightGray || neighborColor == Color.LightGray) {
-          shape = Shapes.joinUnoptimized(shape, armFor(side), BooleanOp.OR);
-        }
+      if (canConnect && (selfColor == neighborColor || selfColor == Color.LightGray || neighborColor == Color.LightGray)) {
+        connections |= 1 << side.get3DDataValue();
       }
     }
-    return shape;
+    return connections;
   }
 }

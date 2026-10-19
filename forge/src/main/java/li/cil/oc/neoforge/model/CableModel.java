@@ -192,26 +192,8 @@ public class CableModel implements IDynamicBakedModel {
   }
 
   public static int computeConnections(BlockAndTintGetter blockView, BlockPos pos) {
-    int selfColor = Color.LightGray;
-    var selfTe = blockView.getBlockEntity(pos);
-    if (selfTe instanceof Cable selfCable) {
-      selfColor = selfCable.color();
-    }
-    int connections = 0;
-    for (Direction side : Direction.values()) {
-      BlockPos neighbor = pos.relative(side);
-      BlockEntity neighborTE = blockView.getBlockEntity(neighbor);
-      if (isOCNeighbor(neighborTE, side.getOpposite())) {
-        int neighborColor = Color.LightGray;
-        if (neighborTE instanceof Cable nc) {
-          neighborColor = nc.color();
-        }
-        if (selfColor == neighborColor || selfColor == Color.LightGray || neighborColor == Color.LightGray) {
-          connections |= 1 << side.ordinal();
-        }
-      }
-    }
-    return connections;
+    // (bits by ordinal: the same order as the 3D data value)
+    return li.cil.oc.neoforge.common.block.Cable.connections(blockView, pos);
   }
 
   public static Set<Direction> computeCableNeighbors(BlockAndTintGetter blockView, BlockPos pos) {
@@ -223,10 +205,6 @@ public class CableModel implements IDynamicBakedModel {
       }
     }
     return neighbors;
-  }
-
-  private static boolean isOCNeighbor(BlockEntity te, Direction side) {
-    return li.cil.oc.core.impl.common.block.Cable.hasNetworkNode(te, side);
   }
 
   @Override

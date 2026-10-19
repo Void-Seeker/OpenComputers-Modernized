@@ -70,6 +70,9 @@ public final class SimpleComponentTests {
     public final List<Node> connected = new ArrayList<>();
     public final List<Node> disconnected = new ArrayList<>();
     public final List<String> messages = new ArrayList<>();
+    // its capability, kept, as the docs advise, to know its own node by
+    public li.cil.oc.api.capability.SimpleComponentProvider provider;
+    public int ownDisconnects;
 
     public SimpleFurnace(final BlockPos pos, final BlockState state) {
       super(pos, state);
@@ -108,6 +111,7 @@ public final class SimpleComponentTests {
 
     public void onDisconnect(final Node node) {
       disconnected.add(node);
+      if (provider != null && node == provider.node()) ownDisconnects++;
     }
 
     public void onMessage(final Message message) {
@@ -277,10 +281,13 @@ public final class SimpleComponentTests {
       final String address = node.address();
       final BlockPos abs = helper.absolutePos(AT.east());
       final var saved = furnace.saveWithFullMetadata();
+      furnace.provider = OCBlockCapabilities.SIMPLE_COMPONENT_PROVIDER.getCapability(furnace, null);
       helper.getLevel().removeBlockEntity(abs);
       helper.assertTrue(node.network() == null && network.network().node(address) == null, "the removed simple furnace's node stayed in the network");
       // (a removed node is told of its own removal; the others, of it)
       helper.assertTrue(furnace.disconnected.contains(node), "the removed simple furnace was told of disconnections from " + furnace.disconnected);
+      helper.assertTrue(furnace.ownDisconnects == 1, "the removed simple furnace knew its own node's removal " + furnace.ownDisconnects + " times (its capability's node() was none by then)");
+      helper.assertTrue(furnace.provider.node() == null, "the removed simple furnace's capability still has a node");
       final SimpleFurnace loaded = new SimpleFurnace(abs, helper.getLevel().getBlockState(abs));
       loaded.load(saved);
       helper.getLevel().getChunkAt(abs).addAndRegisterBlockEntity(loaded);

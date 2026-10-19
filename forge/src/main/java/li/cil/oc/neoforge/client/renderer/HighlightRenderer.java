@@ -185,32 +185,9 @@ public final class HighlightRenderer {
   private static final double CABLE_MAX = 0.625;
   private static final double CABLE_EXPAND = 0.002;
 
-  @SuppressWarnings("unused")
+  // a block or multipart cable's: as its shape and model
   private static int getCableConnections(net.minecraft.world.level.Level level, net.minecraft.core.BlockPos pos) {
-    int selfColor = li.cil.oc.core.impl.util.Color.LightGray;
-    var selfTe = level.getBlockEntity(pos);
-    if (selfTe instanceof Cable selfCable) {
-      selfColor = selfCable.color();
-    }
-    int mask = 0;
-    for (Direction side : Direction.values()) {
-      var neighborPos = pos.relative(side);
-      var neighbor = level.getBlockEntity(neighborPos);
-      if (neighbor != null && !(neighbor instanceof li.cil.oc.neoforge.common.blockentity.RobotProxy)) {
-        boolean hasNode = li.cil.oc.core.impl.common.block.Cable.hasNetworkNode(neighbor, side.getOpposite())
-          || li.cil.oc.neoforge.common.MultipartHooks.hasOCPart(neighbor);
-        if (hasNode) {
-          int neighborColor = li.cil.oc.core.impl.util.Color.LightGray;
-          if (neighbor instanceof Cable nc) {
-            neighborColor = nc.color();
-          }
-          if (selfColor == neighborColor || selfColor == li.cil.oc.core.impl.util.Color.LightGray || neighborColor == li.cil.oc.core.impl.util.Color.LightGray) {
-            mask |= (1 << side.get3DDataValue());
-          }
-        }
-      }
-    }
-    return mask;
+    return li.cil.oc.neoforge.common.block.Cable.connections(level, pos);
   }
 
   @SuppressWarnings("unused")

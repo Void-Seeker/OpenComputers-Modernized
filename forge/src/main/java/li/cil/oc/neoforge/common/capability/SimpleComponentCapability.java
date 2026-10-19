@@ -182,9 +182,17 @@ public final class SimpleComponentCapability implements SimpleComponentProvider,
       self.invalidate();
       old = node;
       if (old != null) savedNode = save(old);
-      node = null;
     }
-    if (old != null) old.remove();
+    if (old != null) {
+      // node() is the node until its removal is through, as in OC 1.12: the block entity, told of it, knows it as its own
+      try {
+        old.remove();
+      } finally {
+        synchronized (this) {
+          if (node == old) node = null;
+        }
+      }
+    }
   }
 
   private static CompoundTag save(final Node node) {
@@ -201,7 +209,8 @@ public final class SimpleComponentCapability implements SimpleComponentProvider,
     final Node current;
     final Node old;
     synchronized (this) {
-      if (removed) return null;
+      // (the node while it is being removed, then none)
+      if (removed) return node;
       if (Strings.isNullOrEmpty(name)) {
         // no valid component right now: the node goes (as in OC 1.12), its address kept for when it comes back
         current = null;

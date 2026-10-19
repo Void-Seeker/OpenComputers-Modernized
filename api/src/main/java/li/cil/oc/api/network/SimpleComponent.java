@@ -22,8 +22,10 @@ package li.cil.oc.api.network;
  * <code>onDisconnect(Node)</code> and <code>onMessage(Message)</code> methods of
  * the block entity are called as an Environment's would be. The node's host is
  * the capability, not the block entity: to recognise the block entity's own
- * node, compare with the capability's <code>node()</code>. If things don't
- * work, check your logs, first.
+ * node, compare with the capability's <code>node()</code> (keep the
+ * capability: it is no longer offered once the block entity is removed, while
+ * its <code>node()</code> is the node until the removal is through). If things
+ * don't work, check your logs, first.
  * <br>
  * To expose methods to OC, tag them with {@link li.cil.oc.api.machine.Callback}
  * and have them use the according signature (see the documentation on the
