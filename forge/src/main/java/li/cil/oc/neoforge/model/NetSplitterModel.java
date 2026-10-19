@@ -74,6 +74,7 @@ public class NetSplitterModel implements IDynamicBakedModel {
 
   @Override
   public @NotNull List<BakedQuad> getQuads(@Nullable BlockState state, @Nullable Direction side, @NotNull RandomSource rand, @NotNull ModelData extraData, @Nullable RenderType renderType) {
+    if (side != null) return List.of(); // (unculled: once, not once per face asked about as well)
     Byte openSidesRaw = extraData.get(OPEN_SIDES);
     boolean[] openSides;
     if (openSidesRaw != null) {
@@ -233,6 +234,7 @@ public class NetSplitterModel implements IDynamicBakedModel {
   private static class ItemModel implements IDynamicBakedModel {
     @Override
     public @NotNull List<BakedQuad> getQuads(@Nullable BlockState state, @Nullable Direction side, @NotNull RandomSource rand, @NotNull ModelData extraData, @Nullable RenderType renderType) {
+      if (side != null) return List.of(); // (unculled: once, not once per face asked about as well)
       List<BakedQuad> quads = new ArrayList<>();
       addBaseQuads(quads);
       addSideQuads(quads, new boolean[]{false, false, false, false, false, false});

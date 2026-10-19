@@ -704,6 +704,8 @@ public final class SimpleComponentTests {
     helper.assertTrue((connections & (1 << Direction.EAST.get3DDataValue())) == 0 && bounds.maxX < 1, "a red cable reaches to a blue one: " + bounds);
     helper.assertTrue((connections & (1 << Direction.WEST.get3DDataValue())) != 0 && bounds.minX == 0, "a red cable does not reach to a light gray one: " + bounds);
     helper.assertTrue((connections & (1 << Direction.NORTH.get3DDataValue())) != 0 && bounds.minZ == 0, "a red cable does not reach to a red one: " + bounds);
+    final int fromGray = li.cil.oc.neoforge.common.block.Cable.connections(helper.getLevel(), helper.absolutePos(AT.west()));
+    helper.assertTrue((fromGray & (1 << Direction.EAST.get3DDataValue())) != 0, "a light gray cable does not reach to a red one");
     helper.succeed();
   }
 

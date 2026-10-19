@@ -73,7 +73,8 @@ public class RackModel implements IDynamicBakedModel {
       quads.addAll(originalModel.getQuads(state, side, rand, extraData, renderType));
     }
 
-    ResourceLocation[] slotTextures = extraData.get(SLOT_TEXTURES);
+    // the mountables' faces once, with the unculled quads (they were added for each face asked about as well)
+    ResourceLocation[] slotTextures = side == null ? extraData.get(SLOT_TEXTURES) : null;
     if (slotTextures != null && state != null) {
       BlockModelRotation modelRotation = getRotation(state);
       for (int i = 0; i < 4; i++) {

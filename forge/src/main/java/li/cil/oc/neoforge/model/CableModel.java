@@ -82,6 +82,9 @@ public class CableModel implements IDynamicBakedModel {
 
   @Override
   public @NotNull List<BakedQuad> getQuads(@Nullable BlockState state, @Nullable Direction side, @NotNull RandomSource rand, @NotNull ModelData extraData, @Nullable RenderType renderType) {
+    // all of it once, as unculled quads (it was given for each face asked about too: up to seven times over, as the
+    // drone and robot models had been)
+    if (side != null) return List.of();
     List<BakedQuad> quads = new ArrayList<>();
 
     if (state != null) {

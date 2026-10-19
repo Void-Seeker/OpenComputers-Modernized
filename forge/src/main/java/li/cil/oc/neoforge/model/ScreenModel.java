@@ -47,6 +47,7 @@ public class ScreenModel implements IDynamicBakedModel {
 
   @Override
   public @NotNull List<BakedQuad> getQuads(@Nullable BlockState state, @Nullable Direction side, @NotNull RandomSource rand, @NotNull ModelData data, @Nullable RenderType renderType) {
+    if (side != null) return List.of(); // (unculled: once, not once per face asked about as well)
     List<BakedQuad> quads = new ArrayList<>();
 
     var frontSprite = sprite("opencomputers", "block/screen/f");

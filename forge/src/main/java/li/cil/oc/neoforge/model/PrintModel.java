@@ -72,6 +72,7 @@ public class PrintModel implements IDynamicBakedModel {
 
   @Override
   public @NotNull List<BakedQuad> getQuads(@Nullable BlockState state, @Nullable Direction side, @NotNull RandomSource rand, @NotNull ModelData extraData, @Nullable RenderType renderType) {
+    if (side != null) return List.of(); // (unculled: once, not once per face asked about as well)
     PrintData data = extraData.get(li.cil.oc.neoforge.common.blockentity.PrintNeoForge.PRINT_DATA);
     if (data != null && !(data.stateOff.isEmpty() && data.stateOn.isEmpty())) {
       Direction facing = extraData.get(li.cil.oc.neoforge.common.blockentity.PrintNeoForge.FACING);
@@ -199,6 +200,7 @@ public class PrintModel implements IDynamicBakedModel {
 
     @Override
     public @NotNull List<BakedQuad> getQuads(@Nullable BlockState state, @Nullable Direction side, @NotNull RandomSource rand, @NotNull ModelData extraData, @Nullable RenderType renderType) {
+      if (side != null) return List.of(); // (unculled: once, not once per face asked about as well)
       var shapes = data.hasActiveState() && li.cil.oc.neoforge.client.KeyBindings.showExtendedTooltips() ? data.stateOn : data.stateOff;
       List<BakedQuad> quads = new ArrayList<>();
       if (shapes.isEmpty()) {
