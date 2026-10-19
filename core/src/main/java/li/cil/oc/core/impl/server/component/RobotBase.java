@@ -119,6 +119,11 @@ public abstract class RobotBase extends AgentBase implements DeviceInfo {
     if (isAnimatingMove()) {
       return ResultWrapper.result(null, "already moving");
     }
+    // not into a chunk still loading: reading what is there waited for it, the server thread with it
+    var target = BlockPosition.apply(agent()).offset(direction).toBlockPos();
+    if (!li.cil.oc.core.impl.util.LoadedChunks.isReady(agent().level(), target)) {
+      return ResultWrapper.result(null, "impossible move");
+    }
     Object[] bc = blockContent(direction);
     if ((Boolean) bc[0]) {
       context.pause(0.4);

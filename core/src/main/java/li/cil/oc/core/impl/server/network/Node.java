@@ -71,7 +71,7 @@ public interface Node extends li.cil.oc.api.network.Node {
     try {
       host().onConnect(node);
     } catch (Throwable e) {
-      LOGGER.warn("Component '{}' threw error on connect.", host().getClass().getName(), e);
+      LOGGER.warn("Component '{}' threw error on connect.", host() == null ? "(no host)" : host().getClass().getName(), e);
     }
   }
 
@@ -79,7 +79,7 @@ public interface Node extends li.cil.oc.api.network.Node {
     try {
       host().onDisconnect(node);
     } catch (Throwable e) {
-      LOGGER.warn("Component '{}' threw error on disconnect.", host().getClass().getName(), e);
+      LOGGER.warn("Component '{}' threw error on disconnect.", host() == null ? "(no host)" : host().getClass().getName(), e);
     }
   }
 
