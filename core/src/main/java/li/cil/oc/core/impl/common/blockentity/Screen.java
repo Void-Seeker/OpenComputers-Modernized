@@ -267,7 +267,10 @@ public class Screen extends BlockEntity implements TextBufferHost, SidedEnvironm
     origin = this;
     screens.clear();
     screens.add(this);
+    boolean had = hadRedstoneInput;
     hadRedstoneInput = maxInput() > 0;
+    // saved (deferred: this runs in a partner's dispose too, after a chunk's save)
+    if (had != hadRedstoneInput && isServer()) markChanged();
     cachedBounds = null;
     invertTouchMode = false;
   }

@@ -452,4 +452,31 @@ public final class ScreenTests {
       });
     });
   }
+
+  /** A screen left on its own (its display split) marks its new redstone flag to be saved (it changed only in memory). */
+  @GameTest(template = EMPTY, timeoutTicks = 100)
+  public static void splitScreenSavesItsRedstoneFlag(final GameTestHelper helper) {
+    helper.setBlock(AT, Blocks.SCREEN_TIER_1.get());
+    helper.setBlock(AT.east(), Blocks.SCREEN_TIER_1.get());
+    helper.setBlock(AT.east().below(), net.minecraft.world.level.block.Blocks.REDSTONE_BLOCK);
+    helper.runAfterDelay(10, () -> {
+      final var a = (li.cil.oc.core.impl.common.blockentity.Screen) helper.getBlockEntity(AT);
+      helper.assertTrue(a.screens.size() == 2 && a.origin.hadRedstoneInput, "the powered display did not form");
+      final boolean wasOrigin = a.origin == a;
+      final java.util.concurrent.atomic.AtomicBoolean mark;
+      try {
+        final var field = li.cil.oc.core.impl.common.blockentity.traits.BlockEntity.class.getDeclaredField("changeScheduled");
+        field.setAccessible(true);
+        mark = (java.util.concurrent.atomic.AtomicBoolean) field.get(a);
+      } catch (ReflectiveOperationException e) {
+        throw new RuntimeException(e);
+      }
+      a.hadRedstoneInput = true; // as the display's flag (it is a's when a is the origin)
+      mark.set(false);
+      a.checkMultiBlock(); // what its partner's removal does
+      helper.assertTrue(!a.hadRedstoneInput, "a screen without input of its own kept the display's flag");
+      helper.assertTrue(mark.get(), "the changed flag was not marked to be saved (origin before: " + wasOrigin + ")");
+      helper.succeed();
+    });
+  }
 }
