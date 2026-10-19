@@ -215,6 +215,13 @@ public class Redstone extends BlockEntity implements Environment, BundledRedston
     return _output[toLocal(side).ordinal()];
   }
 
+  // what a computer set is saved (it changed nothing else here, often in another chunk than the computer's)
+  @Override
+  public void onRedstoneOutputChanged(Direction side) {
+    BundledRedstoneAware.super.onRedstoneOutputChanged(side);
+    markChanged();
+  }
+
   @Override
   public void setOutput(Direction side, int value) {
     var ord = toLocal(side).ordinal();

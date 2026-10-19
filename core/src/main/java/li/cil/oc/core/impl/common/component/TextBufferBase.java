@@ -201,6 +201,7 @@ public abstract class TextBufferBase extends AbstractManagedEnvironment implemen
     if (maxDepth == OCSettings.screenDepthsByTier[li.cil.oc.core.common.Tier.Three].ordinal()) {
       boolean old = precisionMode;
       precisionMode = args.checkBoolean(0);
+      if (old != precisionMode && host() != null) host().markChanged();
       return ResultWrapper.result(old);
     }
     return ResultWrapper.result(null, "unsupported operation");
@@ -231,6 +232,8 @@ public abstract class TextBufferBase extends AbstractManagedEnvironment implemen
         hasPower = ((Connector) node).changeBuffer(-needed) == 0;
       }
       sendPowerChange(node.address(), isDisplaying && hasPower);
+      // saved (a screen turned off by a computer elsewhere, or by a button, came back on)
+      if (!SideTracker.isClient() && host() != null) host().markChanged();
     }
   }
 

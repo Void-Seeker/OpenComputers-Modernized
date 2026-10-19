@@ -64,6 +64,7 @@ public class UpgradeTank extends UpgradeTankBase implements FluidTank {
         fluid = fluid.copyWithAmount(fluid.amount() + amount);
       }
       node.sendToVisible("computer.signal", "tank_changed", tankIndex(), amount);
+      if (owner != null) owner.markChanged(); // (a stopped robot filled by pipes lost it)
     }
     return amount;
   }
@@ -76,6 +77,7 @@ public class UpgradeTank extends UpgradeTankBase implements FluidTank {
       int newAmount = fluid.amount() - drained;
       fluid = newAmount > 0 ? fluid.copyWithAmount(newAmount) : FluidStack.EMPTY;
       node.sendToVisible("computer.signal", "tank_changed", tankIndex(), -drained);
+      if (owner != null) owner.markChanged();
     }
     return result;
   }

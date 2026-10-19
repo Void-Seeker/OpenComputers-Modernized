@@ -166,6 +166,7 @@ public class Printer extends BlockEntity implements li.cil.oc.api.network.Enviro
   @SuppressWarnings("SameReturnValue")
   @Callback(doc = "function() -- Resets the configuration of the printer and stop printing (current job will finish).")
   public Object[] reset(Context context, Arguments args) {
+    markChanged(); // the job is saved
     data = new PrintData();
     isActive = false;
     return null;
@@ -174,6 +175,7 @@ public class Printer extends BlockEntity implements li.cil.oc.api.network.Enviro
   @SuppressWarnings("SameReturnValue")
   @Callback(doc = "function(value:string) -- Set a label for the block being printed.")
   public Object[] setLabel(Context context, Arguments args) {
+    markChanged(); // the job is saved
     var label = args.optString(0, null);
     data.label = label != null ? label.substring(0, Math.min(24, label.length())) : null;
     if (data.label != null && data.label.isEmpty()) data.label = null;
@@ -189,6 +191,7 @@ public class Printer extends BlockEntity implements li.cil.oc.api.network.Enviro
   @SuppressWarnings("SameReturnValue")
   @Callback(doc = "function(value:string) -- Set a tooltip for the block being printed.")
   public Object[] setTooltip(Context context, Arguments args) {
+    markChanged(); // the job is saved
     var tooltip = args.optString(0, null);
     data.tooltip = tooltip != null ? tooltip.substring(0, Math.min(128, tooltip.length())) : null;
     if (data.tooltip != null && data.tooltip.isEmpty()) data.tooltip = null;
@@ -204,6 +207,7 @@ public class Printer extends BlockEntity implements li.cil.oc.api.network.Enviro
   @SuppressWarnings("SameReturnValue")
   @Callback(doc = "function(value:number) -- Set what light level the printed block should have.")
   public Object[] setLightLevel(Context context, Arguments args) {
+    markChanged(); // the job is saved
     data.lightLevel = MathCompat.clamp(args.checkInteger(0), 0, OCSettings.get().maxPrintLightLevel);
     isActive = false;
     return null;
@@ -217,6 +221,7 @@ public class Printer extends BlockEntity implements li.cil.oc.api.network.Enviro
   @SuppressWarnings("SameReturnValue")
   @Callback(doc = "function(value:boolean or number) -- Set whether the printed block should emit redstone when in its active state.")
   public Object[] setRedstoneEmitter(Context context, Arguments args) {
+    markChanged(); // the job is saved
     if (args.isBoolean(0)) data.redstoneLevel = args.checkBoolean(0) ? 15 : 0;
     else data.redstoneLevel = MathCompat.clamp(args.checkInteger(0), 0, 15);
     isActive = false;
@@ -231,6 +236,7 @@ public class Printer extends BlockEntity implements li.cil.oc.api.network.Enviro
   @SuppressWarnings("SameReturnValue")
   @Callback(doc = "function(value:boolean) -- Set whether the printed block should automatically return to its off state.")
   public Object[] setButtonMode(Context context, Arguments args) {
+    markChanged(); // the job is saved
     data.isButtonMode = args.checkBoolean(0);
     isActive = false;
     return null;
@@ -244,6 +250,7 @@ public class Printer extends BlockEntity implements li.cil.oc.api.network.Enviro
   @SuppressWarnings("SameReturnValue")
   @Callback(doc = "function(collideOff:boolean, collideOn:boolean) -- Set whether the printed block should be collidable or not.")
   public Object[] setCollidable(Context context, Arguments args) {
+    markChanged(); // the job is saved
     data.noclipOff = !args.checkBoolean(0);
     data.noclipOn = !args.checkBoolean(1);
     return null;
@@ -256,6 +263,7 @@ public class Printer extends BlockEntity implements li.cil.oc.api.network.Enviro
 
   @Callback(doc = "function(minX:number, minY:number, minZ:number, maxX:number, maxY:number, maxZ:number, texture:string[, state:boolean=false][,tint:number]) -- Adds a shape to the printers configuration, optionally specifying whether it is for the off or on state.")
   public Object[] addShape(Context context, Arguments args) {
+    markChanged(); // the job is saved
     if (data.stateOff.size() >= OCSettings.get().maxPrintComplexity || data.stateOn.size() >= OCSettings.get().maxPrintComplexity) {
       return result(null, "model too complex");
     }
@@ -299,6 +307,7 @@ public class Printer extends BlockEntity implements li.cil.oc.api.network.Enviro
 
   @Callback(doc = "function([count:number]):boolean -- Commit and begin printing the current configuration.")
   public Object[] commit(Context context, Arguments args) {
+    markChanged(); // the job is saved
     if (!canPrint()) return result(null, "model invalid");
     limit = (int) MathCompat.clamp(args.optDouble(0, 1), 0, Integer.MAX_VALUE);
     isActive = limit > 0;
@@ -332,6 +341,7 @@ public class Printer extends BlockEntity implements li.cil.oc.api.network.Enviro
           limit -= 1;
           output = data.createItemStack();
           if (limit < 1) isActive = false;
+          setChanged(); // the material taken and the print begun
           PacketSender.sendPrinting(this, true);
         }
       } else {

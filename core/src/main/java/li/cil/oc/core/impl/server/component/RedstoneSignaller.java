@@ -47,6 +47,8 @@ public abstract class RedstoneSignaller extends AbstractManagedEnvironment {
   public Object[] setWakeThreshold(Context context, Arguments args) {
     int oldThreshold = wakeThreshold;
     wakeThreshold = args.checkInteger(0);
+    // saved by its host (a Redstone I/O block in another chunk than the computer lost it: the computer never woke)
+    if (wakeThreshold != oldThreshold && this instanceof RedstoneVanilla vanilla && vanilla.redstone() != null) vanilla.redstone().markChanged();
     return ResultWrapper.result((double) oldThreshold);
   }
 

@@ -277,11 +277,16 @@ public final class EventHandler {
         // Block entities dispose themselves when the chunk removes them, after it has been saved; their machines
         // (a rack's servers too) close then. Nothing may stop here: Forge posts this event before the chunk is saved,
         // and racked servers were saved stopped (they came back off after every unload).
+        boolean ours = false;
         for (var be : levelChunk.getBlockEntities().values()) {
           if (be instanceof li.cil.oc.core.impl.common.blockentity.traits.BlockEntity te) {
             te.markUnloading();
+            ours = true;
           }
         }
+        // saved as OC 1.12 saved every chunk it unloaded: much of OC's state changes without a mark (stored energy,
+        // progress, what a remote computer set), and 1.20.1 saves only marked chunks (the save follows this event)
+        if (ours) levelChunk.setUnsaved(true);
       }
     } else {
       var chunk = e.getChunk();

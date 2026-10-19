@@ -386,12 +386,14 @@ public class Charger extends BlockEntity implements li.cil.oc.api.network.Enviro
     return Math.max(_input[side.ordinal()], 0);
   }
 
-  private void chargeStack(ItemStack stack, double charge) {
+  private boolean chargeStack(ItemStack stack, double charge) {
     if (stack != null && charge > 0) {
       double offered = charge + ((li.cil.oc.api.network.Connector) node).changeBuffer(-charge);
       double surplus = ItemCharge.charge(stack, offered);
       ((li.cil.oc.api.network.Connector) node).changeBuffer(surplus);
+      return surplus < offered;
     }
+    return false;
   }
 
   @Override
@@ -437,7 +439,9 @@ public class Charger extends BlockEntity implements li.cil.oc.api.network.Enviro
       charge = OCSettings.get().chargeRateTablet * chargeSpeed * OCSettings.get().tickFrequency;
       canCharge = canCharge || (charge > 0 && ((li.cil.oc.api.network.Connector) node).globalBuffer() >= charge * 0.5);
       if (canCharge) {
-        for (int i = 0; i < getContainerSize(); i++) chargeStack(getItem(i), charge);
+        boolean charged = false;
+        for (int i = 0; i < getContainerSize(); i++) charged |= chargeStack(getItem(i), charge);
+        if (charged) setChanged(); // the charge is in the items here (a tablet came back as empty as it was put in)
       }
       canCharge = canCharge || (charge > 0 && ((li.cil.oc.api.network.Connector) node).globalBuffer() >= charge * 0.5);
       if (canCharge) {

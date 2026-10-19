@@ -563,6 +563,7 @@ public class Screen extends BlockEntity implements TextBufferHost, SidedEnvironm
     boolean hasRedstoneInput = screens.stream().mapToInt(Screen::maxInput).max().orElse(0) > 0;
     if (hasRedstoneInput != hadRedstoneInput) {
       hadRedstoneInput = hasRedstoneInput;
+      setChanged();
       if (hasRedstoneInput) origin.buffer.setPowerState(!origin.buffer.getPowerState());
     }
   }
