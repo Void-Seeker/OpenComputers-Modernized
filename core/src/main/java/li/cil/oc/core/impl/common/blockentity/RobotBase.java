@@ -266,7 +266,7 @@ public abstract class RobotBase extends BlockEntity implements li.cil.oc.core.im
     if (world == null) return false;
     var bp = worldPosition;
     var newPos = bp.relative(direction);
-    if (!world.hasChunk(newPos.getX() >> 4, newPos.getZ() >> 4)) return false;
+    if (!li.cil.oc.core.impl.util.LoadedChunks.isReady(world, newPos)) return false; // (not one still loading: it waited)
 
     if (isServer()) {
       var delegate = EventHandlerDelegate.get();

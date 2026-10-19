@@ -138,4 +138,36 @@ public final class NetworkTests {
       helper.succeed();
     });
   }
+
+  /**
+   * A block entity that is a simple component (another mod's API block) joins its network itself, placed next to a cable
+   * that has joined already (only a neighbour's join looking at it did: it never connected).
+   */
+  @GameTest(template = EMPTY, timeoutTicks = 100)
+  public static void simpleComponentJoinsItself(final GameTestHelper helper) {
+    final class SimpleFurnace extends net.minecraft.world.level.block.entity.FurnaceBlockEntity implements li.cil.oc.api.network.SimpleComponent {
+      SimpleFurnace(final BlockPos pos, final net.minecraft.world.level.block.state.BlockState state) {
+        super(pos, state);
+      }
+
+      @Override
+      public String getComponentName() {
+        return "test_simple";
+      }
+    }
+    helper.setBlock(AT, Blocks.CABLE.get());
+    helper.setBlock(AT.east(), net.minecraft.world.level.block.Blocks.FURNACE);
+    helper.runAfterDelay(5, () -> {
+      final var cable = (li.cil.oc.api.network.Environment) helper.getBlockEntity(AT);
+      final BlockPos abs = helper.absolutePos(AT.east());
+      final var simple = new SimpleFurnace(abs, helper.getLevel().getBlockState(abs));
+      helper.getLevel().setBlockEntity(simple);
+      helper.runAfterDelay(3, () -> {
+        final var node = li.cil.oc.neoforge.common.asm.template.StaticSimpleEnvironment.node(simple, simple);
+        helper.assertTrue(node != null && node.network() != null && node.network() == cable.node().network(),
+          "the simple component did not join the cable's network: " + (node == null ? null : node.network()));
+        helper.succeed();
+      });
+    });
+  }
 }

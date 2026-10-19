@@ -568,7 +568,7 @@ public final class ScreenTests {
           for (int dz = -1; dz <= 3; dz++) {
           final BlockPos pos = far.offset(dx, dy, dz);
           level.removeBlockEntity(pos);
-          level.setBlock(pos, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 2 | 16); // (no updates into the next chunk)
+          level.setBlock(pos, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 2 | 16 | 64); // (no updates into the next chunk)
           }
         }
       }

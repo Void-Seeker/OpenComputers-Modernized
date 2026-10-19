@@ -32,16 +32,29 @@ public final class BundledRedstone {
     // it. One in a chunk not loaded yet was loaded there and then, the server thread waiting, beyond the loaded area.
     // Other blocks (levers, torches, redstone blocks) give their own: no more chunks for them.
     var state = level.getBlockState(beyond);
-    if (state.isRedstoneConductor(level, beyond)) {
+    if (weakPower.check(state, level, beyond, side)) {
       for (Direction around : Direction.Plane.HORIZONTAL) {
         var next = beyond.relative(around);
         if (!li.cil.oc.core.impl.util.LoadedChunks.isReady(level, next)) return false;
-        if (level.getBlockState(next).is(net.minecraft.world.level.block.Blocks.REDSTONE_WIRE) && !aroundReady(level, next)) return false;
+        if (poweredWire(level.getBlockState(next)) && !aroundReady(level, next)) return false;
       }
-    } else if (state.is(net.minecraft.world.level.block.Blocks.REDSTONE_WIRE)) {
+    } else if (poweredWire(state)) {
       return aroundReady(level, beyond);
     }
     return true;
+  }
+
+  /** Whether a block's signal is read from its neighbours (Forge's shouldCheckWeakPower, set by the platform). */
+  public interface WeakPower {
+    boolean check(net.minecraft.world.level.block.state.BlockState state, net.minecraft.world.level.Level level, net.minecraft.core.BlockPos pos, Direction side);
+  }
+
+  public static WeakPower weakPower = (state, level, pos, side) -> state.isRedstoneConductor(level, pos);
+
+  // dust, modded too, that reads what is around it (unpowered, its signal is 0 before that)
+  private static boolean poweredWire(net.minecraft.world.level.block.state.BlockState state) {
+    return state.getBlock() instanceof net.minecraft.world.level.block.RedStoneWireBlock
+      && (!state.hasProperty(net.minecraft.world.level.block.RedStoneWireBlock.POWER) || state.getValue(net.minecraft.world.level.block.RedStoneWireBlock.POWER) > 0);
   }
 
   private static boolean aroundReady(net.minecraft.world.level.Level level, net.minecraft.core.BlockPos pos) {

@@ -90,6 +90,11 @@ public final class CapabilityRegistrar {
 
   public void onAttachBlockEntity(final AttachCapabilitiesEvent<BlockEntity> event) {
     final BlockEntity blockEntity = event.getObject();
+    // a simple component joins its network itself (only a neighbour's join looking at it did: one placed next to a
+    // joined cable, or whose chunk came in after its neighbour's, never connected)
+    if (blockEntity instanceof li.cil.oc.api.network.SimpleComponent) {
+      li.cil.oc.neoforge.common.asm.SimpleComponentTickHandler.schedule(blockEntity);
+    }
     final List<BlockRegistration<?>> byBlock = blockRegistrations.get(blockEntity.getBlockState().getBlock());
     final List<BlockRegistration<?>> byType = blockEntityTypeRegistrations.get(blockEntity.getType());
     if (byBlock != null || byType != null) {

@@ -140,6 +140,7 @@ public final class OpenComputers {
     li.cil.oc.core.impl.common.PacketSender.setInstance(new li.cil.oc.neoforge.server.PacketSender());
 
     li.cil.oc.core.impl.server.network.Network.cbMultipartAvailable = Mods.CBMultipart.isAvailable();
+    li.cil.oc.core.impl.integration.util.BundledRedstone.weakPower = (state, level, pos, side) -> state.shouldCheckWeakPower(level, pos, side);
     li.cil.oc.core.impl.server.network.Network.simpleComponentHandler = (be) -> {
       var level = be.getLevel();
       if (level != null) {
