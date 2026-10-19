@@ -55,4 +55,45 @@ public final class AppliedEnergisticsTests {
       helper.succeed();
     });
   }
+
+  private static String compoundAddress(final li.cil.oc.core.impl.common.blockentity.Adapter adapter) {
+    for (final var node : adapter.node().reachableNodes()) {
+      if (node.host() instanceof li.cil.oc.core.impl.server.driver.CompoundBlockEnvironment) return node.address();
+    }
+    return null;
+  }
+
+  /**
+   * A cable bus part swapped for another is a device of its own, whether swapped at once or through an empty face (the
+   * same block id: the export bus took over the interface's address, and programs got "no such method").
+   */
+  @GameTest(template = EMPTY, timeoutTicks = 100)
+  public static void adapterGivesASwappedPartItsOwnAddress(final GameTestHelper helper) {
+    final BlockPos cable = new BlockPos(2, 2, 2);
+    final BlockPos adapterPos = cable.west();
+    final BlockPos abs = helper.absolutePos(cable);
+    final var iface = (appeng.api.parts.IPartItem<?>) ForgeRegistries.ITEMS.getValue(new ResourceLocation("ae2", "cable_interface"));
+    final var export = ForgeRegistries.ITEMS.getValue(new ResourceLocation("ae2", "export_bus"));
+    helper.assertTrue(export instanceof appeng.api.parts.IPartItem<?>, "AE2's export bus is not here: " + export);
+    helper.assertTrue(appeng.api.parts.PartHelper.setPart(helper.getLevel(), abs, Direction.WEST, null, iface) != null, "the interface part could not be placed");
+    helper.setBlock(adapterPos, Blocks.ADAPTER.get());
+    helper.runAfterDelay(5, () -> {
+      final var adapter = (li.cil.oc.core.impl.common.blockentity.Adapter) helper.getBlockEntity(adapterPos);
+      adapter.neighborChanged(Direction.EAST);
+      final String first = compoundAddress(adapter);
+      final var host = appeng.api.parts.PartHelper.getPartHost(helper.getLevel(), abs);
+      host.removePartFromSide(Direction.WEST);
+      appeng.api.parts.PartHelper.setPart(helper.getLevel(), abs, Direction.WEST, null, (appeng.api.parts.IPartItem<?>) export);
+      adapter.neighborChanged(Direction.EAST);
+      final String swapped = compoundAddress(adapter);
+      host.removePartFromSide(Direction.WEST);
+      adapter.neighborChanged(Direction.EAST);
+      appeng.api.parts.PartHelper.setPart(helper.getLevel(), abs, Direction.WEST, null, iface);
+      adapter.neighborChanged(Direction.EAST);
+      final String back = compoundAddress(adapter);
+      helper.assertTrue(first != null && swapped != null && !swapped.equals(first), "an export bus swapped in for the interface got its address " + swapped);
+      helper.assertTrue(back != null && !back.equals(swapped), "an interface put back where the export bus was got the bus's address " + back);
+      helper.succeed();
+    });
+  }
 }

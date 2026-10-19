@@ -253,6 +253,14 @@ public final class IntegrationTests {
     helper.succeed();
   }
 
+  /** How many drivers make up the adapter's block (to know the test driver came along). */
+  private static int blockDrivers(final li.cil.oc.core.impl.common.blockentity.Adapter adapter) {
+    for (final var node : adapter.node().reachableNodes()) {
+      if (node.host() instanceof li.cil.oc.core.impl.server.driver.CompoundBlockEnvironment compound) return compound.environments().length;
+    }
+    return 0;
+  }
+
   private static String blockAddress(final li.cil.oc.core.impl.common.blockentity.Adapter adapter) {
     for (final var node : adapter.node().reachableNodes()) {
       if (node.host() instanceof li.cil.oc.core.impl.server.driver.CompoundBlockEnvironment) return node.address();
@@ -322,11 +330,17 @@ public final class IntegrationTests {
       adapter.neighborChanged(Direction.EAST);
       final String again = blockAddress(adapter);
       replace.run();
+      final String otherDrivers;
+      final int drivers;
       SECOND_DRIVER_AT.add(deviceAbs);
-      placeWithCapability(helper, device, provider, "test_energy_any");
-      adapter.neighborChanged(Direction.EAST);
-      final String otherDrivers = blockAddress(adapter);
-      SECOND_DRIVER_AT.remove(deviceAbs);
+      try {
+        placeWithCapability(helper, device, provider, "test_energy_any");
+        adapter.neighborChanged(Direction.EAST);
+        otherDrivers = blockAddress(adapter);
+        drivers = blockDrivers(adapter);
+      } finally {
+        SECOND_DRIVER_AT.remove(deviceAbs);
+      }
       replace.run();
       helper.setBlock(device, net.minecraft.world.level.block.Blocks.FURNACE);
       adapter.neighborChanged(Direction.EAST);
@@ -340,6 +354,7 @@ public final class IntegrationTests {
       adapter.neighborChanged(Direction.EAST);
       final String bell = blockAddress(adapter);
       helper.assertTrue(first != null && first.equals(again), "the same block placed again got " + again + " instead of " + first);
+      helper.assertTrue(drivers == 2, "the test driver did not come along: " + drivers + " drivers");
       helper.assertTrue(first.equals(otherDrivers), "the same block made up of other drivers got " + otherDrivers + " instead of " + first);
       helper.assertTrue(furnace != null && !furnace.equals(first), "a furnace placed where the block was got its address " + furnace);
       helper.assertTrue(table != null && bell != null && !bell.equals(table), "a bell placed where an enchanting table of the same drivers was got " + bell + " (the table had " + table + ")");
@@ -359,10 +374,16 @@ public final class IntegrationTests {
       final var adapter = (li.cil.oc.core.impl.common.blockentity.Adapter) helper.getBlockEntity(AT);
       adapter.neighborChanged(Direction.EAST);
       final String before = blockAddress(adapter);
+      final int drivers;
       SECOND_DRIVER_AT.add(deviceAbs);
-      adapter.neighborChanged(Direction.EAST);
-      SECOND_DRIVER_AT.remove(deviceAbs);
+      try {
+        adapter.neighborChanged(Direction.EAST);
+        drivers = blockDrivers(adapter);
+      } finally {
+        SECOND_DRIVER_AT.remove(deviceAbs);
+      }
       final String after = blockAddress(adapter);
+      helper.assertTrue(drivers == 2, "the test driver did not come along: " + drivers + " drivers");
       helper.assertTrue(before != null && before.equals(after), "the block got " + after + " instead of " + before + " when its drivers changed");
       helper.succeed();
     });
@@ -391,6 +412,25 @@ public final class IntegrationTests {
         helper.assertTrue(before != null && before.equals(after), "an old adapter gave the block " + after + " instead of " + before);
         helper.succeed();
       });
+    });
+  }
+
+  /** A block placed straight over another (no air between) is a device of its own (the live path kept the old address). */
+  @GameTest(template = EMPTY, timeoutTicks = 100)
+  public static void adapterGivesABlockPlacedOverAnotherItsOwnAddress(final GameTestHelper helper) {
+    final BlockPos device = AT.east();
+    final ICapabilityProvider provider = energyProvider();
+    placeWithCapability(helper, device, provider, "test_energy_over");
+    helper.setBlock(AT, Blocks.ADAPTER.get());
+    helper.runAfterDelay(10, () -> {
+      final var adapter = (li.cil.oc.core.impl.common.blockentity.Adapter) helper.getBlockEntity(AT);
+      adapter.neighborChanged(Direction.EAST);
+      final String table = blockAddress(adapter);
+      placeWithCapability(helper, device, provider, "test_energy_over", net.minecraft.world.level.block.Blocks.BELL);
+      adapter.neighborChanged(Direction.EAST);
+      final String bell = blockAddress(adapter);
+      helper.assertTrue(table != null && bell != null && !bell.equals(table), "a bell placed over an enchanting table of the same drivers got its address " + bell);
+      helper.succeed();
     });
   }
 }

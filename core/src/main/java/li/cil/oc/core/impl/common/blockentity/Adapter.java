@@ -318,11 +318,13 @@ public class Adapter extends BlockEntity implements li.cil.oc.api.network.Enviro
           var driver = blocksData[d.ordinal()] != null ? blocksData[d.ordinal()].driver : null;
           if (!Objects.equals(newDriver, driver) || blockChanged) {
             // the same block made up of other drivers now keeps its address, as it does across a reload (it got a new
-            // one while the game ran, e.g. when a machine's side configuration changed)
+            // one while the game ran, e.g. when a machine's side configuration changed); not another device in the same
+            // block (a cable bus part swapped for another)
             CompoundTag kept = null;
-            if (!blockChanged && oldEnv instanceof ManagedEnvironment managed) {
+            String keptName = componentName(oldEnv);
+            if (!blockChanged && oldEnv.node() != null) {
               kept = new CompoundTag();
-              managed.save(kept, level().registryAccess());
+              oldEnv.node().save(kept, level().registryAccess()); // its address
             }
             blocks[d.ordinal()] = null;
             updatingBlocks.remove(oldEnv);
@@ -330,12 +332,13 @@ public class Adapter extends BlockEntity implements li.cil.oc.api.network.Enviro
             node.disconnect(oldEnv.node());
             var environment = newDriver.createEnvironment(level(), neighborPos, face);
             if (environment != null) {
-              if (kept != null && environment instanceof li.cil.oc.core.impl.server.driver.CompoundBlockEnvironment compound) {
+              if (kept != null && keptName.equals(componentName(environment))
+                && environment instanceof li.cil.oc.core.impl.server.driver.CompoundBlockEnvironment compound) {
                 compound.loadAddress(kept, level().registryAccess());
               }
               blocks[d.ordinal()] = environment;
               if (environment.canUpdate()) updatingBlocks.add(environment);
-              blocksData[d.ordinal()] = new BlockData(environment.getClass().getName(), new CompoundTag(), newDriver, blockId(currentBlock));
+              blocksData[d.ordinal()] = new BlockData(environment.getClass().getName(), new CompoundTag(), newDriver, blockId(currentBlock), componentName(environment));
               lastBlocks[d.ordinal()] = currentBlock;
               node.connect(environment.node());
             }
@@ -347,17 +350,19 @@ public class Adapter extends BlockEntity implements li.cil.oc.api.network.Enviro
             blocks[d.ordinal()] = environment;
             if (environment.canUpdate()) updatingBlocks.add(environment);
             var saved = blocksData[d.ordinal()];
-            // only the same block gets its data and address back (saved before ids: taken as its own block); its
-            // address even if other drivers make it up now. A different block placed there is a device of its own (one
-            // made up of the same drivers took over the old one's address and data).
-            boolean sameBlock = saved != null && (saved.block == null || saved.block.isEmpty() || blockId(currentBlock).equals(saved.block));
+            // only the same block (the same id, going by the same name) gets its data and address back (saved before
+            // ids: taken as its own block); its address even if other drivers make it up now. A different block placed
+            // there is a device of its own (one made up of the same drivers took over the old one's address and data).
+            boolean sameBlock = saved != null && (saved.block == null || saved.block.isEmpty()
+              || (blockId(currentBlock).equals(saved.block)
+              && (saved.component == null || saved.component.isEmpty() || saved.component.equals(componentName(environment)))));
             if (sameBlock && saved.name.equals(environment.getClass().getName())) {
               environment.load(saved.data, level().registryAccess());
               if (environment instanceof li.cil.oc.core.impl.server.driver.CompoundBlockEnvironment compound) {
                 compound.loadAddress(saved.data, level().registryAccess());
               }
             }
-            blocksData[d.ordinal()] = new BlockData(environment.getClass().getName(), new CompoundTag(), newDriver, blockId(currentBlock));
+            blocksData[d.ordinal()] = new BlockData(environment.getClass().getName(), new CompoundTag(), newDriver, blockId(currentBlock), componentName(environment));
             lastBlocks[d.ordinal()] = currentBlock;
             node.connect(environment.node());
           }
@@ -410,7 +415,7 @@ public class Adapter extends BlockEntity implements li.cil.oc.api.network.Enviro
     for (int i = 0; i < Math.min(blocksNbt.size(), blocksData.length); i++) {
       var blockNbt = blocksNbt.getCompound(i);
       if (blockNbt.contains("name") && blockNbt.contains("data")) {
-        blocksData[i] = new BlockData(blockNbt.getString("name"), blockNbt.getCompound("data"), blockNbt.getString("block"));
+        blocksData[i] = new BlockData(blockNbt.getString("name"), blockNbt.getCompound("data"), blockNbt.getString("block"), blockNbt.getString("component"));
       }
     }
   }
@@ -430,6 +435,7 @@ public class Adapter extends BlockEntity implements li.cil.oc.api.network.Enviro
         blockNbt.putString("name", blocksData[i].name);
         blockNbt.put("data", blocksData[i].data.copy()); // the chunk is written later, off the server thread
         if (blocksData[i].block != null) blockNbt.putString("block", blocksData[i].block);
+        if (blocksData[i].component != null) blockNbt.putString("component", blocksData[i].component);
       }
       blocksNbt.add(blockNbt);
     }
@@ -465,11 +471,16 @@ public class Adapter extends BlockEntity implements li.cil.oc.api.network.Enviro
     return true;
   }
 
-  // block: the id of the block the data came from (only the same block gets its address back)
-  private record BlockData(String name, CompoundTag data, DriverBlock driver, String block) {
-    BlockData(String name, CompoundTag data, String block) {
-      this(name, data, null, block);
+  // block: the id of the block the data came from, component: the name it went by (only the same device gets its
+  // address back: one id holds many, as AE2's cable bus parts or Mekanism's bounding blocks)
+  private record BlockData(String name, CompoundTag data, DriverBlock driver, String block, String component) {
+    BlockData(String name, CompoundTag data, String block, String component) {
+      this(name, data, null, block, component);
     }
+  }
+
+  private static String componentName(Object environment) {
+    return environment instanceof li.cil.oc.api.network.Environment env && env.node() instanceof li.cil.oc.api.network.Component c ? c.name() : "";
   }
 
   private static String blockId(net.minecraft.world.level.block.Block block) {

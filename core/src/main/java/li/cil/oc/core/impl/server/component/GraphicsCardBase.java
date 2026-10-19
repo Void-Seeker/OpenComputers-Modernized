@@ -567,8 +567,8 @@ public class GraphicsCardBase extends AbstractManagedEnvironment implements Devi
 
   @Callback(direct = true, doc = "function(x:number, y:number, width:number, height:number, tx:number, ty:number):boolean -- Copies a portion of the screen from the specified location with the specified size by the specified translation.")
   public Object[] copy(Context context, Arguments args) {
-    int x = args.checkInteger(0) - 1;
-    int y = args.checkInteger(1) - 1;
+    int x = index(args, 0);
+    int y = index(args, 1);
     int w = Math.max(0, args.checkInteger(2));
     int h = Math.max(0, args.checkInteger(3));
     int tx = args.checkInteger(4);
@@ -582,10 +582,16 @@ public class GraphicsCardBase extends AbstractManagedEnvironment implements Devi
     });
   }
 
+  // a 1-based position as an index, in long: the smallest wrapped around to the largest (a copy from far left came
+  // from far right)
+  private static int index(Arguments args, int n) {
+    return (int) Math.max((long) args.checkInteger(n) - 1, Integer.MIN_VALUE);
+  }
+
   @Callback(direct = true, doc = "function(x:number, y:number, width:number, height:number, char:string):boolean -- Fills a portion of the screen at the specified position with the specified size with the specified character.")
   public Object[] fill(Context context, Arguments args) {
-    int x = args.checkInteger(0) - 1;
-    int y = args.checkInteger(1) - 1;
+    int x = index(args, 0);
+    int y = index(args, 1);
     int w = Math.max(0, args.checkInteger(2));
     int h = Math.max(0, args.checkInteger(3));
     String value = args.checkString(4);

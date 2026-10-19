@@ -282,11 +282,14 @@ public final class ScreenTests {
       + "out[#out + 1] = tostring(ok) .. tostring(r)\n"
       + "ok, r = pcall(gpu.bitblt, 0, math.huge, 1, nil, nil, 0, -math.huge, 1)\n"
       + "out[#out + 1] = tostring(ok) .. tostring(r)\n"
+      // the same buffer, an offset beyond it: nothing moves (wrapped around, it cleared the wide character at 4)
+      + "gpu.set(4, 1, unicode.char(0x4E2D)) gpu.bitblt(0, 5, 1, 3, 1, 0, -math.huge, 1)\n"
+      + "out[#out + 1] = tostring(gpu.get(4, 1) == unicode.char(0x4E2D)) gpu.set(4, 1, '  ')\n"
       + "gpu.bitblt(0, -60, 1, 1000, 1, page, -60, 1)\n"
       + "out[#out + 1] = gpu.get(1, 1)\n"
       + "error('done:' .. table.concat(out, ','))\n", computer -> {
       final String error = String.valueOf(computer.machine().lastError());
-      helper.assertTrue(error.endsWith("done: ,truetrue,truetrue,truetrue,X"), "negative size, huge positions, far-left offsets: " + error);
+      helper.assertTrue(error.endsWith("done: ,truetrue,truetrue,truetrue,true,X"), "negative size, huge positions, far-left offsets: " + error);
       helper.succeed();
     });
   }
@@ -307,6 +310,9 @@ public final class ScreenTests {
       + "gpu.set(w - 1, 2, unicode.char(0x4E2D))\n"
       + "local ok, r = pcall(gpu.copy, w - 1, 2, 1, 1, 1, 0)\n"
       + "out[#out + 1] = tostring(ok) .. tostring(r)\n"
+      // from the smallest column: nothing to copy (it came from the largest, and cleared the wide character at 4)
+      + "gpu.set(4, 3, unicode.char(0x4E2D)) gpu.copy(-math.huge, 3, 3, 1, -2147483643, 0)\n"
+      + "out[#out + 1] = tostring(gpu.get(4, 3) == unicode.char(0x4E2D))\n"
       + "local page = gpu.allocateBuffer(8, 1)\n"
       + "gpu.setActiveBuffer(page)\n"
       + "gpu.fill(2, 1, math.huge, 1, 'X')\n"
@@ -314,7 +320,7 @@ public final class ScreenTests {
       + "gpu.setActiveBuffer(0)\n"
       + "error('done:' .. table.concat(out, ','))\n", computer -> {
       final String error = String.valueOf(computer.machine().lastError());
-      helper.assertTrue(error.endsWith("done: , ,truetrue,XX"), "copy off the screen, a wide character at the edge, a huge fill: " + error);
+      helper.assertTrue(error.endsWith("done: , ,truetrue,true,XX"), "copy off the screen, a wide character at the edge, from far left, a huge fill: " + error);
       helper.succeed();
     });
   }
@@ -330,5 +336,39 @@ public final class ScreenTests {
       helper.assertTrue(error.endsWith("done:truetrue,truetrue"), "text at the smallest column and row: " + error);
       helper.succeed();
     });
+  }
+
+  private static li.cil.oc.core.impl.util.TextBuffer buffer(final int w, final int h) {
+    return new li.cil.oc.core.impl.util.TextBuffer(w, h, li.cil.oc.core.impl.util.PackedColor.SingleBitFormat.INSTANCE);
+  }
+
+  /**
+   * A write that changes only the other half of a wide character counts as a change (it did not: nothing was sent, and
+   * the clients kept showing the wide character the server had cleared).
+   */
+  @GameTest(template = EMPTY)
+  public static void writesNextToAWideCharacterAreChanges(final GameTestHelper helper) {
+    final String wide = new String(Character.toChars(0x4E2D));
+    final var filled = buffer(4, 1);
+    filled.set(0, 0, wide, false);
+    helper.assertTrue(filled.fill(1, 0, 1, 1, ' '), "filling the other half of a wide character changed nothing");
+    helper.assertTrue(filled.get(0, 0) == ' ', "the wide character is still there");
+    final var set = buffer(4, 1);
+    set.set(0, 0, wide, false);
+    helper.assertTrue(set.set(1, 0, " ", false), "writing the other half of a wide character changed nothing");
+    helper.succeed();
+  }
+
+  /**
+   * A copy from left of the buffer clears the wide character whose other half it overwrote (it cleared the one before
+   * the target's edge, which it never wrote, and left this one without its other half).
+   */
+  @GameTest(template = EMPTY)
+  public static void copyClearsTheWideCharacterItCut(final GameTestHelper helper) {
+    final var b = buffer(8, 5);
+    b.set(2, 1, new String(Character.toChars(0x4E2D)), false);
+    b.copy(-3, -2, 15, 5, 3, 1);
+    helper.assertTrue(b.get(2, 1) == ' ', "the wide character at 2 lost its other half and was kept: " + Integer.toHexString(b.get(2, 1)));
+    helper.succeed();
   }
 }

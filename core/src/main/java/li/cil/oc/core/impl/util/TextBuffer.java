@@ -123,8 +123,7 @@ public class TextBuffer {
           int[] line = buffer[y];
           short[] lineColor = color[y];
           int c = s.codePointAt(cx);
-          changed = changed || (line[col] != c) || (lineColor[col] != packed);
-          setChar(line, lineColor, col, c);
+          changed |= setChar(line, lineColor, col, c);
           cx = s.offsetByCodePoints(cx, 1);
         }
       }
@@ -138,8 +137,7 @@ public class TextBuffer {
       int cx = 0;
       for (int x = bx; x < Math.min(col + sLength, width) && bx < line.length; x++) {
         int c = s.codePointAt(cx);
-        changed = changed || (line[bx] != c) || (lineColor[bx] != packed);
-        setChar(line, lineColor, bx, c);
+        changed |= setChar(line, lineColor, bx, c);
         bx += Math.max(1, FontUtils.wcwidth(c));
         cx = s.offsetByCodePoints(cx, 1);
       }
@@ -161,8 +159,7 @@ public class TextBuffer {
       short[] lineColor = color[y];
       int bx = Math.max(col, 0);
       for (int x = bx; x < x1 && bx < line.length; x++) {
-        changed = changed || (line[bx] != c) || (lineColor[bx] != packed);
-        setChar(line, lineColor, bx, c);
+        changed |= setChar(line, lineColor, bx, c);
         bx += Math.max(1, FontUtils.wcwidth(c));
       }
     }
@@ -182,8 +179,12 @@ public class TextBuffer {
     int _dx1 = (int) Math.max(0, Math.min(width, left));
     int dx0 = tx > 0 ? _dx0 : _dx1;
     int dx1 = tx > 0 ? _dx1 : _dx0;
-    int leftEdge = Math.min(dx0, dx1) - 1;
-    if (leftEdge >= width - 1) return false;
+    if (Math.min(dx0, dx1) >= width) return false;
+    // the column before the first one written: from a source left of the buffer the target's first columns are not
+    // written (the wide character before them was cleared while one whose other half was overwritten was left)
+    int firstWritten = (int) Math.max(Math.min(dx0, dx1), Math.min((long) tx, width));
+    long lastWritten = Math.min(Math.max(dx0, dx1), (long) width - 1 + tx); // (from a source right of the buffer)
+    int leftEdge = firstWritten - 1;
 
     int _dy0 = (int) Math.max(0, Math.min(height - 1, top + h - 1));
     int _dy1 = (int) Math.max(0, Math.min(height, top));
@@ -212,12 +213,13 @@ public class TextBuffer {
             nl[nx] = c;
             nc[nx] = cc;
             for (int offset = 1; offset < FontUtils.wcwidth(c); offset++) {
+              changed |= nl[nx + offset] != ' ' || nc[nx + offset] != cc;
               nl[nx + offset] = ' ';
               nc[nx + offset] = cc; // its other half has its colour (it took the old row's colour at the target)
             }
           }
         }
-        if (leftEdge >= 0 && FontUtils.wcwidth(nl[leftEdge]) > 1) {
+        if (leftEdge >= 0 && firstWritten <= lastWritten && FontUtils.wcwidth(nl[leftEdge]) > 1) {
           nl[leftEdge] = ' ';
           changed = true;
         }
@@ -253,19 +255,25 @@ public class TextBuffer {
     return changed;
   }
 
-  private void setChar(int[] line, short[] lineColor, int x, int c) {
+  // Whether anything changed: the cell after a wide character and the wide character before count too (a write that
+  // changed only those was not sent, and the clients kept showing the old character).
+  private boolean setChar(int[] line, short[] lineColor, int x, int c) {
     if (FontUtils.wcwidth(c) > 1 && x >= line.length - 1) {
-      return;
+      return false;
     }
+    boolean changed = line[x] != c || lineColor[x] != packed;
     line[x] = c;
     lineColor[x] = packed;
     for (int x1 = x + 1; x1 < x + FontUtils.wcwidth(c); x1++) {
+      changed |= line[x1] != ' ' || lineColor[x1] != packed;
       line[x1] = ' ';
       lineColor[x1] = packed;
     }
     if (x > 0 && FontUtils.wcwidth(line[x - 1]) > 1) {
       line[x - 1] = ' ';
+      changed = true;
     }
+    return changed;
   }
 
   public void load(CompoundTag nbt, net.minecraft.core.HolderLookup.Provider provider) {
