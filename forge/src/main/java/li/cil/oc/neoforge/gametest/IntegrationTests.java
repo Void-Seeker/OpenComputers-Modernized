@@ -735,4 +735,98 @@ public final class IntegrationTests {
       });
     });
   }
+
+  private static boolean saveMarked(final li.cil.oc.core.impl.common.blockentity.Adapter adapter, final boolean clear) {
+    try {
+      final var field = li.cil.oc.core.impl.common.blockentity.traits.BlockEntity.class.getDeclaredField("changeScheduled");
+      field.setAccessible(true);
+      final var mark = (java.util.concurrent.atomic.AtomicBoolean) field.get(adapter);
+      return clear ? mark.getAndSet(false) : mark.get();
+    } catch (ReflectiveOperationException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  /**
+   * An adapter attaching or letting go of a block marks itself to be saved (it never did: with the block in another
+   * chunk nothing marked the adapter's, and the block's address was lost with the chunk).
+   */
+  @GameTest(template = EMPTY, timeoutTicks = 100)
+  public static void adapterMarksItselfToBeSavedWhenItsSidesChange(final GameTestHelper helper) {
+    final BlockPos device = AT.east();
+    helper.setBlock(AT, Blocks.ADAPTER.get());
+    helper.runAfterDelay(10, () -> {
+      final var adapter = (li.cil.oc.core.impl.common.blockentity.Adapter) helper.getBlockEntity(AT);
+      adapter.neighborChanged(Direction.EAST);
+      saveMarked(adapter, true);
+      placeWithCapability(helper, device, energyProvider(), "test_energy_marked");
+      adapter.neighborChanged(Direction.EAST);
+      final boolean attached = saveMarked(adapter, true);
+      placeWithCapability(helper, device, energyProvider(), "test_energy_marked", net.minecraft.world.level.block.Blocks.BELL);
+      adapter.neighborChanged(Direction.EAST);
+      final boolean replaced = saveMarked(adapter, true);
+      helper.setBlock(device, net.minecraft.world.level.block.Blocks.AIR);
+      adapter.neighborChanged(Direction.EAST);
+      final boolean detached = saveMarked(adapter, true);
+      helper.assertTrue(attached, "attaching a block did not mark the adapter to be saved");
+      helper.assertTrue(replaced, "a block replaced straight by another did not mark the adapter to be saved");
+      helper.assertTrue(detached, "letting go of a block did not mark the adapter to be saved");
+      helper.succeed();
+    });
+  }
+
+  /** An OC block swapped straight for another block counts as a change too (OC neighbours were not looked at). */
+  @GameTest(template = EMPTY, timeoutTicks = 100)
+  public static void unrecordedAdapterDataGoesNotToABlockSwappedForAnOCBlock(final GameTestHelper helper) {
+    final BlockPos device = AT.east();
+    reloadUnrecorded(helper, device, Blocks.CABLE.get().defaultBlockState(), (table, loaded) -> {
+      loaded.neighborChanged(Direction.EAST); // it looks at the cable
+      helper.setBlock(device, net.minecraft.world.level.block.Blocks.FURNACE);
+      loaded.neighborChanged(Direction.EAST);
+      final String furnace = blockAddress(loaded);
+      helper.assertTrue(table != null && furnace != null && !furnace.equals(table), "a furnace swapped for a cable where the table was got its address " + furnace);
+      helper.succeed();
+    });
+  }
+
+  /**
+   * Unrecorded data on a closed side, its block left in place, keeps the block's address through a save and a load (the
+   * other half of unrecordedAdapterDataRemembersAChangedSide: nothing marks an unchanged side changed).
+   */
+  @GameTest(template = EMPTY, timeoutTicks = 100)
+  public static void unrecordedAdapterDataOnAClosedSideKeepsItsBlock(final GameTestHelper helper) {
+    final BlockPos device = AT.east();
+    placeWithCapability(helper, device, energyProvider(), "test_energy_closed");
+    helper.setBlock(AT, Blocks.ADAPTER.get());
+    helper.runAfterDelay(10, () -> {
+      final var adapter = (li.cil.oc.core.impl.common.blockentity.Adapter) helper.getBlockEntity(AT);
+      adapter.neighborChanged(Direction.EAST);
+      final String table = blockAddress(adapter);
+      adapter.setSideOpen(Direction.EAST, false); // the table's data stays with the adapter, the table in place
+      final var tag = adapter.saveWithFullMetadata();
+      final var blocks = tag.getList(li.cil.oc.core.impl.OCSettings.namespace + "adapter.blocks", net.minecraft.nbt.Tag.TAG_COMPOUND);
+      for (int i = 0; i < blocks.size(); i++) {
+        blocks.getCompound(i).remove("block");
+        blocks.getCompound(i).remove("identity");
+      }
+      tag.remove(li.cil.oc.core.impl.OCSettings.namespace + "adapter.sideChanged");
+      final BlockPos abs = helper.absolutePos(AT);
+      helper.getLevel().removeBlockEntity(abs);
+      final var loaded = (li.cil.oc.core.impl.common.blockentity.Adapter) BlockEntity.loadStatic(abs, helper.getLevel().getBlockState(abs), tag);
+      helper.getLevel().getChunkAt(abs).addAndRegisterBlockEntity(loaded);
+      helper.runAfterDelay(10, () -> {
+        loaded.neighborChanged(Direction.EAST); // closed: it only looks
+        final var again = loaded.saveWithFullMetadata();
+        helper.getLevel().removeBlockEntity(abs);
+        final var reloaded = (li.cil.oc.core.impl.common.blockentity.Adapter) BlockEntity.loadStatic(abs, helper.getLevel().getBlockState(abs), again);
+        helper.getLevel().getChunkAt(abs).addAndRegisterBlockEntity(reloaded);
+        helper.runAfterDelay(10, () -> {
+          reloaded.setSideOpen(Direction.EAST, true);
+          final String after = blockAddress(reloaded);
+          helper.assertTrue(table != null && table.equals(after), "the table that stayed got " + after + " instead of " + table);
+          helper.succeed();
+        });
+      });
+    });
+  }
 }

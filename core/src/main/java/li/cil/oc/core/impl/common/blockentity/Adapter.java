@@ -312,7 +312,10 @@ public class Adapter extends BlockEntity implements li.cil.oc.api.network.Enviro
       var currentBlock = neighborState.getBlock();
       // any other block counts, not only air (a block placed into water or snow replaces it at once)
       if (firstSeen[d.ordinal()] == null) firstSeen[d.ordinal()] = currentBlock;
-      if (firstSeen[d.ordinal()] != currentBlock || neighborState.isAir()) sideChanged[d.ordinal()] = true;
+      if (!sideChanged[d.ordinal()] && (firstSeen[d.ordinal()] != currentBlock || neighborState.isAir())) {
+        sideChanged[d.ordinal()] = true;
+        markChanged(); // (saved: with the neighbour in another chunk nothing else marked this one)
+      }
       var te = level().getBlockEntity(neighborPos);
       if (te instanceof Environment) return;
       var blockChanged = lastBlocks[d.ordinal()] != currentBlock;
@@ -353,6 +356,7 @@ public class Adapter extends BlockEntity implements li.cil.oc.api.network.Enviro
               lastBlocks[d.ordinal()] = currentBlock;
               node.connect(environment.node());
             }
+            markChanged(); // what is attached and its address are saved (with the neighbour in another chunk, they were lost)
           }
         } else {
           if (!isSideOpen(d)) return;
@@ -381,6 +385,7 @@ public class Adapter extends BlockEntity implements li.cil.oc.api.network.Enviro
               sameBlock ? carried(saved.identity, identityOf(environment)) : identityOf(environment));
             lastBlocks[d.ordinal()] = currentBlock;
             node.connect(environment.node());
+            markChanged();
           }
         }
       } else {
@@ -391,6 +396,7 @@ public class Adapter extends BlockEntity implements li.cil.oc.api.network.Enviro
           if (environment.node() != null) environment.node().remove();
           blocks[d.ordinal()] = null;
           updatingBlocks.remove(environment);
+          markChanged();
         }
         lastBlocks[d.ordinal()] = null;
       }
