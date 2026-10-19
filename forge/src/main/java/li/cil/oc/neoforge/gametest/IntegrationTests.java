@@ -14,7 +14,6 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.block.entity.EnchantmentTableBlockEntity;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.common.capabilities.ForgeCapabilities;
@@ -45,15 +44,21 @@ public final class IntegrationTests {
 
   /** An enchanting table at pos carrying the given capability provider (attached while it is placed). */
   private static void placeWithCapability(final GameTestHelper helper, final BlockPos pos, final ICapabilityProvider provider, final String name) {
+    placeWithCapability(helper, pos, provider, name, net.minecraft.world.level.block.Blocks.ENCHANTING_TABLE);
+  }
+
+  /** The given block (one with a block entity of its own and no capabilities: an enchanting table, a bell) with the provider's. */
+  private static void placeWithCapability(final GameTestHelper helper, final BlockPos pos, final ICapabilityProvider provider, final String name,
+                                          final net.minecraft.world.level.block.Block block) {
     final BlockPos abs = helper.absolutePos(pos);
     final Consumer<AttachCapabilitiesEvent<BlockEntity>> attach = event -> {
-      if (event.getObject() instanceof EnchantmentTableBlockEntity && event.getObject().getBlockPos().equals(abs)) {
+      if (event.getObject().getBlockPos().equals(abs)) {
         event.addCapability(new ResourceLocation(OpenComputers.ID, name), provider);
       }
     };
     MinecraftForge.EVENT_BUS.addGenericListener(BlockEntity.class, attach);
     try {
-      helper.setBlock(pos, net.minecraft.world.level.block.Blocks.ENCHANTING_TABLE);
+      helper.setBlock(pos, block);
     } finally {
       MinecraftForge.EVENT_BUS.unregister(attach);
     }
@@ -255,37 +260,137 @@ public final class IntegrationTests {
     return null;
   }
 
-  /** A block placed where another was keeps no address of the old one; the same block placed again gets its own back. */
-  @GameTest(template = EMPTY, timeoutTicks = 100)
-  public static void adapterGivesAReplacedBlockItsOwnAddress(final GameTestHelper helper) {
+  /** Where the test driver works: a block there is made up of one more driver (the tank and inventory drivers are off by default). */
+  private static final java.util.Set<BlockPos> SECOND_DRIVER_AT = java.util.concurrent.ConcurrentHashMap.newKeySet();
+  private static boolean secondDriverRegistered;
+
+  private static synchronized void registerSecondDriver() {
+    if (secondDriverRegistered) return;
+    secondDriverRegistered = true;
+    li.cil.oc.core.impl.server.driver.Registry.INSTANCE.setLocked(false);
+    try {
+      li.cil.oc.api.API.driver.add(new li.cil.oc.api.driver.DriverBlock() {
+        @Override
+        public boolean worksWith(final net.minecraft.world.level.Level world, final BlockPos pos, final Direction side) {
+          return SECOND_DRIVER_AT.contains(pos);
+        }
+
+        @Override
+        public li.cil.oc.api.network.ManagedEnvironment createEnvironment(final net.minecraft.world.level.Level world, final BlockPos pos, final Direction side) {
+          return new li.cil.oc.api.prefab.AbstractManagedEnvironment() {
+          };
+        }
+      });
+    } finally {
+      li.cil.oc.core.impl.server.driver.Registry.INSTANCE.setLocked(true);
+    }
+  }
+
+  private static ICapabilityProvider energyProvider() {
     final var storage = new net.minecraftforge.energy.EnergyStorage(1000);
     final LazyOptional<net.minecraftforge.energy.IEnergyStorage> energy = LazyOptional.of(() -> storage);
-    final ICapabilityProvider provider = new ICapabilityProvider() {
+    return new ICapabilityProvider() {
       @Override
       public <T> @NotNull LazyOptional<T> getCapability(@NotNull Capability<T> cap, @Nullable Direction side) {
         return cap == ForgeCapabilities.ENERGY ? energy.cast() : LazyOptional.empty();
       }
     };
+  }
+
+  /**
+   * A block placed where another was keeps no address of the old one, also one made up of the same drivers (it took
+   * over the old one's); the same block placed again gets its own back, also when other drivers make it up now.
+   */
+  @GameTest(template = EMPTY, timeoutTicks = 100)
+  public static void adapterGivesAReplacedBlockItsOwnAddress(final GameTestHelper helper) {
+    registerSecondDriver();
+    final ICapabilityProvider provider = energyProvider();
     final BlockPos device = AT.east();
+    final BlockPos deviceAbs = helper.absolutePos(device);
     placeWithCapability(helper, device, provider, "test_energy_any");
     helper.setBlock(AT, Blocks.ADAPTER.get());
     helper.runAfterDelay(10, () -> {
       final var adapter = (li.cil.oc.core.impl.common.blockentity.Adapter) helper.getBlockEntity(AT);
+      final Runnable replace = () -> {
+        helper.setBlock(device, net.minecraft.world.level.block.Blocks.AIR);
+        adapter.neighborChanged(Direction.EAST);
+      };
       adapter.neighborChanged(Direction.EAST);
       final String first = blockAddress(adapter);
-      helper.setBlock(device, net.minecraft.world.level.block.Blocks.AIR);
-      adapter.neighborChanged(Direction.EAST);
+      replace.run();
       placeWithCapability(helper, device, provider, "test_energy_any");
       adapter.neighborChanged(Direction.EAST);
       final String again = blockAddress(adapter);
-      helper.setBlock(device, net.minecraft.world.level.block.Blocks.AIR);
+      replace.run();
+      SECOND_DRIVER_AT.add(deviceAbs);
+      placeWithCapability(helper, device, provider, "test_energy_any");
       adapter.neighborChanged(Direction.EAST);
+      final String otherDrivers = blockAddress(adapter);
+      SECOND_DRIVER_AT.remove(deviceAbs);
+      replace.run();
       helper.setBlock(device, net.minecraft.world.level.block.Blocks.FURNACE);
       adapter.neighborChanged(Direction.EAST);
       final String furnace = blockAddress(adapter);
+      replace.run();
+      placeWithCapability(helper, device, provider, "test_energy_any");
+      adapter.neighborChanged(Direction.EAST);
+      final String table = blockAddress(adapter);
+      replace.run();
+      placeWithCapability(helper, device, provider, "test_energy_any", net.minecraft.world.level.block.Blocks.BELL);
+      adapter.neighborChanged(Direction.EAST);
+      final String bell = blockAddress(adapter);
       helper.assertTrue(first != null && first.equals(again), "the same block placed again got " + again + " instead of " + first);
+      helper.assertTrue(first.equals(otherDrivers), "the same block made up of other drivers got " + otherDrivers + " instead of " + first);
       helper.assertTrue(furnace != null && !furnace.equals(first), "a furnace placed where the block was got its address " + furnace);
+      helper.assertTrue(table != null && bell != null && !bell.equals(table), "a bell placed where an enchanting table of the same drivers was got " + bell + " (the table had " + table + ")");
       helper.succeed();
+    });
+  }
+
+  /** A block whose drivers change while the game runs keeps its address (it got a new one; across a reload it did not). */
+  @GameTest(template = EMPTY, timeoutTicks = 100)
+  public static void adapterKeepsTheAddressWhenTheDriversChangeLive(final GameTestHelper helper) {
+    registerSecondDriver();
+    final BlockPos device = AT.east();
+    final BlockPos deviceAbs = helper.absolutePos(device);
+    placeWithCapability(helper, device, energyProvider(), "test_energy_toggle");
+    helper.setBlock(AT, Blocks.ADAPTER.get());
+    helper.runAfterDelay(10, () -> {
+      final var adapter = (li.cil.oc.core.impl.common.blockentity.Adapter) helper.getBlockEntity(AT);
+      adapter.neighborChanged(Direction.EAST);
+      final String before = blockAddress(adapter);
+      SECOND_DRIVER_AT.add(deviceAbs);
+      adapter.neighborChanged(Direction.EAST);
+      SECOND_DRIVER_AT.remove(deviceAbs);
+      final String after = blockAddress(adapter);
+      helper.assertTrue(before != null && before.equals(after), "the block got " + after + " instead of " + before + " when its drivers changed");
+      helper.succeed();
+    });
+  }
+
+  /** An adapter saved before it recorded the blocks gives the block its address back (taken as the same block). */
+  @GameTest(template = EMPTY, timeoutTicks = 100)
+  public static void adapterSavedWithoutBlockIdsKeepsTheAddress(final GameTestHelper helper) {
+    final BlockPos device = AT.east();
+    placeWithCapability(helper, device, energyProvider(), "test_energy_old");
+    helper.setBlock(AT, Blocks.ADAPTER.get());
+    helper.runAfterDelay(10, () -> {
+      final var adapter = (li.cil.oc.core.impl.common.blockentity.Adapter) helper.getBlockEntity(AT);
+      adapter.neighborChanged(Direction.EAST);
+      final String before = blockAddress(adapter);
+      final var tag = adapter.saveWithFullMetadata();
+      final var blocks = tag.getList(li.cil.oc.core.impl.OCSettings.namespace + "adapter.blocks", net.minecraft.nbt.Tag.TAG_COMPOUND);
+      for (int i = 0; i < blocks.size(); i++) blocks.getCompound(i).remove("block");
+      final BlockPos abs = helper.absolutePos(AT);
+      helper.getLevel().removeBlockEntity(abs);
+      final var loaded = (li.cil.oc.core.impl.common.blockentity.Adapter) BlockEntity.loadStatic(abs, helper.getLevel().getBlockState(abs), tag);
+      helper.getLevel().getChunkAt(abs).addAndRegisterBlockEntity(loaded);
+      helper.runAfterDelay(10, () -> {
+        loaded.neighborChanged(Direction.EAST);
+        final String after = blockAddress(loaded);
+        helper.assertTrue(before != null && before.equals(after), "an old adapter gave the block " + after + " instead of " + before);
+        helper.succeed();
+      });
     });
   }
 }

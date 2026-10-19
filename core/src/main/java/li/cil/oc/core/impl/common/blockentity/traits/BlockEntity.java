@@ -71,6 +71,11 @@ public abstract class BlockEntity extends net.minecraft.world.level.block.entity
     return unloading;
   }
 
+  /** Whether initialize has been scheduled: a load after that (/data merge, a restore) comes to a set-up block. */
+  protected boolean isInitialized() {
+    return initialized;
+  }
+
   private final java.util.concurrent.atomic.AtomicBoolean changeScheduled = new java.util.concurrent.atomic.AtomicBoolean();
 
   /**

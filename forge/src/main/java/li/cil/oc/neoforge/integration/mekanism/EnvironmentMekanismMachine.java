@@ -50,7 +50,8 @@ public class EnvironmentMekanismMachine extends ManagedBlockEntityEnvironment<IC
   // persistent: all of them rebinding every tick was a waste). A program that made a proxy before the multiblock
   // formed calls the new methods with component.invoke or a proxy made again.
   private boolean isMultiblock() {
-    return BlockEntity instanceof mekanism.common.tile.prefab.TileEntityMultiblock<?>;
+    // only those whose methods follow the multiblock (reactor ports, which do not, re-bound every tick)
+    return BlockEntity instanceof mekanism.common.tile.prefab.TileEntityMultiblock<?> multiblock && multiblock.exposesMultiblockToComputer();
   }
 
   @Override

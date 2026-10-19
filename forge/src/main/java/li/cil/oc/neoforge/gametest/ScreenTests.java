@@ -256,4 +256,79 @@ public final class ScreenTests {
       helper.succeed();
     });
   }
+
+  private static final String HEAD_LUA = "local gpu = component.proxy(component.list('gpu')())\n"
+      + "while not component.list('screen')() do computer.pullSignal(0.1) end\n"
+      + "gpu.bind(component.list('screen')())\n"
+      + "local w, h = gpu.getResolution()\n";
+
+  /**
+   * bitblt clips huge and negative values without wrapping around: a negative size draws nothing (it drew the page, for
+   * free), huge positions come back true (they threw), and offsets far left of both buffers still line up (the size
+   * cap cut it to nothing).
+   */
+  @GameTest(template = EMPTY, timeoutTicks = 400)
+  public static void bitbltClipsHugeAndNegativeValues(final GameTestHelper helper) {
+    runCase(helper, HEAD_LUA
+      + "local page = gpu.allocateBuffer(4, 2)\n"
+      + "gpu.setActiveBuffer(page) gpu.fill(1, 1, 4, 2, 'X') gpu.setActiveBuffer(0)\n"
+      + "gpu.fill(1, 1, w, h, ' ')\n"
+      + "local out = {}\n"
+      + "gpu.bitblt(0, 1, 1, -math.huge, -math.huge, page, 1, 1)\n"
+      + "out[#out + 1] = gpu.get(1, 1)\n"
+      + "local ok, r = pcall(gpu.bitblt, 0, math.huge, 1, math.huge, 1, page, 1, 1)\n"
+      + "out[#out + 1] = tostring(ok) .. tostring(r)\n"
+      + "ok, r = pcall(gpu.bitblt, 0, 1, 1, nil, 1, page, -math.huge, 1)\n"
+      + "out[#out + 1] = tostring(ok) .. tostring(r)\n"
+      + "ok, r = pcall(gpu.bitblt, 0, math.huge, 1, nil, nil, 0, -math.huge, 1)\n"
+      + "out[#out + 1] = tostring(ok) .. tostring(r)\n"
+      + "gpu.bitblt(0, -60, 1, 1000, 1, page, -60, 1)\n"
+      + "out[#out + 1] = gpu.get(1, 1)\n"
+      + "error('done:' .. table.concat(out, ','))\n", computer -> {
+      final String error = String.valueOf(computer.machine().lastError());
+      helper.assertTrue(error.endsWith("done: ,truetrue,truetrue,truetrue,X"), "negative size, huge positions, far-left offsets: " + error);
+      helper.succeed();
+    });
+  }
+
+  /**
+   * copy writes nothing for a target wholly off the screen (its edge column or row got a cell from outside the source),
+   * a wide character copied into the last column does not throw, and fill takes a huge width (it filled nothing).
+   */
+  @GameTest(template = EMPTY, timeoutTicks = 400)
+  public static void copyAndFillStayWithinTheirRectangles(final GameTestHelper helper) {
+    runCase(helper, HEAD_LUA
+      + "gpu.fill(1, 1, w, h, ' ')\n"
+      + "local out = {}\n"
+      + "gpu.set(11, 1, 'Z') gpu.copy(1, 1, 10, 1, -10, 0)\n"
+      + "out[#out + 1] = gpu.get(1, 1)\n"
+      + "gpu.set(1, 4, 'Q') gpu.copy(1, 1, 10, 3, 0, -3)\n"
+      + "out[#out + 1] = gpu.get(1, 1)\n"
+      + "gpu.set(w - 1, 2, unicode.char(0x4E2D))\n"
+      + "local ok, r = pcall(gpu.copy, w - 1, 2, 1, 1, 1, 0)\n"
+      + "out[#out + 1] = tostring(ok) .. tostring(r)\n"
+      + "local page = gpu.allocateBuffer(8, 1)\n"
+      + "gpu.setActiveBuffer(page)\n"
+      + "gpu.fill(2, 1, math.huge, 1, 'X')\n"
+      + "out[#out + 1] = gpu.get(2, 1) .. gpu.get(8, 1)\n"
+      + "gpu.setActiveBuffer(0)\n"
+      + "error('done:' .. table.concat(out, ','))\n", computer -> {
+      final String error = String.valueOf(computer.machine().lastError());
+      helper.assertTrue(error.endsWith("done: , ,truetrue,XX"), "copy off the screen, a wide character at the edge, a huge fill: " + error);
+      helper.succeed();
+    });
+  }
+
+  /** Text set at the smallest column or row is off the screen, not an error (the offset overflowed and it threw). */
+  @GameTest(template = EMPTY, timeoutTicks = 400)
+  public static void textFarOffTheEdgeIsSkipped(final GameTestHelper helper) {
+    runCase(helper, HEAD_LUA
+      + "local ok1, r1 = pcall(gpu.set, -2147483647, 1, 'abc')\n"
+      + "local ok2, r2 = pcall(gpu.set, 1, -2147483647, 'abc', true)\n"
+      + "error('done:' .. tostring(ok1) .. tostring(r1) .. ',' .. tostring(ok2) .. tostring(r2))\n", computer -> {
+      final String error = String.valueOf(computer.machine().lastError());
+      helper.assertTrue(error.endsWith("done:truetrue,truetrue"), "text at the smallest column and row: " + error);
+      helper.succeed();
+    });
+  }
 }

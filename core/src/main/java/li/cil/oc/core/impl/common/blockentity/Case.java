@@ -144,6 +144,21 @@ public class Case extends BlockEntity implements PowerAcceptor, Computer, Colore
   private boolean isChangeScheduled = false;
   private CompoundTag pendingMachineNbt;
 
+  // taken before loading, as a robot's (a load that threw left it pending, and it was saved in place of the machine)
+  private void loadPendingMachine() {
+    var pending = pendingMachineNbt;
+    pendingMachineNbt = null;
+    Machine m = machine();
+    if (pending != null && m != null) {
+      try {
+        m.load(pending, getEffectiveProvider());
+      } catch (RuntimeException e) {
+        org.slf4j.LoggerFactory.getLogger(Case.class).warn("Could not load a computer case's computer.", e);
+      }
+      setRunning(m.isRunning());
+    }
+  }
+
   public void markChanged() {
     isChangeScheduled = true;
   }
@@ -181,15 +196,10 @@ public class Case extends BlockEntity implements PowerAcceptor, Computer, Colore
   @Override
   public void initialize() {
     super.initialize();
-    if (isServer() && getLevel() != null) {
-      if (pendingMachineNbt != null) {
-        Machine m = machine();
-        if (m != null) {
-          m.load(pendingMachineNbt, getEffectiveProvider());
-          setRunning(m.isRunning());
-        }
-        pendingMachineNbt = null;
-      }
+    // not for one removed before its initialize ran (its chunk unloaded again at once): the machine was loaded and
+    // started, and nothing ever closed it
+    if (isServer() && getLevel() != null && !isRemoved()) {
+      loadPendingMachine();
       EventHandlerDelegate.get().scheduleServer(this);
       EventHandlerDelegate.get().scheduleServer(this::checkRedstoneInputChanged);
     }
@@ -686,6 +696,7 @@ public class Case extends BlockEntity implements PowerAcceptor, Computer, Colore
 
   @Override
   public void updateRedstoneInput(Direction side) {
+    if (!li.cil.oc.core.impl.integration.util.BundledRedstone.canRead(position(), side)) return; // keeps what it had
     var oldValue = _input[side.ordinal()];
     var newValue = li.cil.oc.core.impl.integration.util.BundledRedstone.computeInput(position(), side);
     if (oldValue != newValue) {
@@ -816,6 +827,8 @@ public class Case extends BlockEntity implements PowerAcceptor, Computer, Colore
       load(nbt, provider);
       if (nbt.contains(OCSettings.namespace + "computer")) {
         pendingMachineNbt = nbt.getCompound(OCSettings.namespace + "computer").copy();
+        // a case already set up (/data merge, a restore) runs no initialize again
+        if (isInitialized()) EventHandlerDelegate.get().scheduleServer(this::loadPendingMachine);
       }
     } else {
       readFromNBTForClient(nbt);
@@ -828,7 +841,10 @@ public class Case extends BlockEntity implements PowerAcceptor, Computer, Colore
     super.saveAdditional(nbt, provider);
     if (isServer()) {
       Machine m = machine();
-      if (m != null) {
+      if (pendingMachineNbt != null) {
+        // saved before its machine was loaded (the tick between the chunk load and initialize): as it was, not stopped
+        nbt.put(OCSettings.namespace + "computer", pendingMachineNbt.copy());
+      } else if (m != null) {
         var computerTag = new CompoundTag();
         m.save(computerTag, provider);
         nbt.put(OCSettings.namespace + "computer", computerTag);

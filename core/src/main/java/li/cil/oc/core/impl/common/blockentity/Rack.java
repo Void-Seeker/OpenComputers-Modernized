@@ -617,6 +617,7 @@ public class Rack extends HubBlockEntity implements PowerAcceptor, PowerBalancer
   public void checkRedstoneInputChanged() {
     if (getLevel() != null && !getLevel().isClientSide) {
       for (Direction side : Direction.values()) {
+        if (!li.cil.oc.core.impl.integration.util.BundledRedstone.canRead(position(), side)) continue; // keeps what it had
         var oldValue = _rsInput[side.ordinal()];
         var newValue = li.cil.oc.core.impl.integration.util.BundledRedstone.computeInput(position(), side);
         if (oldValue != newValue) {

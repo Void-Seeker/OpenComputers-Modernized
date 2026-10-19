@@ -203,6 +203,7 @@ public class Waypoint extends BlockEntity implements Environment, Rotatable, Red
 
   @Override
   public void updateRedstoneInput(Direction side) {
+    if (!li.cil.oc.core.impl.integration.util.BundledRedstone.canRead(position(), side)) return; // keeps what it had
     int oldValue = _input[side.ordinal()];
     int newValue = li.cil.oc.core.impl.integration.util.BundledRedstone.computeInput(position(), side);
     if (oldValue != newValue) {

@@ -317,12 +317,22 @@ public class Adapter extends BlockEntity implements li.cil.oc.api.network.Enviro
           var oldEnv = blocks[d.ordinal()];
           var driver = blocksData[d.ordinal()] != null ? blocksData[d.ordinal()].driver : null;
           if (!Objects.equals(newDriver, driver) || blockChanged) {
+            // the same block made up of other drivers now keeps its address, as it does across a reload (it got a new
+            // one while the game ran, e.g. when a machine's side configuration changed)
+            CompoundTag kept = null;
+            if (!blockChanged && oldEnv instanceof ManagedEnvironment managed) {
+              kept = new CompoundTag();
+              managed.save(kept, level().registryAccess());
+            }
             blocks[d.ordinal()] = null;
             updatingBlocks.remove(oldEnv);
             blocksData[d.ordinal()] = null;
             node.disconnect(oldEnv.node());
             var environment = newDriver.createEnvironment(level(), neighborPos, face);
             if (environment != null) {
+              if (kept != null && environment instanceof li.cil.oc.core.impl.server.driver.CompoundBlockEnvironment compound) {
+                compound.loadAddress(kept, level().registryAccess());
+              }
               blocks[d.ordinal()] = environment;
               if (environment.canUpdate()) updatingBlocks.add(environment);
               blocksData[d.ordinal()] = new BlockData(environment.getClass().getName(), new CompoundTag(), newDriver, blockId(currentBlock));
@@ -336,14 +346,15 @@ public class Adapter extends BlockEntity implements li.cil.oc.api.network.Enviro
           if (environment != null) {
             blocks[d.ordinal()] = environment;
             if (environment.canUpdate()) updatingBlocks.add(environment);
-            if (blocksData[d.ordinal()] != null && blocksData[d.ordinal()].name.equals(environment.getClass().getName())) {
-              environment.load(blocksData[d.ordinal()].data, level().registryAccess());
-              // the same block keeps its address even if other drivers make it up now (the adapter asks another face
-              // than it did); a different block placed there gets its own, as in OC
-              if (environment instanceof li.cil.oc.core.impl.server.driver.CompoundBlockEnvironment compound
-                && (blocksData[d.ordinal()].block == null || blocksData[d.ordinal()].block.isEmpty() // saved before ids: its own block
-                || blockId(currentBlock).equals(blocksData[d.ordinal()].block))) {
-                compound.loadAddress(blocksData[d.ordinal()].data, level().registryAccess());
+            var saved = blocksData[d.ordinal()];
+            // only the same block gets its data and address back (saved before ids: taken as its own block); its
+            // address even if other drivers make it up now. A different block placed there is a device of its own (one
+            // made up of the same drivers took over the old one's address and data).
+            boolean sameBlock = saved != null && (saved.block == null || saved.block.isEmpty() || blockId(currentBlock).equals(saved.block));
+            if (sameBlock && saved.name.equals(environment.getClass().getName())) {
+              environment.load(saved.data, level().registryAccess());
+              if (environment instanceof li.cil.oc.core.impl.server.driver.CompoundBlockEnvironment compound) {
+                compound.loadAddress(saved.data, level().registryAccess());
               }
             }
             blocksData[d.ordinal()] = new BlockData(environment.getClass().getName(), new CompoundTag(), newDriver, blockId(currentBlock));
@@ -417,7 +428,7 @@ public class Adapter extends BlockEntity implements li.cil.oc.api.network.Enviro
         if (blocks[i] != null)
           ((ManagedEnvironment) blocks[i]).save(blocksData[i].data, getEffectiveProvider());
         blockNbt.putString("name", blocksData[i].name);
-        blockNbt.put("data", blocksData[i].data);
+        blockNbt.put("data", blocksData[i].data.copy()); // the chunk is written later, off the server thread
         if (blocksData[i].block != null) blockNbt.putString("block", blocksData[i].block);
       }
       blocksNbt.add(blockNbt);

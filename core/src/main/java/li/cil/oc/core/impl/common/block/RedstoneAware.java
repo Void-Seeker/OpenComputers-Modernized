@@ -38,6 +38,21 @@ public abstract class RedstoneAware extends SimpleBlock {
     return getSignal(state, world, pos, side);
   }
 
+  // Taken away, it lets go of what it powered through the blocks next to it (it powers them strongly: a lamp behind
+  // one stayed lit, only the blocks next to it were told).
+  @Override
+  public void onRemove(@NotNull BlockState state, @NotNull Level level, @NotNull BlockPos pos, @NotNull BlockState newState, boolean isMoving) {
+    boolean powering = false;
+    if (!level.isClientSide && !state.is(newState.getBlock())
+      && level.getBlockEntity(pos) instanceof li.cil.oc.core.impl.common.blockentity.traits.RedstoneAware redstone) {
+      for (Direction side : Direction.values()) powering |= redstone.getOutput(side) > 0;
+    }
+    super.onRemove(state, level, pos, newState, isMoving);
+    if (powering) {
+      for (Direction side : Direction.values()) level.updateNeighborsAtExceptFromFacing(pos.relative(side), this, side.getOpposite());
+    }
+  }
+
   @Override
   public void neighborChanged(@NotNull BlockState state, Level world, @NotNull BlockPos pos, @NotNull Block block, @NotNull BlockPos fromPos, boolean isMoving) {
     BlockEntity te = world.getBlockEntity(pos);

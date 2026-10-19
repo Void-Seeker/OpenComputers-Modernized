@@ -112,6 +112,7 @@ public class Redstone extends BlockEntity implements Environment, BundledRedston
 
   @Override
   public void updateRedstoneInput(Direction side) {
+    if (!li.cil.oc.core.impl.integration.util.BundledRedstone.canRead(position(), side)) return; // keeps what it had
     setInput(side, BundledRedstone.computeInput(BlockPosition.apply(worldPosition.getX(), worldPosition.getY(), worldPosition.getZ(), getLevel()), side));
     setBundledInput(side, BundledRedstone.computeBundledInput(position(), side));
   }

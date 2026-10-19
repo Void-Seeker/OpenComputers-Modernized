@@ -736,12 +736,10 @@ public abstract class Robot extends RobotBase implements Computer, PowerInformat
   @Override
   public void initialize() {
     super.initialize();
-    if (isServer() && getLevel() != null) {
-      if (pendingMachineNbt != null) {
-        machine.load(pendingMachineNbt, getEffectiveProvider());
-        setRunning(machine.isRunning());
-        pendingMachineNbt = null;
-      }
+    // not for one removed before its initialize ran (its chunk unloaded again at once): the machine was loaded and
+    // started, and nothing ever closed it
+    if (isServer() && getLevel() != null && !isRemoved()) {
+      loadPendingMachine();
       if (machine != null) {
         machine.onHostChanged();
       }
@@ -754,6 +752,21 @@ public abstract class Robot extends RobotBase implements Computer, PowerInformat
   @Override
   protected boolean machinePending() {
     return pendingMachineNbt != null;
+  }
+
+  // taken before loading: a load that threw left it pending for good, and the robot's state and outputs no longer
+  // followed its machine
+  private void loadPendingMachine() {
+    var pending = pendingMachineNbt;
+    pendingMachineNbt = null;
+    if (pending != null && machine != null) {
+      try {
+        machine.load(pending, getEffectiveProvider());
+      } catch (RuntimeException e) {
+        org.slf4j.LoggerFactory.getLogger(Robot.class).warn("Could not load a robot's computer.", e);
+      }
+      setRunning(machine.isRunning());
+    }
   }
 
   public void onBlockEntityLoad() {
@@ -784,6 +797,8 @@ public abstract class Robot extends RobotBase implements Computer, PowerInformat
     info.load(nbt, provider);
     if (nbt.contains(OCSettings.namespace + "computer")) {
       pendingMachineNbt = nbt.getCompound(OCSettings.namespace + "computer").copy();
+      // a robot already set up (/data merge, a restore) runs no initialize again: it stayed pending for good
+      if (isInitialized()) EventHandlerDelegate.get().scheduleServer(this::loadPendingMachine);
     }
     readRobotNBT(nbt, provider);
   }
@@ -792,7 +807,10 @@ public abstract class Robot extends RobotBase implements Computer, PowerInformat
   public void writeToNBTForServer(CompoundTag nbt, HolderLookup.Provider provider) {
     saveComponents(provider);
     super.writeToNBTForServer(nbt, provider);
-    if (machine != null) {
+    if (pendingMachineNbt != null) {
+      // saved before its machine was loaded (the tick between the chunk load and initialize): as it was, not stopped
+      nbt.put(OCSettings.namespace + "computer", pendingMachineNbt.copy());
+    } else if (machine != null) {
       var computerTag = new CompoundTag();
       machine.save(computerTag, provider);
       nbt.put(OCSettings.namespace + "computer", computerTag);

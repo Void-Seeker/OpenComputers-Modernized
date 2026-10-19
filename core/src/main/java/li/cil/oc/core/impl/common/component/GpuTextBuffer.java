@@ -28,51 +28,52 @@ public class GpuTextBuffer implements TextBufferProxy {
 
   public static void bitblt(li.cil.oc.api.internal.TextBuffer dst, int col, int row, int w, int h,
                             li.cil.oc.api.internal.TextBuffer src, int fromCol, int fromRow) {
-    int x = col - 1;
-    int y = row - 1;
-    int fx = fromCol - 1;
-    int fy = fromRow - 1;
-    int adjustedDstX = x;
-    int adjustedDstY = y;
-    int adjustedWidth = w;
-    int adjustedHeight = h;
-    int adjustedSourceX = fx;
-    int adjustedSourceY = fy;
+    // in long: huge or negative sizes and positions wrapped around in the bounds (a negative size drew the page, a
+    // huge position threw after writing part of it)
+    if (w <= 0 || h <= 0) return;
+    long adjustedDstX = (long) col - 1;
+    long adjustedDstY = (long) row - 1;
+    long adjustedSourceX = (long) fromCol - 1;
+    long adjustedSourceY = (long) fromRow - 1;
+    long adjustedW = w;
+    long adjustedH = h;
 
-    if (x < 0) {
-      adjustedWidth += x;
-      adjustedSourceX -= x;
+    if (adjustedDstX < 0) {
+      adjustedW += adjustedDstX;
+      adjustedSourceX -= adjustedDstX;
       adjustedDstX = 0;
     }
-    if (y < 0) {
-      adjustedHeight += y;
-      adjustedSourceY -= y;
+    if (adjustedDstY < 0) {
+      adjustedH += adjustedDstY;
+      adjustedSourceY -= adjustedDstY;
       adjustedDstY = 0;
     }
     if (adjustedSourceX < 0) {
-      adjustedWidth += adjustedSourceX;
+      adjustedW += adjustedSourceX;
       adjustedDstX -= adjustedSourceX;
       adjustedSourceX = 0;
     }
     if (adjustedSourceY < 0) {
-      adjustedHeight += adjustedSourceY;
+      adjustedH += adjustedSourceY;
       adjustedDstY -= adjustedSourceY;
       adjustedSourceY = 0;
     }
 
-    adjustedWidth -= Math.max((adjustedDstX + adjustedWidth) - dst.getWidth(), 0);
-    adjustedWidth -= Math.max((adjustedSourceX + adjustedWidth) - src.getWidth(), 0);
-    adjustedHeight -= Math.max((adjustedDstY + adjustedHeight) - dst.getHeight(), 0);
-    adjustedHeight -= Math.max((adjustedSourceY + adjustedHeight) - src.getHeight(), 0);
+    adjustedW = Math.min(adjustedW, Math.min(dst.getWidth() - adjustedDstX, src.getWidth() - adjustedSourceX));
+    adjustedH = Math.min(adjustedH, Math.min(dst.getHeight() - adjustedDstY, src.getHeight() - adjustedSourceY));
 
-    if (adjustedWidth <= 0 || adjustedHeight <= 0) return;
+    if (adjustedW <= 0 || adjustedH <= 0) return;
+    // all within the buffers now
+    int adjustedWidth = (int) adjustedW;
+    int adjustedHeight = (int) adjustedH;
 
     if (dst instanceof GpuTextBuffer dstGpu && src instanceof TextBufferProxy srcProxy) {
-      writeToVram(dstGpu, adjustedDstX, adjustedDstY, adjustedWidth, adjustedHeight, srcProxy, adjustedSourceX, adjustedSourceY);
+      writeToVram(dstGpu, (int) adjustedDstX, (int) adjustedDstY, adjustedWidth, adjustedHeight, srcProxy, (int) adjustedSourceX, (int) adjustedSourceY);
     } else if (src instanceof GpuTextBuffer srcGpu && dst instanceof TextBufferProxy dstProxy && dstProxy instanceof VideoRamRasterizer rasterizer) {
-      if (dstProxy.data().rawcopy(adjustedDstX + 1, adjustedDstY + 1, adjustedWidth, adjustedHeight, srcGpu.data, adjustedSourceX + 1, adjustedSourceY + 1)) {
+      int dx = (int) adjustedDstX + 1, dy = (int) adjustedDstY + 1, sx = (int) adjustedSourceX + 1, sy = (int) adjustedSourceY + 1;
+      if (dstProxy.data().rawcopy(dx, dy, adjustedWidth, adjustedHeight, srcGpu.data, sx, sy)) {
         rasterizer.addBuffer(srcGpu);
-        rasterizer.onBufferBitBlt(adjustedDstX + 1, adjustedDstY + 1, adjustedWidth, adjustedHeight, srcGpu, adjustedSourceX + 1, adjustedSourceY + 1);
+        rasterizer.onBufferBitBlt(dx, dy, adjustedWidth, adjustedHeight, srcGpu, sx, sy);
       }
     } else {
       throw new UnsupportedOperationException("Unsupported buffer types for bitblt");

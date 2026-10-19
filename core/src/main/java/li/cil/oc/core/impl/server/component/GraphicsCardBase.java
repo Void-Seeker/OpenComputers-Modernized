@@ -300,15 +300,15 @@ public class GraphicsCardBase extends AbstractManagedEnvironment implements Devi
         budgetExhausted = false;
 
         if (resolveInvokeCosts(dstIdx, context, budgetCost, area, energyCost)) {
-          // no more than both buffers can hold: a huge size wrapped around in the bounds and threw
-          int cw = (int) Math.min(w, (long) dst.getWidth() + src.getWidth());
-          int ch = (int) Math.min(h, (long) dst.getHeight() + src.getHeight());
           if (dstIdx == srcIdx) {
-            int tx = col - fromCol;
-            int ty = row - fromRow;
-            dst.copy(fromCol - 1, fromRow - 1, cw, ch, tx, ty);
+            // an offset of the buffer's size or more moves nothing onto it (huge positions wrapped around)
+            long tx = (long) col - fromCol;
+            long ty = (long) row - fromRow;
+            if (Math.abs(tx) < dst.getWidth() && Math.abs(ty) < dst.getHeight()) {
+              dst.copy(fromCol - 1, fromRow - 1, w, h, (int) tx, (int) ty);
+            }
           } else {
-            GpuTextBuffer.bitblt(dst, col, row, cw, ch, src, fromCol, fromRow);
+            GpuTextBuffer.bitblt(dst, col, row, w, h, src, fromCol, fromRow);
           }
           return ResultWrapper.result(true);
         }

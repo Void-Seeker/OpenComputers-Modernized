@@ -922,6 +922,9 @@ public abstract class MachineBase extends AbstractManagedEnvironment implements 
           // component_removed once the start-up pause is over
           _components.put(addr, name);
         }
+        // components that connected before the machine was loaded (a robot connects its own first) are known too: each
+        // reload of a running robot signalled component_added for all of them
+        addedComponents.removeIf(c -> _components.containsKey(c.address()));
         if (tmp != null) {
           if (nbt.contains("tmp")) {
             tmp.load(nbt.getCompound("tmp"), provider);

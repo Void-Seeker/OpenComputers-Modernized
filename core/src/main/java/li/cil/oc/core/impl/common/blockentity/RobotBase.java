@@ -297,6 +297,17 @@ public abstract class RobotBase extends BlockEntity implements li.cil.oc.core.im
           li.cil.oc.core.impl.common.PacketSender.sendRobotMove(this, BlockPosition.apply(bp.getX(), bp.getY(), bp.getZ(), world), direction);
           world.sendBlockUpdated(newPos, world.getBlockState(newPos), world.getBlockState(newPos), 3);
           world.sendBlockUpdated(bp, world.getBlockState(bp), world.getBlockState(bp), 3);
+          // what it powers at its new place hears about it, also through the blocks next to it (the block was placed
+          // before the robot was in it; the old place is the block's removal)
+          boolean powering = false;
+          for (var side : Direction.values()) powering |= getOutput(side) > 0;
+          if (powering) {
+            for (var side : Direction.values()) {
+              var out = newPos.relative(side);
+              world.neighborChanged(out, robotBlock, newPos);
+              world.updateNeighborsAtExceptFromFacing(out, world.getBlockState(out).getBlock(), side.getOpposite());
+            }
+          }
           checkRedstoneInputChanged();
           if (EventHandlerDelegate.get() != null)
             EventHandlerDelegate.get().postRobotMovePost(this, direction);
@@ -444,6 +455,7 @@ public abstract class RobotBase extends BlockEntity implements li.cil.oc.core.im
   }
 
   public void updateRedstoneInput(Direction side) {
+    if (!li.cil.oc.core.impl.integration.util.BundledRedstone.canRead(position(), side)) return; // keeps what it had
     int oldValue = input[side.ordinal()];
     int newValue = li.cil.oc.core.impl.integration.util.BundledRedstone.computeInput(position(), side);
     if (oldValue != newValue) {

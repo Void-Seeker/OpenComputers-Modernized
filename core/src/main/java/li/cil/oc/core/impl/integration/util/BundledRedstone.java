@@ -19,6 +19,16 @@ public final class BundledRedstone {
     return !providers.isEmpty();
   }
 
+  /**
+   * Whether what lies beyond that side can be read now. A chunk next to one not loaded yet (every chunk passes the
+   * border on its way in) read 0 there: the saved input changed to 0, a spurious change the computers heard, and it
+   * stayed 0 while the side was powered.
+   */
+  public static boolean canRead(BlockPosition pos, Direction side) {
+    var p = pos.offset(side).toBlockPos();
+    return pos.level() != null && pos.level().hasChunk(p.getX() >> 4, p.getZ() >> 4);
+  }
+
   public static int computeInput(BlockPosition pos, Direction side) {
     var brPos = pos.offset(side).toBlockPos();
     if (pos.level().hasChunk(brPos.getX() >> 4, brPos.getZ() >> 4)) {

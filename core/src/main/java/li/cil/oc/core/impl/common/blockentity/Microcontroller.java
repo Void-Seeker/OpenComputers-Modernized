@@ -144,7 +144,9 @@ public class Microcontroller extends BlockEntity implements PowerAcceptor, Hub, 
   @Override
   public void initialize() {
     super.initialize();
-    if (isServer() && getLevel() != null) {
+    // not for one removed before its initialize ran (its chunk unloaded again at once): the machine was loaded and
+    // started, and nothing ever closed it
+    if (isServer() && getLevel() != null && !isRemoved()) {
       EventHandlerDelegate.get().scheduleServer(this);
       // what is already powered around it (it read nothing until a neighbour changed: a lever on before it was placed
       // read 0)
@@ -538,6 +540,7 @@ public class Microcontroller extends BlockEntity implements PowerAcceptor, Hub, 
   public void checkRedstoneInputChanged() {
     if (getLevel() != null && !getLevel().isClientSide) {
       for (Direction side : Direction.values()) {
+        if (!li.cil.oc.core.impl.integration.util.BundledRedstone.canRead(position(), side)) continue; // keeps what it had
         var oldValue = _rsInput[side.ordinal()];
         var newValue = li.cil.oc.core.impl.integration.util.BundledRedstone.computeInput(position(), side);
         if (oldValue != newValue) {

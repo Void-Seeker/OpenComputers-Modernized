@@ -395,4 +395,169 @@ public final class ComputerRedstoneTests {
       });
     });
   }
+
+  /** What a chunk unload and load does to a robot, its first tick included (it comes before what initialize schedules). */
+  private static li.cil.oc.core.impl.common.blockentity.RobotProxy reloadRobot(final GameTestHelper helper, final net.minecraft.nbt.CompoundTag saved) {
+    final BlockPos abs = helper.absolutePos(AT);
+    helper.getLevel().removeBlockEntity(abs);
+    final var loaded = (li.cil.oc.core.impl.common.blockentity.RobotProxy) net.minecraft.world.level.block.entity.BlockEntity.loadStatic(abs, helper.getLevel().getBlockState(abs), saved);
+    helper.getLevel().getChunkAt(abs).addAndRegisterBlockEntity(loaded);
+    loaded.updateEntity();
+    return loaded;
+  }
+
+  private static net.minecraft.nbt.CompoundTag unload(final GameTestHelper helper) {
+    final var proxy = (li.cil.oc.core.impl.common.blockentity.RobotProxy) helper.getLevel().getBlockEntity(helper.absolutePos(AT));
+    proxy.markUnloading();
+    return proxy.saveWithFullMetadata();
+  }
+
+  /** A robot saved in the tick between its chunk load and its machine's is saved running (it was saved stopped). */
+  @GameTest(template = EMPTY, timeoutTicks = 400)
+  public static void robotSavedBeforeItsMachineLoadedKeepsRunning(final GameTestHelper helper) {
+    TestMachines.runRobot(helper, AT, List.of(Constants.ItemName.RedstoneCardTier1),
+      "while true do computer.pullSignal(1) end\n", 40, (robot, result) -> {
+        helper.assertTrue(robot.machine().isRunning(), "the robot does not run: " + robot.machine().lastError());
+        final var first = reloadRobot(helper, unload(helper));
+        first.markUnloading();
+        final var savedEarly = first.saveWithFullMetadata(); // an autosave before its initialize ran
+        final var again = reloadRobot(helper, savedEarly);
+        helper.runAfterDelay(40, () -> {
+          helper.assertTrue(again.robot.machine().isRunning(), "a robot saved before its machine was loaded came back stopped: " + again.robot.machine().lastError());
+          helper.succeed();
+        });
+      });
+  }
+
+  /** A reloaded running robot hears of no component as added (each reload signalled all of its own: OpenOS mounted its drives again). */
+  @GameTest(template = EMPTY, timeoutTicks = 400)
+  public static void reloadedRobotHearsOfNoAddedComponents(final GameTestHelper helper) {
+    TestMachines.runRobot(helper, AT, List.of(Constants.ItemName.RedstoneCardTier1),
+      "local t0 = computer.uptime() while computer.uptime() - t0 < 1 do computer.pullSignal(0.1) end\n" // what came at boot
+        + "while true do if computer.pullSignal(1) == 'component_added' then error('component_added after a reload') end end\n",
+      40, (robot, result) -> {
+        helper.assertTrue(robot.machine().isRunning(), "the robot does not run: " + robot.machine().lastError());
+        final var loaded = reloadRobot(helper, unload(helper));
+        helper.runAfterDelay(60, () -> {
+          helper.assertTrue(loaded.robot.machine().isRunning(), "the reloaded robot stopped: " + loaded.robot.machine().lastError());
+          helper.succeed();
+        });
+      });
+  }
+
+  /** A running robot loaded over (/data merge, a restore) still follows its machine: stopped, its outputs go off (it stayed pending for good). */
+  @GameTest(template = EMPTY, timeoutTicks = 400)
+  public static void robotLoadedOverStillFollowsItsMachine(final GameTestHelper helper) {
+    TestMachines.runRobot(helper, AT, List.of(Constants.ItemName.RedstoneCardTier1),
+      "component.proxy(component.list('redstone')()).setOutput(3, 15)\nwhile true do computer.pullSignal(1) end\n",
+      40, (robot, result) -> {
+        helper.assertTrue(robot.isOutputEnabled() && total(robot.output()) == 15, "the running robot outputs " + java.util.Arrays.toString(robot.output()));
+        final var proxy = (li.cil.oc.core.impl.common.blockentity.RobotProxy) helper.getLevel().getBlockEntity(helper.absolutePos(AT));
+        proxy.load(proxy.saveWithFullMetadata());
+        helper.runAfterDelay(10, () -> {
+          proxy.robot.machine().stop();
+          helper.runAfterDelay(20, () -> {
+            helper.assertTrue(!proxy.robot.isOutputEnabled() && total(proxy.robot.output()) == 0,
+              "the stopped robot outputs " + java.util.Arrays.toString(proxy.robot.output()) + ", enabled " + proxy.robot.isOutputEnabled());
+            helper.succeed();
+          });
+        });
+      });
+  }
+
+  /**
+   * A moving robot lets go of what it powered through a block and powers what is behind the block at its new place (a
+   * lamp behind the old one stayed lit, one behind the new one stayed off).
+   */
+  @GameTest(template = EMPTY, timeoutTicks = 300)
+  public static void robotMovingAwayLetsGoOfWhatItPowered(final GameTestHelper helper) {
+    final BlockPos lamp = AT.south().south();
+    final BlockPos newLamp = lamp.above();
+    helper.setBlock(AT.south(), net.minecraft.world.level.block.Blocks.STONE);
+    helper.setBlock(lamp, net.minecraft.world.level.block.Blocks.REDSTONE_LAMP);
+    helper.setBlock(AT.south().above(), net.minecraft.world.level.block.Blocks.STONE);
+    helper.setBlock(newLamp, net.minecraft.world.level.block.Blocks.REDSTONE_LAMP);
+    TestMachines.runRobot(helper, AT, List.of(Constants.ItemName.RedstoneCardTier1),
+      "component.proxy(component.list('redstone')()).setOutput(3, 15)\nwhile true do computer.pullSignal(1) end\n",
+      40, (robot, result) -> {
+        helper.assertTrue(helper.getBlockState(lamp).getValue(RedstoneLampBlock.LIT), "the lamp behind the block the robot powers is off");
+        helper.assertTrue(robot.move(Direction.UP), "the robot did not move up");
+        helper.runAfterDelay(10, () -> {
+          helper.assertTrue(!helper.getBlockState(lamp).getValue(RedstoneLampBlock.LIT), "the lamp behind the block the robot powered is still lit after it moved");
+          helper.assertTrue(helper.getBlockState(newLamp).getValue(RedstoneLampBlock.LIT), "the lamp behind the block the robot powers at its new place is off");
+          helper.succeed();
+        });
+      });
+  }
+
+  /** A broken case lets go of what it powered through a block (a lamp behind it stayed lit). */
+  @GameTest(template = EMPTY)
+  public static void brokenCaseLetsGoOfWhatItPowered(final GameTestHelper helper) {
+    final Case computer = caseFacing(helper, Direction.NORTH);
+    final BlockPos lamp = AT.east().east();
+    helper.setBlock(AT.east(), net.minecraft.world.level.block.Blocks.STONE);
+    helper.setBlock(lamp, net.minecraft.world.level.block.Blocks.REDSTONE_LAMP);
+    computer.setOutputEnabled(true);
+    computer.setOutput(Direction.EAST, 15);
+    helper.assertTrue(helper.getBlockState(lamp).getValue(RedstoneLampBlock.LIT), "a lamp behind the block the case powers is off");
+    helper.setBlock(AT, net.minecraft.world.level.block.Blocks.AIR);
+    helper.runAfterDelay(10, () -> {
+      helper.assertTrue(!helper.getBlockState(lamp).getValue(RedstoneLampBlock.LIT), "the lamp behind the block the broken case powered is still lit");
+      helper.succeed();
+    });
+  }
+
+  /**
+   * A side whose neighbour's chunk is not loaded keeps what it read (it read 0: a spurious change, and 0 while powered).
+   * Every chunk is loaded next to one that is not yet, on its way in.
+   */
+  @GameTest(template = EMPTY)
+  public static void redstoneNextToAnUnloadedChunkKeepsItsInput(final GameTestHelper helper) throws Exception {
+    final BlockPos far = helper.absolutePos(AT).offset(100000, 0, 0);
+    final var rack = (li.cil.oc.core.impl.common.blockentity.Rack) Blocks.RACK.get().newBlockEntity(far, Blocks.RACK.get().defaultBlockState());
+    final var level = net.minecraft.world.level.block.entity.BlockEntity.class.getDeclaredField("level");
+    level.setAccessible(true);
+    level.set(rack, helper.getLevel()); // in a level, but its chunk and the next are not loaded
+    rack.input()[Direction.EAST.ordinal()] = 15; // as saved
+    rack.checkRedstoneInputChanged();
+    helper.assertTrue(rack.input()[Direction.EAST.ordinal()] == 15, "next to an unloaded chunk the rack read " + rack.input()[Direction.EAST.ordinal()] + " instead of keeping 15");
+    helper.succeed();
+  }
+
+  /** A case saved in the tick between its chunk load and its machine's is saved running (it was saved stopped). */
+  @GameTest(template = EMPTY, timeoutTicks = 400)
+  public static void caseSavedBeforeItsMachineLoadedKeepsRunning(final GameTestHelper helper) {
+    helper.setBlock(AT, Blocks.CASE_CREATIVE.get());
+    final var computer = (Case) helper.getBlockEntity(AT);
+    for (final ItemStack part : List.of(li.cil.oc.api.Items.get(Constants.ItemName.CPUTier1).createItemStack(1),
+      li.cil.oc.api.Items.get(Constants.ItemName.RAMTier2).createItemStack(1),
+      li.cil.oc.api.Items.registerEEPROM("case test", "while true do computer.pullSignal(1) end\n".getBytes(java.nio.charset.StandardCharsets.UTF_8), null, false))) {
+      int slot = -1;
+      for (int i = 0; i < computer.getContainerSize() && slot < 0; i++) {
+        if (computer.getItem(i).isEmpty() && computer.canPlaceItem(i, part)) slot = i;
+      }
+      computer.setItem(slot, part);
+    }
+    helper.runAfterDelay(5, () -> {
+      helper.assertTrue(computer.machine().start(), "the case did not start: " + computer.machine().lastError());
+      helper.runAfterDelay(40, () -> {
+        helper.assertTrue(computer.machine().isRunning(), "the case does not run: " + computer.machine().lastError());
+        final BlockPos abs = helper.absolutePos(AT);
+        computer.markUnloading();
+        final var saved = computer.saveWithFullMetadata();
+        helper.getLevel().removeBlockEntity(abs);
+        final var first = (Case) net.minecraft.world.level.block.entity.BlockEntity.loadStatic(abs, helper.getLevel().getBlockState(abs), saved);
+        helper.getLevel().getChunkAt(abs).addAndRegisterBlockEntity(first);
+        first.markUnloading();
+        final var savedEarly = first.saveWithFullMetadata(); // an autosave before its initialize ran
+        helper.getLevel().removeBlockEntity(abs);
+        final var again = (Case) net.minecraft.world.level.block.entity.BlockEntity.loadStatic(abs, helper.getLevel().getBlockState(abs), savedEarly);
+        helper.getLevel().getChunkAt(abs).addAndRegisterBlockEntity(again);
+        helper.runAfterDelay(40, () -> {
+          helper.assertTrue(again.machine().isRunning(), "a case saved before its machine was loaded came back stopped: " + again.machine().lastError());
+          helper.succeed();
+        });
+      });
+    });
+  }
 }

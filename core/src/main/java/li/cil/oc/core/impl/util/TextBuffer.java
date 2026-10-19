@@ -1,6 +1,5 @@
 package li.cil.oc.core.impl.util;
 
-import li.cil.oc.compat.MathCompat;
 
 import java.util.Arrays;
 import li.cil.oc.core.impl.OCSettings;
@@ -150,13 +149,18 @@ public class TextBuffer {
 
   public boolean fill(int col, int row, int w, int h, int c) {
     if (w <= 0 || h <= 0) return false;
-    if (col + w < 0 || row + h < 0 || col >= width || row >= height) return false;
+    // in long: a huge size wrapped around (nothing was filled)
+    long right = (long) col + w;
+    long bottom = (long) row + h;
+    if (right <= 0 || bottom <= 0 || col >= width || row >= height) return false;
+    int x1 = (int) Math.min(right, width);
+    int y1 = (int) Math.min(bottom, height);
     boolean changed = false;
-    for (int y = Math.max(row, 0); y < Math.min(row + h, height); y++) {
+    for (int y = Math.max(row, 0); y < y1; y++) {
       int[] line = buffer[y];
       short[] lineColor = color[y];
       int bx = Math.max(col, 0);
-      for (int x = bx; x < Math.min(col + w, width) && bx < line.length; x++) {
+      for (int x = bx; x < x1 && bx < line.length; x++) {
         changed = changed || (line[bx] != c) || (lineColor[bx] != packed);
         setChar(line, lineColor, bx, c);
         bx += Math.max(1, FontUtils.wcwidth(c));
@@ -168,16 +172,21 @@ public class TextBuffer {
   public boolean copy(int col, int row, int w, int h, int tx, int ty) {
     if (w <= 0 || h <= 0) return false;
     if (tx == 0 && ty == 0) return false;
+    // in long: a huge size or offset wrapped around (nothing was copied). Nothing to do when the target lies wholly
+    // off the buffer: its edge column or row was written anyway, from outside the source.
+    long left = (long) col + tx;
+    long top = (long) row + ty;
+    if (left + w <= 0 || top + h <= 0 || left >= width || top >= height) return false;
 
-    int _dx0 = MathCompat.clamp(col + tx + w - 1, 0, width - 1);
-    int _dx1 = MathCompat.clamp(col + tx, 0, width);
+    int _dx0 = (int) Math.max(0, Math.min(width - 1, left + w - 1));
+    int _dx1 = (int) Math.max(0, Math.min(width, left));
     int dx0 = tx > 0 ? _dx0 : _dx1;
     int dx1 = tx > 0 ? _dx1 : _dx0;
     int leftEdge = Math.min(dx0, dx1) - 1;
     if (leftEdge >= width - 1) return false;
 
-    int _dy0 = MathCompat.clamp(row + ty + h - 1, 0, height - 1);
-    int _dy1 = MathCompat.clamp(row + ty, 0, height);
+    int _dy0 = (int) Math.max(0, Math.min(height - 1, top + h - 1));
+    int _dy1 = (int) Math.max(0, Math.min(height, top));
     int dy0 = ty > 0 ? _dy0 : _dy1;
     int dy1 = ty > 0 ? _dy1 : _dy0;
 
@@ -188,19 +197,23 @@ public class TextBuffer {
     for (int ny = dy0; (sy > 0 ? ny <= dy1 : ny >= dy1); ny += sy) {
       int[] nl = buffer[ny];
       short[] nc = color[ny];
-      int oy = ny - ty;
+      long oy = (long) ny - ty;
       if (oy >= 0 && oy < height) {
-        int[] ol = buffer[oy];
-        short[] oc = color[oy];
+        int[] ol = buffer[(int) oy];
+        short[] oc = color[(int) oy];
         for (int nx = dx0; (sx > 0 ? nx <= dx1 : nx >= dx1); nx += sx) {
-          int ox = nx - tx;
+          long ox = (long) nx - tx;
           if (ox >= 0 && ox < width) {
-            changed = changed || (nl[nx] != ol[ox]) || (nc[nx] != oc[ox]);
-            nl[nx] = ol[ox];
-            nc[nx] = oc[ox];
-            for (int offset = 1; offset < FontUtils.wcwidth(nl[nx]); offset++) {
+            int c = ol[(int) ox];
+            short cc = oc[(int) ox];
+            // a wide character does not fit in the last column (set refuses it there; this wrote past the line)
+            if (FontUtils.wcwidth(c) > 1 && nx >= nl.length - 1) c = ' ';
+            changed = changed || (nl[nx] != c) || (nc[nx] != cc);
+            nl[nx] = c;
+            nc[nx] = cc;
+            for (int offset = 1; offset < FontUtils.wcwidth(c); offset++) {
               nl[nx + offset] = ' ';
-              nc[nx + offset] = oc[nx];
+              nc[nx + offset] = cc; // its other half has its colour (it took the old row's colour at the target)
             }
           }
         }
