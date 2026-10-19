@@ -219,7 +219,7 @@ public class Redstone extends BlockEntity implements Environment, BundledRedston
   @Override
   public void onRedstoneOutputChanged(Direction side) {
     BundledRedstoneAware.super.onRedstoneOutputChanged(side);
-    markChanged();
+    if (isServer()) markChanged(); // (clients set outputs from packets: their marks belong to no server)
   }
 
   @Override
