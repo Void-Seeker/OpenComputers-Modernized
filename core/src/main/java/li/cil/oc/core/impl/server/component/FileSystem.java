@@ -169,15 +169,12 @@ public class FileSystem extends AbstractManagedEnvironment implements DeviceInfo
     }
   }
 
+  // false for a path already there, as OC 1.12 (it said true)
   private boolean recurseMkdir(String path) {
-    if (fileSystem.exists(path)) return true;
+    if (fileSystem.exists(path)) return false;
     if (fileSystem.makeDirectory(path)) return true;
     String parent = path.contains("/") ? path.substring(0, path.lastIndexOf('/')) : "";
-    if (!parent.isEmpty()) {
-      recurseMkdir(parent);
-      return fileSystem.makeDirectory(path);
-    }
-    return fileSystem.makeDirectory(path);
+    return !parent.isEmpty() && recurseMkdir(parent) && fileSystem.makeDirectory(path);
   }
 
   @Callback(doc = "function(path:string):boolean -- Removes the object at the specified absolute path in the file system.")
@@ -190,8 +187,9 @@ public class FileSystem extends AbstractManagedEnvironment implements DeviceInfo
     }
   }
 
+  // false for a path not there, as OC 1.12 (it said true)
   private boolean recurseDelete(String path) {
-    if (!fileSystem.exists(path)) return true;
+    if (!fileSystem.exists(path)) return false;
     if (fileSystem.isDirectory(path)) {
       String[] children = fileSystem.list(path);
       if (children != null) {

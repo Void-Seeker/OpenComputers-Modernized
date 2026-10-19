@@ -53,8 +53,10 @@ public abstract class OutputStreamFileSystem extends InputStreamFileSystem {
   public void close() {
     synchronized (this) {
       super.close();
-      for (OutputHandle h : handles.values()) h.close();
+      // a copy: each handle removes itself as it closes (two or more open for writing threw midway)
+      var copy = java.util.List.copyOf(handles.values());
       handles.clear();
+      for (OutputHandle h : copy) h.close();
     }
   }
 

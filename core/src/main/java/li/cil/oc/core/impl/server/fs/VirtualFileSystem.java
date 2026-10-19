@@ -202,6 +202,8 @@ public abstract class VirtualFileSystem extends OutputStreamFileSystem {
     byte[] data = new byte[0];
     int dataLength = 0;
     public VirtualOutputHandle handle = null;
+    // counts changes to the contents, so a buffered file system writes only the files changed since it last did
+    public long changes = 0;
 
     public VirtualFile() {
       isDirectory = false;
@@ -221,6 +223,7 @@ public abstract class VirtualFileSystem extends OutputStreamFileSystem {
         data = new byte[0];
         dataLength = 0;
         lastModified = System.currentTimeMillis();
+        changes++;
       }
       VirtualOutputHandle h = new VirtualOutputHandle(this, owner, id, path);
       handle = h;
@@ -449,6 +452,7 @@ public abstract class VirtualFileSystem extends OutputStreamFileSystem {
       System.arraycopy(b, 0, file.data, pos, b.length);
       position += b.length;
       file.lastModified = System.currentTimeMillis();
+      file.changes++;
     }
   }
 }

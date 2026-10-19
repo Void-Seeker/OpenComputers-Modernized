@@ -16,7 +16,6 @@ import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -35,7 +34,6 @@ import org.slf4j.LoggerFactory;
 public final class StateSaveManager {
   private static final Logger LOGGER = LoggerFactory.getLogger(StateSaveManager.class);
   public static final SafeThreadPool stateSaveHandler = ThreadPoolFactory.createSafePool("SaveHandler", 1);
-  public static final ConcurrentLinkedDeque<File> chunkDirs = new ConcurrentLinkedDeque<>();
   static final Map<String, Future<?>> saving = new HashMap<>();
   private static final String uuidRegex = "[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}";
   private static final long TimeToHoldOntoOldSaves = 60 * 1000;
@@ -224,7 +222,6 @@ public final class StateSaveManager {
       File path = statePath();
       File dimPath = new File(path, dimension);
       File chunkPath = new File(dimPath, pos.x + "." + pos.z);
-      chunkDirs.add(chunkPath);
       if (!chunkPath.exists()) {
         if (!chunkPath.mkdirs()) {
           LOGGER.warn("Failed to create chunk directory: {}", chunkPath);
@@ -241,9 +238,17 @@ public final class StateSaveManager {
         return;
       }
       try {
-        BufferedOutputStream fos = new BufferedOutputStream(new FileOutputStream(file));
-        fos.write(data);
-        fos.close();
+        // written beside it and moved over it: a kill mid-write left a cut state ("could not restore the computer's
+        // state"), not the last whole one
+        File temp = new File(file.getParentFile(), file.getName() + ".part");
+        try (BufferedOutputStream fos = new BufferedOutputStream(new FileOutputStream(temp))) {
+          fos.write(data);
+        }
+        try {
+          Files.move(temp.toPath(), file.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING, java.nio.file.StandardCopyOption.ATOMIC_MOVE);
+        } catch (java.nio.file.AtomicMoveNotSupportedException e) {
+          Files.move(temp.toPath(), file.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+        }
       } catch (IOException e) {
         LOGGER.warn("Error saving auxiliary block entity data to '{}'.", file.getAbsolutePath(), e);
       }

@@ -29,7 +29,8 @@ public interface PartEnvironmentBase extends ManagedEnvironment {
     if (slot >= config.size()) return ResultWrapper.result(ItemStack.EMPTY);
     var stack = config.getStack(slot);
     if (stack != null && stack.what() instanceof AEItemKey itemKey) {
-      return ResultWrapper.result(itemKey.toStack((int) stack.amount()));
+      // a bus keeps types only, amount 0: one of it, as OC 1.12 (an empty stack, air)
+      return ResultWrapper.result(itemKey.toStack((int) Math.max(1, Math.min(stack.amount(), Integer.MAX_VALUE))));
     }
     return ResultWrapper.result(ItemStack.EMPTY);
   }

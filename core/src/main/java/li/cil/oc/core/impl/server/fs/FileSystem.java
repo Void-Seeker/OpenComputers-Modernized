@@ -694,6 +694,12 @@ public final class FileSystem implements li.cil.oc.api.detail.FileSystemAPI {
     // the save under way for each folder, whichever instance started it: a drive moved to another computer (or its
     // chunk reloaded) right after an autosave read the folder before the old instance had written it
     private static final Map<String, Future<?>> savingFolders = new java.util.concurrent.ConcurrentHashMap<>();
+    // each file's changes when it was last written to the folder (or read from it), and where: a save writes only files
+    // changed since, moved, or gone from the folder (every save rewrote every file, holding the drive's lock)
+    private final Map<VirtualFile, Saved> saved = new java.util.WeakHashMap<>();
+
+    private record Saved(long changes, String path) {
+    }
 
     BufferedFileSystem(File fileRoot, long capacity) {
       this.fileRoot = fileRoot;
@@ -850,6 +856,7 @@ public final class FileSystem implements li.cil.oc.api.detail.FileSystemAPI {
                 }
                 stream.close();
                 setLastModified(childPath, child.lastModified());
+                if (root.get(segments(childPath)) instanceof VirtualFile file) saved.put(file, new Saved(file.changes, childPath));
               }
             }
           }
@@ -911,6 +918,10 @@ public final class FileSystem implements li.cil.oc.api.detail.FileSystemAPI {
           if (isDirectory(childPath)) {
             recurseSave(childPath + "/", childFile);
           } else {
+            var file = root.get(segments(childPath)) instanceof VirtualFile f ? f : null;
+            var last = file != null ? saved.get(file) : null;
+            if (last != null && last.changes() == file.changes && last.path().equals(childPath) && childFile.exists()) continue;
+            long changes = file != null ? file.changes : -1;
             try {
               long len = size(childPath);
               byte[] data = new byte[(int) len];
@@ -936,6 +947,7 @@ public final class FileSystem implements li.cil.oc.api.detail.FileSystemAPI {
               if (!childFile.setLastModified(lastModified(childPath))) {
                 LOGGER.warn("Failed to set last modified on: {}", childFile);
               }
+              if (file != null) saved.put(file, new Saved(changes, childPath));
             } catch (Exception e) {
               // said, not swallowed: a name the host's file system refuses, or a full disk, lost the file at reload
               LOGGER.warn("Could not save {} of the file system in {}", childPath, fileRoot(), e);

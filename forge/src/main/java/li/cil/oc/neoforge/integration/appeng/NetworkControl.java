@@ -11,11 +11,16 @@ import appeng.api.networking.crafting.ICraftingLink;
 import appeng.api.networking.crafting.ICraftingRequester;
 import appeng.api.networking.crafting.ICraftingService;
 import appeng.api.networking.security.IActionHost;
+import appeng.api.parts.IPartHost;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
 import appeng.api.stacks.KeyCounter;
 import appeng.api.storage.StorageHelper;
+import appeng.crafting.CraftingLink;
+import appeng.helpers.InterfaceLogicHost;
+import appeng.me.service.CraftingService;
+import appeng.parts.AEBasePart;
 import com.google.common.collect.ImmutableSet;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -33,10 +38,12 @@ import li.cil.oc.api.network.Node;
 import li.cil.oc.api.prefab.AbstractValue;
 import li.cil.oc.core.impl.server.driver.Registry;
 import li.cil.oc.core.impl.util.DatabaseAccess;
+import li.cil.oc.core.impl.util.LoadedChunks;
 import li.cil.oc.core.util.ResultWrapper;
 import li.cil.oc.neoforge.OpenComputers;
 import li.cil.oc.neoforge.common.EventHandler;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
@@ -394,7 +401,10 @@ public interface NetworkControl<AETile extends IActionHost> extends Persistable,
 
     @Override
     public IGridNode getActionableNode() {
-      return controller != null ? controller.getActionableNode() : null;
+      var node = controller != null ? controller.getActionableNode() : null;
+      // never null: AE2 asks a job's requester for its grid each tick (the server crashed when the interface was broken
+      // or unloaded mid-craft); on no grid, AE2 cancels the job
+      return node != null ? node : NoGridNode.INSTANCE;
     }
 
     @Callback(doc = "function():table -- Returns the item stack representation of the crafting result.")
@@ -436,7 +446,8 @@ public interface NetworkControl<AETile extends IActionHost> extends Persistable,
       var cpuName = args.optString(2, "");
 
       var source = new MachineSource(controller);
-      Level level = controller instanceof BlockEntity be ? be.getLevel() : null;
+      var block = blockEntityOf(controller);
+      Level level = block != null ? block.getLevel() : null;
 
       var future = craftingGrid.beginCraftingCalculation(
         level,
@@ -484,6 +495,14 @@ public interface NetworkControl<AETile extends IActionHost> extends Persistable,
       return ResultWrapper.result(status);
     }
 
+    // the block the controller is, or is a part of (a cable bus interface is no block entity: crafting through it threw,
+    // and nothing was saved to find it again)
+    private static BlockEntity blockEntityOf(IActionHost controller) {
+      if (controller instanceof BlockEntity be) return be;
+      if (controller instanceof InterfaceLogicHost host) return host.getBlockEntity();
+      return null;
+    }
+
     private static boolean isControllerInvalid(IActionHost controller) {
       if (controller instanceof BlockEntity be) {
         return be.isRemoved();
@@ -495,11 +514,12 @@ public interface NetworkControl<AETile extends IActionHost> extends Persistable,
     private static final String X_KEY = "x";
     private static final String Y_KEY = "y";
     private static final String Z_KEY = "z";
+    private static final String SIDE_KEY = "side";
     private static final String LINKS_KEY = "links";
     private static final String STACK_KEY = "stack";
     private static final String AMOUNT_KEY = "amount";
 
-    private static final int MAX_BACKOFF_TICKS = 100;
+    private static final int MAX_BACKOFF_TICKS = 20; // (AE2 cancels a job whose requester is not back within 60 ticks)
     private static final int BACKOFF_SCALE = 2;
 
     @Override
@@ -526,7 +546,8 @@ public interface NetworkControl<AETile extends IActionHost> extends Persistable,
         var x = nbt.getInt(X_KEY);
         var y = nbt.getInt(Y_KEY);
         var z = nbt.getInt(Z_KEY);
-        delayData = new EphemeralDelayData(dimension, x, y, z);
+        var side = nbt.contains(SIDE_KEY) ? Direction.from3DDataValue(nbt.getInt(SIDE_KEY)) : null;
+        delayData = new EphemeralDelayData(dimension, x, y, z, side);
         pushDelayLoadBackoff(1);
       }
     }
@@ -545,35 +566,47 @@ public interface NetworkControl<AETile extends IActionHost> extends Persistable,
         linksList.add(linkTag);
       }
       nbt.put(LINKS_KEY, linksList);
-      if (controller instanceof BlockEntity be && be.getLevel() != null) {
+      var be = blockEntityOf(controller);
+      if (be != null && be.getLevel() != null) {
         nbt.putString(DIM_KEY, be.getLevel().dimension().location().toString());
         nbt.putInt(X_KEY, be.getBlockPos().getX());
         nbt.putInt(Y_KEY, be.getBlockPos().getY());
         nbt.putInt(Z_KEY, be.getBlockPos().getZ());
+        if (controller instanceof AEBasePart part && part.getSide() != null) nbt.putInt(SIDE_KEY, part.getSide().get3DDataValue());
       }
     }
 
-    private boolean tryLoadGrid(String dimension, int x, int y, int z) {
+    private boolean tryLoadGrid(EphemeralDelayData data) {
       var server = li.cil.oc.core.impl.util.SideTracker.getCurrentServer();
       if (server == null) return false;
-      var key = net.minecraft.resources.ResourceLocation.tryParse(dimension);
+      var key = net.minecraft.resources.ResourceLocation.tryParse(data.dimension);
       if (key == null) return true;
       var world = server.getLevel(net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.DIMENSION, key));
       if (world == null) return false;
-      var be = world.getBlockEntity(new BlockPos(x, y, z));
-      if (be == null) return false;
-      if (!(be instanceof IActionHost host)) return true;
+      var pos = new BlockPos(data.x, data.y, data.z);
+      if (!LoadedChunks.isReady(world, pos)) return false; // (getBlockEntity loaded the chunk)
+      var be = world.getBlockEntity(pos);
+      if (be == null) return true; // (the chunk is there: the controller is gone)
+      var found = data.side != null && be instanceof IPartHost partHost ? partHost.getPart(data.side) : be;
+      if (!(found instanceof IActionHost host)) return true;
       var node = host.getActionableNode();
       if (node == null) return false;
       var grid = node.getGrid();
       if (grid == null) return true;
+      // AE2 knows a requester's jobs again only when told (OC 1.12 added the node): they were cancelled after a reload,
+      // or never reported done
+      if (grid.getCraftingService() instanceof CraftingService crafting) {
+        for (var link : links) {
+          if (link instanceof CraftingLink craftingLink) crafting.addLink(craftingLink);
+        }
+      }
       controller = host;
       return true;
     }
 
     private void delayLoadGrid() {
       if (delayData != null) {
-        if (tryLoadGrid(delayData.dimension, delayData.x, delayData.y, delayData.z)) {
+        if (tryLoadGrid(delayData)) {
           delayData = null;
         } else {
           pushDelayLoadBackoff(delayData.delay * BACKOFF_SCALE);
@@ -584,22 +617,58 @@ public interface NetworkControl<AETile extends IActionHost> extends Persistable,
     private void pushDelayLoadBackoff(int delay) {
       if (delayData != null) {
         delayData.delay = Math.min(delay, MAX_BACKOFF_TICKS);
-        EventHandler.scheduleServer(this::delayLoadGrid, delayData.delay);
+        // held weakly: the retries end with the machine (they went on forever, holding the craftable)
+        var self = new java.lang.ref.WeakReference<>(this);
+        EventHandler.scheduleServer(() -> {
+          var craftable = self.get();
+          if (craftable != null) craftable.delayLoadGrid();
+        }, delayData.delay);
       }
     }
 
     private static final class EphemeralDelayData {
       final String dimension;
       final int x, y, z;
+      final Direction side; // of a part interface, else null
       int delay = 1;
 
-      EphemeralDelayData(String dimension, int x, int y, int z) {
+      EphemeralDelayData(String dimension, int x, int y, int z, Direction side) {
         this.dimension = dimension;
         this.x = x;
         this.y = y;
         this.z = z;
+        this.side = side;
       }
     }
+  }
+
+  // the node of a requester whose controller is gone: on no grid, so AE2 cancels its jobs
+  final class NoGridNode implements IGridNode {
+    static final NoGridNode INSTANCE = new NoGridNode();
+
+    private NoGridNode() {
+    }
+
+    @Override public <T extends appeng.api.networking.IGridNodeService> T getService(Class<T> serviceClass) { return null; }
+    @Override public Object getOwner() { return null; }
+    @Override public void beginVisit(appeng.api.networking.IGridVisitor visitor) { }
+    @Override public IGrid getGrid() { return null; }
+    @Override public net.minecraft.server.level.ServerLevel getLevel() { return null; }
+    @Override public Set<Direction> getConnectedSides() { return Set.of(); }
+    @Override public Map<Direction, appeng.api.networking.IGridConnection> getInWorldConnections() { return Map.of(); }
+    @Override public java.util.List<appeng.api.networking.IGridConnection> getConnections() { return java.util.List.of(); }
+    @Override public boolean hasGridBooted() { return false; }
+    @Override public boolean isPowered() { return false; }
+    @Override public boolean meetsChannelRequirements() { return false; }
+    @Override public boolean hasFlag(appeng.api.networking.GridFlags flag) { return false; }
+    @Override public int getOwningPlayerId() { return -1; }
+    @Override public java.util.UUID getOwningPlayerProfileId() { return null; }
+    @Override public double getIdlePowerUsage() { return 0; }
+    @Override public AEItemKey getVisualRepresentation() { return null; }
+    @Override public appeng.api.util.AEColor getGridColor() { return appeng.api.util.AEColor.TRANSPARENT; }
+    @Override public void fillCrashReportCategory(net.minecraft.CrashReportCategory category) { }
+    @Override public int getMaxChannels() { return 0; }
+    @Override public int getUsedChannels() { return 0; }
   }
 
   class CraftingStatus extends AbstractValue {
