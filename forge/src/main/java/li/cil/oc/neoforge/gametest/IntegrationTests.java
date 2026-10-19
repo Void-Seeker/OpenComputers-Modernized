@@ -428,6 +428,8 @@ public final class IntegrationTests {
       }
       final String after = blockAddress(adapter);
       helper.assertTrue(drivers == 2, "the test driver did not come along: " + drivers + " drivers");
+      adapter.neighborChanged(Direction.EAST); // energy alone again
+      final String alone = blockAddress(adapter);
       // a driver with a name of its own coming along keeps it too (the block's name changed: it got a new address)
       final String named;
       NAMED_DRIVER_AT.add(deviceAbs);
@@ -439,6 +441,7 @@ public final class IntegrationTests {
       }
       helper.assertTrue(before != null && before.equals(named), "with a named driver coming along the block got " + named + " instead of " + before);
       helper.assertTrue(before != null && before.equals(after), "the block got " + after + " instead of " + before + " when its drivers changed");
+      helper.assertTrue(before.equals(alone), "the block got " + alone + " instead of " + before + " when the driver went again");
       helper.succeed();
     });
   }

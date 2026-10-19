@@ -434,15 +434,16 @@ public final class ComputerRedstoneTests {
   public static void reloadedRobotHearsOfNoAddedComponents(final GameTestHelper helper) {
     TestMachines.runRobot(helper, AT, List.of(Constants.ItemName.RedstoneCardTier1),
       "local t0 = computer.uptime() while computer.uptime() - t0 < 1 do computer.pullSignal(0.1) end\n" // what came at boot
+        + "component.proxy(component.list('redstone')()).setOutput(3, 1)\n" // listening now
         + "while true do if computer.pullSignal(1) == 'component_added' then error('component_added after a reload') end end\n",
-      40, (robot, result) -> {
-        helper.assertTrue(robot.machine().isRunning(), "the robot does not run: " + robot.machine().lastError());
+      40, (robot, result) -> TestMachines.when(helper, () -> total(robot.output()) == 1, 100, () -> {
+        helper.assertTrue(robot.machine().isRunning() && total(robot.output()) == 1, "the robot does not listen yet: " + robot.machine().lastError());
         final var loaded = reloadRobot(helper, unload(helper));
         helper.runAfterDelay(60, () -> {
           helper.assertTrue(loaded.robot.machine().isRunning(), "the reloaded robot stopped: " + loaded.robot.machine().lastError());
           helper.succeed();
         });
-      });
+      }));
   }
 
   /** A running robot loaded over (/data merge, a restore) still follows its machine: stopped, its outputs go off (it stayed pending for good). */
@@ -624,6 +625,8 @@ public final class ComputerRedstoneTests {
         } finally {
           robot.setBlockPos(at);
         }
+        robot.readRedstoneInputs();
+        helper.assertTrue(!robot.shouldUpdateInput(), "the robot keeps reading again where every side can be read");
         helper.succeed();
       });
   }

@@ -39,7 +39,11 @@ public class CompoundBlockDriver implements DriverBlock {
     for (int i = 0; i < list.size(); i++) {
       names[i] = (String) list.get(i)[0];
       envs[i] = (ManagedEnvironment) list.get(i)[1];
-      if (!((DriverBlock) list.get(i)[2]).isGeneric() && envs[i] instanceof NamedBlock named) identity.add(named.preferredName());
+      // every part by name (its driver's when it has none), generic ones marked: an energy acceptor is not the interface
+      // it replaced, though nothing but energy tells it
+      var driver = (DriverBlock) list.get(i)[2];
+      String part = envs[i] instanceof NamedBlock named ? named.preferredName() : driver.getClass().getName();
+      identity.add(driver.isGeneric() ? CompoundBlockEnvironment.GENERIC + part : part);
     }
     return new CompoundBlockEnvironment(cleanName(tryGetName(world, pos, envs)), names, envs, identity);
   }

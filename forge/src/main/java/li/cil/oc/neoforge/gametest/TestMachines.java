@@ -43,7 +43,8 @@ final class TestMachines {
       ((li.cil.oc.api.network.Connector) mc.snooperNode).changeBuffer(1000);
       helper.assertTrue(mc.machine().start(), "machine did not start");
       helper.runAfterDelay(100, () -> {
-        helper.assertTrue(mc.machine().isRunning(), "program stopped: " + mc.machine().lastError());
+        final String error = String.valueOf(mc.machine().lastError());
+        helper.assertTrue(mc.machine().isRunning() || error.contains("done:"), "program stopped: " + error); // (or reported)
         check.accept(mc);
       });
     });
@@ -86,6 +87,8 @@ final class TestMachines {
       ((li.cil.oc.api.network.Connector) robot.machine().node()).changeBuffer(20000);
       helper.assertTrue(robot.machine().start(), "the robot did not start: " + robot.machine().lastError());
       helper.runAfterDelay(delay, () -> when(helper, () -> reported(program, robot.machine()), 100, () -> {
+        // (a check of what did not happen passed when the program had not got that far)
+        helper.assertTrue(reported(program, robot.machine()), "the program did not report within " + (delay + 100) + " ticks");
         final String error = robot.machine().lastError();
         final int at = error == null ? -1 : error.indexOf("done:");
         helper.assertTrue(error == null || at >= 0, "the program failed: " + error);
@@ -119,6 +122,7 @@ final class TestMachines {
       ((li.cil.oc.api.network.Connector) drone.machine().node()).changeBuffer(20000);
       helper.assertTrue(drone.start(), "the drone did not start: " + drone.machine().lastError());
       helper.runAfterDelay(delay, () -> when(helper, () -> reported(program, drone.machine()), 100, () -> {
+        helper.assertTrue(reported(program, drone.machine()), "the program did not report within " + (delay + 100) + " ticks");
         final String error = drone.machine().lastError();
         final int at = error == null ? -1 : error.indexOf("done:");
         helper.assertTrue(error == null || at >= 0, "the program failed: " + error);
@@ -127,9 +131,14 @@ final class TestMachines {
     });
   }
 
-  // whether a program that reports (error("done:" ..)) has, or stopped otherwise; one that runs on is ready at once
+  // whether a program that reports (error("done:" ..)) has, or stopped otherwise; one that runs on, or reports only when
+  // asked (on a 'report' signal), is ready at once
   private static boolean reported(final String program, final li.cil.oc.api.machine.Machine machine) {
-    return !program.contains("done:") || machine.lastError() != null || !machine.isRunning();
+    return !reportsByItself(program) || machine.lastError() != null || !machine.isRunning();
+  }
+
+  private static boolean reportsByItself(final String program) {
+    return program.contains("done:") && !program.contains("'report'");
   }
 
   /**

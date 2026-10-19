@@ -33,8 +33,9 @@ public class CompoundBlockEnvironment implements ManagedEnvironment, Environment
     return environments;
   }
 
-  // the names of what it is made up of, generic drivers (energy, inventories, tanks) left out: the adapter tells the
-  // same device from another in the same block by them
+  // the names of what it is made up of, those of generic drivers (energy, inventories, tanks, peripherals) marked with
+  // GENERIC: the adapter tells the same device from another in the same block by them
+  public static final String GENERIC = "*";
   private final java.util.Set<String> identity;
 
   public java.util.Set<String> identity() {

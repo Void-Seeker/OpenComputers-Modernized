@@ -56,6 +56,17 @@ public final class AppliedEnergisticsTests {
     });
   }
 
+  private static boolean hasImportBus(final li.cil.oc.core.impl.common.blockentity.Adapter adapter) {
+    for (final var node : adapter.node().reachableNodes()) {
+      if (node.host() instanceof li.cil.oc.core.impl.server.driver.CompoundBlockEnvironment compound) {
+        for (final var env : compound.environments()) {
+          if (env instanceof li.cil.oc.neoforge.integration.appeng.DriverImportBus.Environment) return true;
+        }
+      }
+    }
+    return false;
+  }
+
   private static String compoundAddress(final li.cil.oc.core.impl.common.blockentity.Adapter adapter) {
     for (final var node : adapter.node().reachableNodes()) {
       if (node.host() instanceof li.cil.oc.core.impl.server.driver.CompoundBlockEnvironment) return node.address();
@@ -118,11 +129,48 @@ public final class AppliedEnergisticsTests {
       helper.assertTrue(appeng.api.parts.PartHelper.setPart(helper.getLevel(), abs, Direction.NORTH, null, (appeng.api.parts.IPartItem<?>) importBus) != null, "the import bus could not be placed");
       adapter.neighborChanged(Direction.EAST);
       final String withBus = compoundAddress(adapter);
+      helper.assertTrue(hasImportBus(adapter), "the import bus did not come along: the drivers did not change");
       appeng.api.parts.PartHelper.getPartHost(helper.getLevel(), abs).removePartFromSide(Direction.NORTH);
       adapter.neighborChanged(Direction.EAST);
       final String withoutBus = compoundAddress(adapter);
+      helper.assertTrue(!hasImportBus(adapter), "the import bus did not go");
       helper.assertTrue(first != null && first.equals(withBus), "with an import bus added elsewhere the interface got " + withBus + " instead of " + first);
       helper.assertTrue(first.equals(withoutBus), "with the import bus gone again the interface got " + withoutBus + " instead of " + first);
+      helper.succeed();
+    });
+  }
+
+  /**
+   * An energy acceptor put where an interface was is a device of its own, and so is an interface put back where it was
+   * (energy alone has no name to tell it by: it took over the interface's address, and passed it on).
+   */
+  @GameTest(template = EMPTY, timeoutTicks = 100)
+  public static void adapterTellsAnEnergyAcceptorFromAnInterface(final GameTestHelper helper) {
+    final BlockPos cable = new BlockPos(2, 2, 2);
+    final BlockPos adapterPos = cable.west();
+    final BlockPos abs = helper.absolutePos(cable);
+    final var iface = (appeng.api.parts.IPartItem<?>) ForgeRegistries.ITEMS.getValue(new ResourceLocation("ae2", "cable_interface"));
+    final var acceptor = ForgeRegistries.ITEMS.getValue(new ResourceLocation("ae2", "cable_energy_acceptor"));
+    helper.assertTrue(acceptor instanceof appeng.api.parts.IPartItem<?>, "AE2's energy acceptor part is not here: " + acceptor);
+    helper.assertTrue(appeng.api.parts.PartHelper.setPart(helper.getLevel(), abs, Direction.WEST, null, iface) != null, "the interface part could not be placed");
+    helper.setBlock(adapterPos, Blocks.ADAPTER.get());
+    helper.runAfterDelay(5, () -> {
+      final var adapter = (li.cil.oc.core.impl.common.blockentity.Adapter) helper.getBlockEntity(adapterPos);
+      adapter.neighborChanged(Direction.EAST);
+      final String first = compoundAddress(adapter);
+      final var host = appeng.api.parts.PartHelper.getPartHost(helper.getLevel(), abs);
+      host.removePartFromSide(Direction.WEST);
+      adapter.neighborChanged(Direction.EAST);
+      helper.assertTrue(appeng.api.parts.PartHelper.setPart(helper.getLevel(), abs, Direction.WEST, null, (appeng.api.parts.IPartItem<?>) acceptor) != null, "the energy acceptor could not be placed");
+      adapter.neighborChanged(Direction.EAST);
+      final String energy = compoundAddress(adapter);
+      appeng.api.parts.PartHelper.getPartHost(helper.getLevel(), abs).removePartFromSide(Direction.WEST);
+      adapter.neighborChanged(Direction.EAST);
+      appeng.api.parts.PartHelper.setPart(helper.getLevel(), abs, Direction.WEST, null, iface);
+      adapter.neighborChanged(Direction.EAST);
+      final String back = compoundAddress(adapter);
+      helper.assertTrue(first != null && energy != null && !energy.equals(first), "an energy acceptor put where the interface was got its address " + energy);
+      helper.assertTrue(back != null && !back.equals(energy), "an interface put back where the energy acceptor was got its address " + back);
       helper.succeed();
     });
   }

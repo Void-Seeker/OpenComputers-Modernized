@@ -496,12 +496,23 @@ public class Adapter extends BlockEntity implements li.cil.oc.api.network.Enviro
   /**
    * The same device as before, of those in the same block: one of the names it went by is still among them (a part
    * added elsewhere on a cable bus, or energy coming and going, keeps it; an interface swapped for an export bus does
-   * not). Generic drivers have no name here, and nothing known tells nothing.
+   * not). The names of generic drivers count only when one side has nothing else (energy is no device of its own when
+   * both are more: two machines behind one bounding block both have it); nothing known tells nothing.
    */
   private static boolean sameDevice(java.util.Set<String> before, java.util.Set<String> now) {
     if (before == null || before.isEmpty() || now.isEmpty()) return true;
-    for (String name : before) if (now.contains(name)) return true;
+    var specificBefore = specific(before);
+    var specificNow = specific(now);
+    var a = specificBefore.isEmpty() || specificNow.isEmpty() ? before : specificBefore;
+    var b = specificBefore.isEmpty() || specificNow.isEmpty() ? now : specificNow;
+    for (String name : a) if (b.contains(name)) return true;
     return false;
+  }
+
+  private static java.util.Set<String> specific(java.util.Set<String> names) {
+    var result = new java.util.HashSet<String>();
+    for (String name : names) if (!name.startsWith(li.cil.oc.core.impl.server.driver.CompoundBlockEnvironment.GENERIC)) result.add(name);
+    return result;
   }
 
   private static String blockId(net.minecraft.world.level.block.Block block) {

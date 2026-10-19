@@ -168,7 +168,7 @@ public final class TransposerTests {
     });
   }
 
-  @GameTest(template = EMPTY, timeoutTicks = 200)
+  @GameTest(template = EMPTY, timeoutTicks = 300)
   public static void transposerDropsItemsPlacesBlocksAndMovesWorldFluid(final GameTestHelper helper) {
     final BlockPos pos = new BlockPos(2, 2, 2);
     final BlockPos chest = pos.north(), stone = pos.above(), drop = pos.east(), place = pos.west(), water = pos.below(), pour = pos.south();
@@ -195,8 +195,9 @@ public final class TransposerTests {
       + "expect(\"place onto stone\", \"blocked\", why, ok)\n"
       + "ok, why = tp.placeBlock(2, 3, 2)\n"
       + "expect(\"place bone meal\", \"not a block\", why, ok)\n"
-      + "while true do computer.pullSignal(1) end\n";
-    TestMachines.runMicrocontroller(helper, pos, List.of(Constants.ItemName.CPUTier1, Constants.ItemName.RAMTier2, Constants.BlockName.Transposer), program, mc -> TestMachines.when(helper, () -> state(helper, place).is(net.minecraft.world.level.block.Blocks.STONE), 100, () -> {
+      + "error('done:all', 0)\n"; // every step passed
+    TestMachines.runMicrocontroller(helper, pos, List.of(Constants.ItemName.CPUTier1, Constants.ItemName.RAMTier2, Constants.BlockName.Transposer), program, mc -> TestMachines.when(helper, () -> !mc.machine().isRunning(), 100, () -> {
+      helper.assertTrue(String.valueOf(mc.machine().lastError()).contains("done:all"), "the program did not get through: " + mc.machine().lastError());
       helper.assertTrue(state(helper, place).is(net.minecraft.world.level.block.Blocks.STONE), "no stone was placed: " + state(helper, place));
       helper.assertTrue(box.getItem(0).is(Items.STONE) && box.getItem(0).getCount() == 1, "stone slot holds " + box.getItem(0));
       helper.assertTrue(box.getItem(1).is(Items.BONE_MEAL) && box.getItem(1).getCount() == 3, "bone meal slot holds " + box.getItem(1));
