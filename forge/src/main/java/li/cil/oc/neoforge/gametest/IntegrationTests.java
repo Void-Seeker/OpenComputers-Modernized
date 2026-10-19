@@ -458,10 +458,15 @@ public final class IntegrationTests {
     });
   }
 
-  /** An adapter saved before it recorded the blocks gives the block its address back (taken as the same block). */
+  /**
+   * An adapter saved before it recorded the blocks gives the block still there its address back, also when other drivers
+   * make it up now (it asked the far face then: a block with energy on the near face only lost its address).
+   */
   @GameTest(template = EMPTY, timeoutTicks = 100)
   public static void adapterSavedWithoutBlockIdsKeepsTheAddress(final GameTestHelper helper) {
+    registerSecondDriver();
     final BlockPos device = AT.east();
+    final BlockPos deviceAbs = helper.absolutePos(device);
     placeWithCapability(helper, device, energyProvider(), "test_energy_old");
     helper.setBlock(AT, Blocks.ADAPTER.get());
     helper.runAfterDelay(10, () -> {
@@ -470,15 +475,27 @@ public final class IntegrationTests {
       final String before = blockAddress(adapter);
       final var tag = adapter.saveWithFullMetadata();
       final var blocks = tag.getList(li.cil.oc.core.impl.OCSettings.namespace + "adapter.blocks", net.minecraft.nbt.Tag.TAG_COMPOUND);
-      for (int i = 0; i < blocks.size(); i++) blocks.getCompound(i).remove("block");
+      for (int i = 0; i < blocks.size(); i++) {
+        blocks.getCompound(i).remove("block");
+        blocks.getCompound(i).remove("identity");
+      }
       final BlockPos abs = helper.absolutePos(AT);
       helper.getLevel().removeBlockEntity(abs);
+      SECOND_DRIVER_AT.add(deviceAbs); // other drivers now
       final var loaded = (li.cil.oc.core.impl.common.blockentity.Adapter) BlockEntity.loadStatic(abs, helper.getLevel().getBlockState(abs), tag);
       helper.getLevel().getChunkAt(abs).addAndRegisterBlockEntity(loaded);
       helper.runAfterDelay(10, () -> {
-        loaded.neighborChanged(Direction.EAST);
-        final String after = blockAddress(loaded);
-        helper.assertTrue(before != null && before.equals(after), "an old adapter gave the block " + after + " instead of " + before);
+        final String after;
+        final int drivers;
+        try {
+          loaded.neighborChanged(Direction.EAST);
+          after = blockAddress(loaded);
+          drivers = blockDrivers(loaded);
+        } finally {
+          SECOND_DRIVER_AT.remove(deviceAbs);
+        }
+        helper.assertTrue(drivers == 2, "the test driver did not come along: " + drivers + " drivers");
+        helper.assertTrue(before != null && before.equals(after), "an old adapter gave the block still there " + after + " instead of " + before);
         helper.succeed();
       });
     });

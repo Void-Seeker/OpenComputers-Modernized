@@ -40,6 +40,9 @@ public class Adapter extends BlockEntity implements li.cil.oc.api.network.Enviro
   private final li.cil.oc.api.network.Environment[] blocks = new li.cil.oc.api.network.Environment[6];
   private final ArrayList<ManagedEnvironment> updatingBlocks = new ArrayList<>();
   private final BlockData[] blocksData = new BlockData[6];
+  // per side, whether it has been empty since this adapter was loaded: data saved before blocks were recorded is the
+  // block's there until then
+  private final boolean[] seenEmpty = new boolean[6];
   private final net.minecraft.world.level.block.Block[] lastBlocks = new net.minecraft.world.level.block.Block[6];
   private final Map<String, String> deviceInfo = Map.of(
     DeviceInfo.DeviceAttribute.Class, DeviceInfo.DeviceClass.Bus,
@@ -307,6 +310,7 @@ public class Adapter extends BlockEntity implements li.cil.oc.api.network.Enviro
       var te = level().getBlockEntity(neighborPos);
       if (te instanceof Environment) return;
       var currentBlock = level().getBlockState(neighborPos).getBlock();
+      if (level().getBlockState(neighborPos).isAir()) seenEmpty[d.ordinal()] = true;
       var blockChanged = lastBlocks[d.ordinal()] != currentBlock;
       // the block's own face toward the adapter, as the driver API says (this passed the far face: a block configured
       // per side was asked about its other end)
@@ -356,12 +360,13 @@ public class Adapter extends BlockEntity implements li.cil.oc.api.network.Enviro
             // only the same block (the same id, the same device of those it holds) gets its data and address back; its
             // address even if other drivers make it up now. A different block placed there is a device of its own (one
             // made up of the same drivers took over the old one's address and data). Saved before blocks were recorded
-            // (no id, no identity): as OC, both only for the same set of drivers, which load checks (any block placed
-            // there took the old one's address).
+            // (no id, no identity): the block there since the adapter was loaded is the one it was saved with (the
+            // adapter asked another face then: its drivers may differ now); one placed later, as OC, gets both only for
+            // the same set of drivers, which load checks (any block placed there took the old one's address).
             boolean unrecorded = saved != null && (saved.block == null || saved.block.isEmpty()) && saved.identity == null;
-            boolean sameBlock = saved != null && !unrecorded
-              && (saved.block == null || saved.block.isEmpty() || blockId(currentBlock).equals(saved.block))
-              && sameDevice(saved.identity, identityOf(environment));
+            boolean sameBlock = saved != null && (unrecorded ? !seenEmpty[d.ordinal()]
+              : (saved.block == null || saved.block.isEmpty() || blockId(currentBlock).equals(saved.block))
+              && sameDevice(saved.identity, identityOf(environment)));
             if ((sameBlock || unrecorded) && saved.name.equals(environment.getClass().getName())) {
               environment.load(saved.data, level().registryAccess());
               if (sameBlock && environment instanceof li.cil.oc.core.impl.server.driver.CompoundBlockEnvironment compound) {
