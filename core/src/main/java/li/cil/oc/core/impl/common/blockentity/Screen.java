@@ -315,109 +315,7 @@ public class Screen extends BlockEntity implements TextBufferHost, SidedEnvironm
     super.updateEntity();
     buffer.update();
     RedstoneAware.super.updateEntity();
-    if (shouldCheckForMultiBlock && ((isClient() && isClientReadyForMultiBlockCheck()) || (isServer() && isConnected()))) {
-      var pending = new TreeSet<Screen>();
-      var queue = new ArrayDeque<Screen>();
-      pending.add(this);
-      queue.add(this);
-      while (!queue.isEmpty()) {
-        var current = queue.poll();
-        var p = project(current);
-        // +X direction
-        p[0] += 1;
-        {
-          var np = unproject(p[0], p[1], p[2]);
-          var npPos = new BlockPos(np[0], np[1], np[2]);
-          var level = getLevel();
-          if (level != null && level.hasChunk(npPos.getX() >> 4, npPos.getZ() >> 4)) {
-            var te = level.getBlockEntity(npPos);
-            if (te instanceof Screen s && s.pitch() == pitch() && s.yaw() == yaw() && pending.add(s))
-              queue.add(s);
-          }
-        }
-        p[0] -= 1;
-        // -X direction
-        p[0] -= 1;
-        {
-          var np = unproject(p[0], p[1], p[2]);
-          var npPos = new BlockPos(np[0], np[1], np[2]);
-          var level = getLevel();
-          if (level != null && level.hasChunk(npPos.getX() >> 4, npPos.getZ() >> 4)) {
-            var te = level.getBlockEntity(npPos);
-            if (te instanceof Screen s && s.pitch() == pitch() && s.yaw() == yaw() && pending.add(s))
-              queue.add(s);
-          }
-        }
-        p[0] += 1;
-        // +Y direction
-        p[1] += 1;
-        {
-          var np = unproject(p[0], p[1], p[2]);
-          var npPos = new BlockPos(np[0], np[1], np[2]);
-          var level = getLevel();
-          if (level != null && level.hasChunk(npPos.getX() >> 4, npPos.getZ() >> 4)) {
-            var te = level.getBlockEntity(npPos);
-            if (te instanceof Screen s && s.pitch() == pitch() && s.yaw() == yaw() && pending.add(s))
-              queue.add(s);
-          }
-        }
-        p[1] -= 1;
-        // -Y direction
-        p[1] -= 1;
-        {
-          var np = unproject(p[0], p[1], p[2]);
-          var npPos = new BlockPos(np[0], np[1], np[2]);
-          var level = getLevel();
-          if (level != null && level.hasChunk(npPos.getX() >> 4, npPos.getZ() >> 4)) {
-            var te = level.getBlockEntity(npPos);
-            if (te instanceof Screen s && s.pitch() == pitch() && s.yaw() == yaw() && pending.add(s))
-              queue.add(s);
-          }
-        }
-        p[1] += 1;
-      }
-
-      while (!pending.isEmpty()) {
-        var current = pending.first();
-        pending.remove(current);
-        //noinspection StatementWithEmptyBody
-        while (current.tryMerge()) {
-        }
-        if (isClient()) {
-          var bounds = current.origin.getRenderBoundingBox();
-          var level = getLevel();
-          if (level != null) {
-            level.blockUpdated(BlockPos.containing(bounds.minX, bounds.minY, bounds.minZ), getBlockState().getBlock());
-            level.blockUpdated(BlockPos.containing(bounds.maxX, bounds.maxY, bounds.maxZ), getBlockState().getBlock());
-          }
-        }
-        for (var screen : current.screens) {
-          screen.shouldCheckForMultiBlock = false;
-          pending.remove(screen);
-          queue.add(screen);
-        }
-      }
-      for (var screen : queue) {
-        if (screen.isOrigin()) {
-          if (isServer()) {
-            ((Component) screen.buffer.node()).setVisibility(Visibility.Network);
-            screen.buffer.setEnergyCostPerTick(OCSettings.get().screenCost * screen.width * screen.height);
-            screen.buffer.setAspectRatio(screen.width, screen.height);
-          }
-        } else {
-          if (isServer()) {
-            ((Component) screen.buffer.node()).setVisibility(Visibility.None);
-            screen.buffer.setEnergyCostPerTick(OCSettings.get().screenCost);
-          }
-          screen.buffer.setAspectRatio(1, 1);
-          int w = screen.buffer.getWidth();
-          int h = screen.buffer.getHeight();
-          screen.buffer.setForegroundColor(0xFFFFFF, false);
-          screen.buffer.setBackgroundColor(0x000000, false);
-          screen.buffer.fill(0, 0, w, h, 0x20);
-        }
-      }
-    }
+    if (shouldCheckForMultiBlock && ((isClient() && isClientReadyForMultiBlockCheck()) || (isServer() && isConnected()))) formDisplay();
     if (readInputsAfterMerge && !shouldCheckForMultiBlock && isServer() && isConnected()) {
       readInputsAfterMerge = false;
       checkRedstoneInputChanged();
@@ -562,12 +460,122 @@ public class Screen extends BlockEntity implements TextBufferHost, SidedEnvironm
     }
   }
 
+  /** The multi-block pass: this screen and the screens around it form their displays. */
+  private void formDisplay() {
+    var pending = new TreeSet<Screen>();
+    var queue = new ArrayDeque<Screen>();
+    pending.add(this);
+    queue.add(this);
+    while (!queue.isEmpty()) {
+      var current = queue.poll();
+      var p = project(current);
+      // +X direction
+      p[0] += 1;
+      {
+        var np = unproject(p[0], p[1], p[2]);
+        var npPos = new BlockPos(np[0], np[1], np[2]);
+        var level = getLevel();
+        if (level != null && level.hasChunk(npPos.getX() >> 4, npPos.getZ() >> 4)) {
+          var te = level.getBlockEntity(npPos);
+          if (te instanceof Screen s && s.pitch() == pitch() && s.yaw() == yaw() && pending.add(s))
+            queue.add(s);
+        }
+      }
+      p[0] -= 1;
+      // -X direction
+      p[0] -= 1;
+      {
+        var np = unproject(p[0], p[1], p[2]);
+        var npPos = new BlockPos(np[0], np[1], np[2]);
+        var level = getLevel();
+        if (level != null && level.hasChunk(npPos.getX() >> 4, npPos.getZ() >> 4)) {
+          var te = level.getBlockEntity(npPos);
+          if (te instanceof Screen s && s.pitch() == pitch() && s.yaw() == yaw() && pending.add(s))
+            queue.add(s);
+        }
+      }
+      p[0] += 1;
+      // +Y direction
+      p[1] += 1;
+      {
+        var np = unproject(p[0], p[1], p[2]);
+        var npPos = new BlockPos(np[0], np[1], np[2]);
+        var level = getLevel();
+        if (level != null && level.hasChunk(npPos.getX() >> 4, npPos.getZ() >> 4)) {
+          var te = level.getBlockEntity(npPos);
+          if (te instanceof Screen s && s.pitch() == pitch() && s.yaw() == yaw() && pending.add(s))
+            queue.add(s);
+        }
+      }
+      p[1] -= 1;
+      // -Y direction
+      p[1] -= 1;
+      {
+        var np = unproject(p[0], p[1], p[2]);
+        var npPos = new BlockPos(np[0], np[1], np[2]);
+        var level = getLevel();
+        if (level != null && level.hasChunk(npPos.getX() >> 4, npPos.getZ() >> 4)) {
+          var te = level.getBlockEntity(npPos);
+          if (te instanceof Screen s && s.pitch() == pitch() && s.yaw() == yaw() && pending.add(s))
+            queue.add(s);
+        }
+      }
+      p[1] += 1;
+    }
+
+    while (!pending.isEmpty()) {
+      var current = pending.first();
+      pending.remove(current);
+      //noinspection StatementWithEmptyBody
+      while (current.tryMerge()) {
+      }
+      if (isClient()) {
+        var bounds = current.origin.getRenderBoundingBox();
+        var level = getLevel();
+        if (level != null) {
+          level.blockUpdated(BlockPos.containing(bounds.minX, bounds.minY, bounds.minZ), getBlockState().getBlock());
+          level.blockUpdated(BlockPos.containing(bounds.maxX, bounds.maxY, bounds.maxZ), getBlockState().getBlock());
+        }
+      }
+      for (var screen : current.screens) {
+        screen.shouldCheckForMultiBlock = false;
+        pending.remove(screen);
+        queue.add(screen);
+      }
+    }
+    for (var screen : queue) {
+      if (screen.isOrigin()) {
+        if (isServer()) {
+          ((Component) screen.buffer.node()).setVisibility(Visibility.Network);
+          screen.buffer.setEnergyCostPerTick(OCSettings.get().screenCost * screen.width * screen.height);
+          screen.buffer.setAspectRatio(screen.width, screen.height);
+        }
+      } else {
+        if (isServer()) {
+          ((Component) screen.buffer.node()).setVisibility(Visibility.None);
+          screen.buffer.setEnergyCostPerTick(OCSettings.get().screenCost);
+        }
+        screen.buffer.setAspectRatio(1, 1);
+        int w = screen.buffer.getWidth();
+        int h = screen.buffer.getHeight();
+        screen.buffer.setForegroundColor(0xFFFFFF, false);
+        screen.buffer.setBackgroundColor(0x000000, false);
+        screen.buffer.fill(0, 0, w, h, 0x20);
+      }
+    }
+  }
+
   // What is powered around it is read once the display has formed again: read before (on load, or on a neighbour update
   // before the display formed), a change made while it was away was judged by this screen alone: it toggled its own
   // hidden buffer, and the display missed it. The read then sees the same values.
   @Override
   public void checkRedstoneInputChanged() {
-    if (readInputsAfterMerge) return;
+    if (readInputsAfterMerge) {
+      if (!isServer() || !isConnected()) return; // the 1-2 ticks after a load: the read once it has formed covers it
+      // a chunk that is loaded but not ticking never runs the tick's pass or read (it ignored redstone for good)
+      if (shouldCheckForMultiBlock) formDisplay();
+      readInputsAfterMerge = false;
+    }
     if (getLevel() != null && !getLevel().isClientSide) {
       for (Direction side : Direction.values()) {
         updateRedstoneInput(side);

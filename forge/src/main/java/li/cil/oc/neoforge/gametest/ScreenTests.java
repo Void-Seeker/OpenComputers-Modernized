@@ -552,4 +552,37 @@ public final class ScreenTests {
       });
     });
   }
+
+  /**
+   * A screen in a chunk that is loaded but does not tick (beyond the simulation distance, around forced chunks) follows
+   * redstone (it waited for a tick to form its display and read its inputs, which never came: redstone was ignored).
+   */
+  @GameTest(template = EMPTY, timeoutTicks = 200)
+  public static void screenInAChunkThatDoesNotTickFollowsRedstone(final GameTestHelper helper) {
+    final var level = helper.getLevel();
+    final BlockPos far = new BlockPos(30000 + level.random.nextInt(64) * 16 + 8, 100, -30000 + 8); // its neighbours in its chunk
+    final var chunk = new net.minecraft.world.level.ChunkPos(far);
+    final var type = net.minecraft.server.level.TicketType.<net.minecraft.world.level.ChunkPos>create("oc_test_border",
+      java.util.Comparator.comparingLong(net.minecraft.world.level.ChunkPos::toLong));
+    level.getChunkSource().addRegionTicket(type, chunk, 0, chunk); // loaded, at the border: no ticking
+    TestMachines.when(helper, () -> level.getChunkSource().getChunkNow(chunk.x, chunk.z) != null, 100, () -> {
+      helper.assertTrue(level.getChunkSource().getChunkNow(chunk.x, chunk.z) != null, "the far chunk did not load");
+      helper.assertTrue(!level.shouldTickBlocksAt(chunk.toLong()), "the far chunk ticks");
+      level.setBlock(far, Blocks.SCREEN_TIER_1.get().defaultBlockState(), 3);
+      final var screen = (li.cil.oc.core.impl.common.blockentity.Screen) level.getBlockEntity(far);
+      helper.runAfterDelay(5, () -> { // initialize and the network join come from the scheduler, ticking or not
+        try {
+          level.setBlock(far.east(), net.minecraft.world.level.block.Blocks.STONE.defaultBlockState(), 3); // a first reading
+          final boolean before = screen.buffer.getPowerState();
+          level.setBlock(far.west(), net.minecraft.world.level.block.Blocks.REDSTONE_BLOCK.defaultBlockState(), 3);
+          helper.assertTrue(screen.buffer.getPowerState() != before, "power next to a screen in a chunk that does not tick did not toggle it");
+        } finally {
+          level.removeBlockEntity(far);
+          for (final BlockPos pos : List.of(far, far.east(), far.west())) level.setBlock(pos, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 3);
+          level.getChunkSource().removeRegionTicket(type, chunk, 0, chunk);
+        }
+        helper.succeed();
+      });
+    });
+  }
 }
