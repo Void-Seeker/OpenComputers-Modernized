@@ -233,7 +233,7 @@ public abstract class TextBufferBase extends AbstractManagedEnvironment implemen
       }
       sendPowerChange(node.address(), isDisplaying && hasPower);
       // saved (a screen turned off by a computer elsewhere, or by a button, came back on)
-      if (!SideTracker.isClient() && host() != null) host().markChanged();
+      if (host() != null && host().level() != null && !host().level().isClientSide()) host().markChanged();
     }
   }
 

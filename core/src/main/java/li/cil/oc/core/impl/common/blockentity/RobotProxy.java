@@ -204,7 +204,7 @@ public class RobotProxy extends BlockEntity implements Computer, PowerInformatio
     var newName = args.checkString(0);
     if (machine().isRunning()) return (Object[]) result(null, "is running");
     robot.setName(newName);
-    robot.markChanged(); // (only a stopped robot can be renamed: nothing else marked it)
+    robot.markForSave(); // (only a stopped robot can be renamed: nothing else marked it; the name has its own packet)
     PacketSender.sendRobotNameChange(this, robot.name());
     return (Object[]) result(oldName);
   }

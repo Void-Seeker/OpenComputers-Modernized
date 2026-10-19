@@ -594,6 +594,10 @@ public abstract class RobotBase extends BlockEntity implements li.cil.oc.core.im
         turnAxis = 0;
       }
     }
+    if (saveScheduled) {
+      saveScheduled = false;
+      setChanged();
+    }
     if (changeScheduled) {
       setChanged();
       changeScheduled = false;
@@ -974,6 +978,15 @@ public abstract class RobotBase extends BlockEntity implements li.cil.oc.core.im
   public abstract double zPosition();
 
   private boolean changeScheduled = false;
+  private volatile boolean saveScheduled = false;
+
+  /**
+   * Asks for the robot to be saved, without sending it to the clients again (markChanged does both: a pipe filling a
+   * stopped robot's tank sent the whole robot every tick).
+   */
+  public void markForSave() {
+    saveScheduled = true;
+  }
 
   @Override
   public void markChanged() {

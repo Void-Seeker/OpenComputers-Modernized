@@ -392,4 +392,24 @@ public final class ScreenTests {
     helper.assertTrue(fromLeft.get(0, 0) == wide && !leftChanged, "a copy from left of the buffer cleared the wide character: " + leftChanged);
     helper.succeed();
   }
+
+  /** A screen placed against a powered block stays on; power coming again toggles it (the first reading toggled it off). */
+  @GameTest(template = EMPTY, timeoutTicks = 100)
+  public static void screenPlacedAgainstPowerStaysOn(final GameTestHelper helper) {
+    helper.setBlock(AT.east(), net.minecraft.world.level.block.Blocks.REDSTONE_BLOCK);
+    helper.setBlock(AT, Blocks.SCREEN_TIER_1.get());
+    helper.runAfterDelay(5, () -> {
+      final var screen = (li.cil.oc.core.impl.common.blockentity.Screen) helper.getBlockEntity(AT);
+      final boolean placed = screen.buffer.getPowerState();
+      helper.setBlock(AT.east(), net.minecraft.world.level.block.Blocks.AIR);
+      helper.runAfterDelay(2, () -> {
+        helper.setBlock(AT.east(), net.minecraft.world.level.block.Blocks.REDSTONE_BLOCK);
+        helper.runAfterDelay(2, () -> {
+          helper.assertTrue(placed, "a screen placed against a powered block turned itself off");
+          helper.assertTrue(!screen.buffer.getPowerState(), "power coming again did not toggle the screen");
+          helper.succeed();
+        });
+      });
+    });
+  }
 }

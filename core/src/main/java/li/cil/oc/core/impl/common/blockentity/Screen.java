@@ -546,7 +546,8 @@ public class Screen extends BlockEntity implements TextBufferHost, SidedEnvironm
     int newValue = li.cil.oc.core.impl.integration.util.BundledRedstone.computeInput(position(), side);
     if (oldValue != newValue) {
       _input[side.ordinal()] = newValue;
-      onRedstoneInputChanged(new RedstoneChangedEventArgs(side, oldValue, newValue, -1));
+      // -1 is "not read yet", not a change (a screen placed against a powered block turned itself off)
+      if (oldValue >= 0) onRedstoneInputChanged(new RedstoneChangedEventArgs(side, oldValue, newValue, -1));
     }
   }
 

@@ -391,7 +391,7 @@ public class Charger extends BlockEntity implements li.cil.oc.api.network.Enviro
       double offered = charge + ((li.cil.oc.api.network.Connector) node).changeBuffer(-charge);
       double surplus = ItemCharge.charge(stack, offered);
       ((li.cil.oc.api.network.Connector) node).changeBuffer(surplus);
-      return surplus < offered;
+      return offered - surplus > 1e-9; // (full hover boots gave back a hair less than offered)
     }
     return false;
   }

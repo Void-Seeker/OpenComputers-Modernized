@@ -13,6 +13,12 @@ public class UpgradeTank extends UpgradeTankBase implements FluidTank {
     super(owner, capacity);
   }
 
+  // saved; a robot not sent to its clients again for it (a transfer marks every tick)
+  private void markOwner() {
+    if (owner instanceof li.cil.oc.core.impl.common.blockentity.RobotBase robot) robot.markForSave();
+    else if (owner != null) owner.markChanged();
+  }
+
   @Override
   protected void loadTankNbt(@NotNull net.minecraft.nbt.CompoundTag nbt, net.minecraft.core.HolderLookup.@NotNull Provider provider) {
     String fluidName = nbt.getString("id");
@@ -64,7 +70,7 @@ public class UpgradeTank extends UpgradeTankBase implements FluidTank {
         fluid = fluid.copyWithAmount(fluid.amount() + amount);
       }
       node.sendToVisible("computer.signal", "tank_changed", tankIndex(), amount);
-      if (owner != null) owner.markChanged(); // (a stopped robot filled by pipes lost it)
+      markOwner(); // (a stopped robot filled by pipes lost it)
     }
     return amount;
   }
@@ -77,7 +83,7 @@ public class UpgradeTank extends UpgradeTankBase implements FluidTank {
       int newAmount = fluid.amount() - drained;
       fluid = newAmount > 0 ? fluid.copyWithAmount(newAmount) : FluidStack.EMPTY;
       node.sendToVisible("computer.signal", "tank_changed", tankIndex(), -drained);
-      if (owner != null) owner.markChanged();
+      markOwner();
     }
     return result;
   }

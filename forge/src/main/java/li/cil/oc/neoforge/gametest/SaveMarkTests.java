@@ -38,7 +38,7 @@ public final class SaveMarkTests {
   private static boolean marked(final Object be, final boolean clear) {
     try {
       if (be instanceof li.cil.oc.core.impl.common.blockentity.RobotBase) {
-        final var field = li.cil.oc.core.impl.common.blockentity.RobotBase.class.getDeclaredField("changeScheduled");
+        final var field = li.cil.oc.core.impl.common.blockentity.RobotBase.class.getDeclaredField("saveScheduled");
         field.setAccessible(true);
         final boolean was = field.getBoolean(be);
         if (clear) field.setBoolean(be, false);
@@ -130,8 +130,17 @@ public final class SaveMarkTests {
         net.minecraftforge.fluids.capability.IFluidHandler.FluidAction.EXECUTE);
       helper.assertTrue(filled > 0, "the robot's tank took no water");
       final boolean tank = marked(robot, true);
+      final boolean resent;
+      try {
+        final var field = li.cil.oc.core.impl.common.blockentity.RobotBase.class.getDeclaredField("changeScheduled");
+        field.setAccessible(true);
+        resent = field.getBoolean(robot);
+      } catch (ReflectiveOperationException e) {
+        throw new RuntimeException(e);
+      }
       robot.proxy.setName(context(), new ArgumentsImpl(new Object[]{"renamed"}));
       final boolean name = marked(robot, true);
+      helper.assertTrue(!resent, "filling the tank sends the whole robot to its clients again");
       helper.assertTrue(tank, "filling a stopped robot's tank did not mark it to be saved");
       helper.assertTrue(name, "renaming a stopped robot did not mark it to be saved");
       helper.succeed();
