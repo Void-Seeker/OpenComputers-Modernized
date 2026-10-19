@@ -153,14 +153,7 @@ public class Microcontroller extends BlockEntity implements PowerAcceptor, Hub, 
       EventHandlerDelegate.get().scheduleServer(() -> {
         if (!isRemoved()) checkRedstoneInputChanged();
       });
-      if (pendingMachineNbt != null) {
-        Machine m = machine();
-        if (m != null) {
-          m.load(pendingMachineNbt, getEffectiveProvider());
-          setRunning(m.isRunning());
-        }
-        pendingMachineNbt = null;
-      }
+      loadPendingMachine();
       if (machine() != null && machine().node() != null) {
         if (machine().node().network() == null) {
           li.cil.oc.api.Network.joinNewNetwork(machine().node());
@@ -731,18 +724,37 @@ public class Microcontroller extends BlockEntity implements PowerAcceptor, Hub, 
     super.readFromNBTForServer(nbt);
     if (nbt.contains(OCSettings.namespace + "computer")) {
       pendingMachineNbt = nbt.getCompound(OCSettings.namespace + "computer").copy();
+      // one already set up (/data merge, a restore) runs no initialize again: what was loaded was ignored
+      if (isInitialized()) EventHandlerDelegate.get().scheduleServer(this::loadPendingMachine);
+    }
+  }
+
+  // taken before loading, as a case's (a load that threw left it pending)
+  private void loadPendingMachine() {
+    if (isRemoved() || getLevel() == null) return;
+    var pending = pendingMachineNbt;
+    pendingMachineNbt = null;
+    Machine m = machine();
+    if (pending != null && m != null) {
+      try {
+        m.load(pending, getEffectiveProvider());
+      } catch (RuntimeException e) {
+        org.slf4j.LoggerFactory.getLogger(Microcontroller.class).warn("Could not load a microcontroller's computer.", e);
+      }
+      setRunning(m.isRunning());
     }
   }
 
   @Override
   public void writeToNBTForServer(CompoundTag nbt) {
     super.writeToNBTForServer(nbt);
-    if (_machine != null) {
+    if (pendingMachineNbt != null) {
+      // saved before its machine was loaded (machine() makes one before that, unloaded: it was saved stopped)
+      nbt.put(OCSettings.namespace + "computer", pendingMachineNbt.copy());
+    } else if (_machine != null) {
       var computerTag = new CompoundTag();
       _machine.save(computerTag, getEffectiveProvider());
       nbt.put(OCSettings.namespace + "computer", computerTag);
-    } else if (pendingMachineNbt != null) {
-      nbt.put(OCSettings.namespace + "computer", pendingMachineNbt.copy()); // saved before the machine was set up
     }
     saveComponents(getEffectiveProvider()); // EEPROM contents, card settings
     ExtendedNBT.setNewCompoundTag(nbt, OCSettings.namespace + "info", t -> info.save(t, getEffectiveProvider()));

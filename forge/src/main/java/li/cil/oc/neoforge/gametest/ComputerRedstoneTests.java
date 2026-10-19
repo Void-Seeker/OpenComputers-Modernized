@@ -560,4 +560,51 @@ public final class ComputerRedstoneTests {
       });
     });
   }
+
+  /**
+   * A robot whose chunk unloads before its block entity's onLoad (a chunk loaded and unloaded at once: onLoad comes in
+   * the block entity tick) stays gone: it linked its robot then, which loaded its machine and ran beside the real one.
+   */
+  @GameTest(template = EMPTY, timeoutTicks = 400)
+  public static void robotRemovedBeforeItsOnLoadStaysGone(final GameTestHelper helper) {
+    TestMachines.runRobot(helper, AT, List.of(Constants.ItemName.RedstoneCardTier1),
+      "while true do computer.pullSignal(1) end\n", 40, (robot, result) -> {
+        helper.assertTrue(robot.machine().isRunning(), "the robot does not run: " + robot.machine().lastError());
+        final var saved = unload(helper);
+        final BlockPos abs = helper.absolutePos(AT);
+        helper.getLevel().removeBlockEntity(abs);
+        final var ghost = (li.cil.oc.core.impl.common.blockentity.RobotProxy) net.minecraft.world.level.block.entity.BlockEntity.loadStatic(abs, helper.getLevel().getBlockState(abs), saved);
+        helper.getLevel().getChunkAt(abs).setBlockEntity(ghost); // as a chunk load: in the level, onLoad still to come
+        helper.getLevel().removeBlockEntity(abs); // the chunk unloads
+        ghost.onLoad(); // what the next block entity tick does with the fresh block entities
+        helper.runAfterDelay(40, () -> {
+          helper.assertTrue(ghost.robot.isRemoved() && !ghost.robot.machine().isRunning(), "the robot of a removed proxy runs: " + ghost.robot.machine().isRunning() + ", removed " + ghost.robot.isRemoved());
+          helper.succeed();
+        });
+      });
+  }
+
+  /** A microcontroller saved before its machine was loaded is saved running, also when its machine was asked for meanwhile. */
+  @GameTest(template = EMPTY, timeoutTicks = 400)
+  public static void microcontrollerSavedBeforeItsMachineLoadedKeepsRunning(final GameTestHelper helper) {
+    TestMachines.runMicrocontroller(helper, AT, List.of(Constants.ItemName.CPUTier1, Constants.ItemName.RAMTier2),
+      "while true do computer.pullSignal(1) end\n", mc -> {
+        final BlockPos abs = mc.getBlockPos();
+        mc.markUnloading();
+        final var saved = mc.saveWithFullMetadata();
+        helper.getLevel().removeBlockEntity(abs);
+        final var first = (li.cil.oc.core.impl.common.blockentity.Microcontroller) net.minecraft.world.level.block.entity.BlockEntity.loadStatic(abs, helper.getLevel().getBlockState(abs), saved);
+        helper.getLevel().getChunkAt(abs).addAndRegisterBlockEntity(first);
+        first.machine(); // a comparator or an analyzer asking before its initialize ran
+        first.markUnloading();
+        final var savedEarly = first.saveWithFullMetadata();
+        helper.getLevel().removeBlockEntity(abs);
+        final var again = (li.cil.oc.core.impl.common.blockentity.Microcontroller) net.minecraft.world.level.block.entity.BlockEntity.loadStatic(abs, helper.getLevel().getBlockState(abs), savedEarly);
+        helper.getLevel().getChunkAt(abs).addAndRegisterBlockEntity(again);
+        helper.runAfterDelay(40, () -> {
+          helper.assertTrue(again.machine().isRunning(), "a microcontroller saved before its machine was loaded came back stopped: " + again.machine().lastError());
+          helper.succeed();
+        });
+      });
+  }
 }

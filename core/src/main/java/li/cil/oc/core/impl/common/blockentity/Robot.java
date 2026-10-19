@@ -738,7 +738,7 @@ public abstract class Robot extends RobotBase implements Computer, PowerInformat
     super.initialize();
     // not for one removed before its initialize ran (its chunk unloaded again at once): the machine was loaded and
     // started, and nothing ever closed it
-    if (isServer() && getLevel() != null && !isRemoved()) {
+    if (isServer() && inWorld()) {
       loadPendingMachine();
       if (machine != null) {
         machine.onHostChanged();
@@ -749,6 +749,11 @@ public abstract class Robot extends RobotBase implements Computer, PowerInformat
     }
   }
 
+  // in its level through a proxy that is there (a robot whose proxy was removed before it linked was never marked removed)
+  private boolean inWorld() {
+    return !isRemoved() && getLevel() != null && proxy != null && proxy.robot == this && !proxy.isRemoved();
+  }
+
   @Override
   protected boolean machinePending() {
     return pendingMachineNbt != null;
@@ -757,6 +762,7 @@ public abstract class Robot extends RobotBase implements Computer, PowerInformat
   // taken before loading: a load that threw left it pending for good, and the robot's state and outputs no longer
   // followed its machine
   private void loadPendingMachine() {
+    if (!inWorld()) return; // (scheduled after a load: the robot may be gone by then)
     var pending = pendingMachineNbt;
     pendingMachineNbt = null;
     if (pending != null && machine != null) {

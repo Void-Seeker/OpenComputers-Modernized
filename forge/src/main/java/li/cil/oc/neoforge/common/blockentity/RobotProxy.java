@@ -40,6 +40,9 @@ public class RobotProxy extends li.cil.oc.core.impl.common.blockentity.RobotProx
   @Override
   public void onLoad() {
     super.onLoad();
+    // not for one removed before its onLoad ran (a chunk loaded and unloaded at once: onLoad comes later, in the block
+    // entity tick): it linked its robot, which loaded its machine and ran beside the real one
+    if (isRemoved()) return;
     setupRobotProxy();
   }
 

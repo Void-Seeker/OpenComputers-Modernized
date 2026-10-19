@@ -226,6 +226,7 @@ public class RobotProxy extends BlockEntity implements Computer, PowerInformatio
   @Override
   public void initialize() {
     super.initialize();
+    if (isRemoved()) return; // (as onLoad on Forge)
     setupRobotProxy();
     if (isServer()) {
       EventHandlerDelegate.get().scheduleServer(this);
@@ -280,6 +281,8 @@ public class RobotProxy extends BlockEntity implements Computer, PowerInformatio
           li.cil.oc.core.impl.server.ServerRobotRegistry.INSTANCE.remove(getLevel(), addr, this);
         }
       }
+    } else if (robot.proxy == null && (getLevel() == null || !getLevel().isClientSide)) {
+      robot.setRemoved(); // never linked (removed before its onLoad): its robot is no one else's
     }
   }
 

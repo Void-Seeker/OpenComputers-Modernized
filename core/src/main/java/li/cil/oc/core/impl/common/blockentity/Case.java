@@ -146,6 +146,7 @@ public class Case extends BlockEntity implements PowerAcceptor, Computer, Colore
 
   // taken before loading, as a robot's (a load that threw left it pending, and it was saved in place of the machine)
   private void loadPendingMachine() {
+    if (isRemoved() || getLevel() == null) return; // (scheduled after a load: the case may be gone by then)
     var pending = pendingMachineNbt;
     pendingMachineNbt = null;
     Machine m = machine();
@@ -251,12 +252,15 @@ public class Case extends BlockEntity implements PowerAcceptor, Computer, Colore
       _isRunning = value;
       if (value) _hasErrored = false;
       if (getLevel() != null) {
-        BlockState current = getBlockState();
-        BlockState newState = current.setValue(OCBlockStateProperties.CASE_RUNNING, value);
         if (getLevel().isClientSide) {
-          getLevel().sendBlockUpdated(worldPosition, current, newState, 3);
-        } else {
-          getLevel().setBlock(worldPosition, newState, 3);
+          BlockState current = getBlockState();
+          getLevel().sendBlockUpdated(worldPosition, current, current.setValue(OCBlockStateProperties.CASE_RUNNING, value), 3);
+        } else if (!isRemoved() && getLevel().getBlockEntity(worldPosition) == this) {
+          // the world's state, and only while this is the case there (a removed one put a case block back)
+          BlockState current = getLevel().getBlockState(worldPosition);
+          if (current.hasProperty(OCBlockStateProperties.CASE_RUNNING)) {
+            getLevel().setBlock(worldPosition, current.setValue(OCBlockStateProperties.CASE_RUNNING, value), 3);
+          }
         }
       }
     }
