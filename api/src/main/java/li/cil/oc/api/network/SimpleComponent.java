@@ -9,11 +9,16 @@ package li.cil.oc.api.network;
  * couple of methods to the programs running computers.
  * <br>
  * <br>
- * Classes implementing this interface will be expanded with the methods
- * required for them to function as native block components (say, like the
- * screen or keyboard). This means functions in the <code>Environment</code>
- * interface have to created using a class transformer. If any of the methods
- * already exist, this will fail! If things don't work, check your logs, first.
+ * Block entities implementing this interface function as native block
+ * components (say, like the screen or keyboard): OC attaches a capability to
+ * them that holds their node (see
+ * {@link li.cil.oc.api.capability.SimpleComponentProvider}). The node joins the
+ * network of the blocks next to it when the block entity is placed or its chunk
+ * loads, its address is saved with the block entity, and it leaves the network
+ * when the block entity is removed or unloaded. A block entity that implements
+ * {@link li.cil.oc.api.network.Environment} itself is treated as that instead.
+ * Implement {@link li.cil.oc.api.network.SidedComponent} as well to connect on
+ * some sides only. If things don't work, check your logs, first.
  * <br>
  * To expose methods to OC, tag them with {@link li.cil.oc.api.machine.Callback}
  * and have them use the according signature (see the documentation on the

@@ -59,6 +59,14 @@ public class Analyzer extends DelegateItem {
       }
       return true;
     }
+    // (an Environment in OC 1.12)
+    if (thing instanceof li.cil.oc.api.network.SimpleComponent && thing instanceof BlockEntity blockEntity) {
+      final var handler = li.cil.oc.core.impl.server.network.Network.simpleComponentHandler;
+      if (!world.isClientSide && handler != null) {
+        analyzeNodes(new Node[]{handler.apply(blockEntity)}, player);
+      }
+      return true;
+    }
     return false;
   }
 

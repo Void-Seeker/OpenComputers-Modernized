@@ -16,8 +16,6 @@ import li.cil.oc.core.impl.util.SideTracker;
 import li.cil.oc.core.impl.util.ThreadPoolFactory;
 import li.cil.oc.neoforge.common.EventHandler;
 import li.cil.oc.neoforge.common.Proxy;
-import li.cil.oc.neoforge.common.asm.SimpleComponentTickHandler;
-import li.cil.oc.neoforge.common.asm.template.StaticSimpleEnvironment;
 import li.cil.oc.neoforge.common.init.BlockEntities;
 import li.cil.oc.neoforge.common.init.Blocks;
 import li.cil.oc.neoforge.common.init.Entities;
@@ -27,7 +25,6 @@ import li.cil.oc.neoforge.common.init.Menus;
 import li.cil.oc.neoforge.common.init.Recipes;
 import li.cil.oc.neoforge.integration.Mods;
 import net.minecraft.commands.Commands;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.MenuProvider;
@@ -141,13 +138,10 @@ public final class OpenComputers {
 
     li.cil.oc.core.impl.server.network.Network.cbMultipartAvailable = Mods.CBMultipart.isAvailable();
     li.cil.oc.core.impl.integration.util.BundledRedstone.weakPower = (state, level, pos, side) -> state.shouldCheckWeakPower(level, pos, side);
+    // the block entity's own (none once it is removed: Forge invalidates its capabilities)
     li.cil.oc.core.impl.server.network.Network.simpleComponentHandler = (be) -> {
-      var level = be.getLevel();
-      if (level != null) {
-        var provider = li.cil.oc.neoforge.common.capability.OCBlockCapabilities.SIMPLE_COMPONENT_PROVIDER.getCapability(level, be.getBlockPos(), null);
-        if (provider != null) return provider.node();
-      }
-      return li.cil.oc.neoforge.common.asm.template.StaticSimpleEnvironment.node(be, (li.cil.oc.api.network.SimpleComponent) be);
+      var provider = li.cil.oc.neoforge.common.capability.OCBlockCapabilities.SIMPLE_COMPONENT_PROVIDER.getCapability(be, null);
+      return provider != null ? provider.node() : null;
     };
 
     li.cil.oc.neoforge.CreativeTab.TABS.register(modEventBus);
@@ -200,13 +194,15 @@ public final class OpenComputers {
     li.cil.oc.neoforge.common.Network.register();
     modEventBus.addListener(li.cil.oc.neoforge.common.capability.OCBlockCapabilities::registerTypes);
     MinecraftForge.EVENT_BUS.addGenericListener(net.minecraft.world.level.block.entity.BlockEntity.class, CapabilityRegistrar.INSTANCE::onAttachBlockEntity);
+    MinecraftForge.EVENT_BUS.addGenericListener(net.minecraft.world.level.block.entity.BlockEntity.class, li.cil.oc.neoforge.common.capability.SimpleComponentCapability::onAttachBlockEntity);
+    MinecraftForge.EVENT_BUS.addListener(li.cil.oc.neoforge.common.capability.SimpleComponentCapability::onChunkLoad);
+    MinecraftForge.EVENT_BUS.addListener(li.cil.oc.neoforge.common.capability.SimpleComponentCapability::onServerTick);
     MinecraftForge.EVENT_BUS.addGenericListener(net.minecraft.world.item.ItemStack.class, CapabilityRegistrar.INSTANCE::onAttachItemStack);
 
     MinecraftForge.EVENT_BUS.addListener(this::serverAboutToStart);
     MinecraftForge.EVENT_BUS.addListener(this::serverStarting);
     MinecraftForge.EVENT_BUS.addListener(this::serverStop);
 
-    MinecraftForge.EVENT_BUS.register(SimpleComponentTickHandler.Instance);
     MinecraftForge.EVENT_BUS.addListener(li.cil.oc.neoforge.util.FakePlayerClick::onEntityJoinLevel);
   }
 
@@ -276,16 +272,6 @@ public final class OpenComputers {
         .map(RegistryObject::get)
         .toArray(net.minecraft.world.level.block.Block[]::new);
     li.cil.oc.neoforge.common.capability.OCBlockCapabilities.register(event, ourBlocks);
-
-    final net.minecraft.world.level.block.Block[] allBlocks = BuiltInRegistries.BLOCK.stream().toArray(net.minecraft.world.level.block.Block[]::new);
-    event.registerBlock(li.cil.oc.neoforge.common.capability.OCBlockCapabilities.SIMPLE_COMPONENT_PROVIDER,
-      (level, pos, state, blockEntity, side) -> {
-        if (blockEntity instanceof li.cil.oc.api.network.SimpleComponent sc) {
-          return new li.cil.oc.neoforge.common.capability.SimpleComponentCapability(blockEntity, sc);
-        }
-        return null;
-      },
-      allBlocks);
 
     li.cil.oc.core.impl.server.network.Network.capabilityNodeHandler = (blockEntity, side) -> {
       final net.minecraft.world.level.Level level = blockEntity.getLevel();
@@ -411,11 +397,7 @@ public final class OpenComputers {
 
   public void serverStop(final ServerStoppedEvent ignoredE) {
     ThreadPoolFactory.safePools.forEach(SafeThreadPool::waitForCompletion);
-    StaticSimpleEnvironment.onServerStopped();
     li.cil.oc.neoforge.common.capability.SimpleComponentCapability.onServerStopped();
-    synchronized (li.cil.oc.neoforge.common.asm.SimpleComponentTickHandler.pending) {
-      li.cil.oc.neoforge.common.asm.SimpleComponentTickHandler.pending.clear(); // (they held the old level into the next world)
-    }
     li.cil.oc.neoforge.common.EventHandler.onServerStopped();
   }
 

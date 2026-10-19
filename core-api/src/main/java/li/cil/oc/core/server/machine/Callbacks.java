@@ -28,6 +28,7 @@ public final class Callbacks {
   }
 
   public static Map<String, CallbackWrapper> apply(Object host) {
+    if (host instanceof CallbackTarget delegating) host = delegating.callbackTarget();
     if (host instanceof EnvironmentHost || host instanceof ManagedPeripheral || host instanceof FilteredEnvironment) {
       return dynamicAnalyze(host);
     }

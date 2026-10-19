@@ -60,7 +60,6 @@ import li.cil.oc.core.impl.util.Color;
 import li.cil.oc.neoforge.common.EventHandler;
 import li.cil.oc.neoforge.common.Loot;
 import li.cil.oc.neoforge.common.SaveHandler;
-import li.cil.oc.neoforge.common.asm.SimpleComponentTickHandler;
 import li.cil.oc.neoforge.common.event.AngelUpgradeHandler;
 import li.cil.oc.neoforge.common.event.BlockChangeHandler;
 import li.cil.oc.neoforge.common.event.ChunkloaderUpgradeHandler;
@@ -194,7 +193,6 @@ public final class ModOpenComputers implements ModProxy {
 
     MinecraftForge.EVENT_BUS.register(EventHandler.class);
     MinecraftForge.EVENT_BUS.register(NanomachinesHandler.Common.class);
-    MinecraftForge.EVENT_BUS.register(SimpleComponentTickHandler.Instance);
 
     MinecraftForge.EVENT_BUS.register(li.cil.oc.neoforge.common.event.AnalyzerEventHandler.class);
     MinecraftForge.EVENT_BUS.register(AngelUpgradeHandler.class);

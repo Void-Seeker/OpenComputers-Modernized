@@ -15,6 +15,7 @@ import li.cil.oc.core.impl.server.driver.Registry;
 import li.cil.oc.core.impl.server.machine.ArgumentsImpl;
 import li.cil.oc.core.impl.server.machine.MachineBase;
 import li.cil.oc.core.impl.util.SideTracker;
+import li.cil.oc.core.server.machine.CallbackTarget;
 import li.cil.oc.core.server.machine.CallbackWrapper;
 import li.cil.oc.core.server.machine.Callbacks;
 import net.minecraft.core.HolderLookup;
@@ -57,7 +58,8 @@ public interface Component extends li.cil.oc.api.network.Component, Node {
         map.put(method, found);
       }
     } else {
-      for (String method : callbacks().keySet()) map.put(method, host());
+      final Object target = host() instanceof CallbackTarget delegating ? delegating.callbackTarget() : host();
+      for (String method : callbacks().keySet()) map.put(method, target);
     }
     return map;
   }

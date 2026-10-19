@@ -112,6 +112,8 @@ public class Network implements li.cil.oc.api.detail.NetworkAPI, Distributor {
     } else if (blockEntity instanceof Environment) {
       return ((Environment) blockEntity).node();
     } else if (blockEntity instanceof li.cil.oc.api.network.SimpleComponent) {
+      // (an Environment in OC 1.12, where SidedComponent applied to it)
+      if (side != null && blockEntity instanceof li.cil.oc.api.network.SidedComponent sided && !sided.canConnectNode(side)) return null;
       if (simpleComponentHandler != null) return simpleComponentHandler.apply(blockEntity);
       return null;
     } else if (cbMultipartAvailable) {
