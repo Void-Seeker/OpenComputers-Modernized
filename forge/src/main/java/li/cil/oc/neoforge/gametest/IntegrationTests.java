@@ -665,4 +665,74 @@ public final class IntegrationTests {
       });
     });
   }
+
+  /** The unrecorded old adapter of adapterSavedBeforeRecordingBlocksFollowsOC, with the table's place left in the given state. */
+  private static void reloadUnrecorded(final GameTestHelper helper, final BlockPos device, final net.minecraft.world.level.block.state.BlockState left,
+                                       final java.util.function.BiConsumer<String, li.cil.oc.core.impl.common.blockentity.Adapter> then) {
+    placeWithCapability(helper, device, energyProvider(), "test_energy_unrecorded_" + left.getBlock().getDescriptionId());
+    helper.setBlock(AT, Blocks.ADAPTER.get());
+    helper.runAfterDelay(10, () -> {
+      final var adapter = (li.cil.oc.core.impl.common.blockentity.Adapter) helper.getBlockEntity(AT);
+      adapter.neighborChanged(Direction.EAST);
+      final String table = blockAddress(adapter);
+      helper.setBlock(device, net.minecraft.world.level.block.Blocks.AIR);
+      adapter.neighborChanged(Direction.EAST); // the table's data stays with the adapter
+      helper.setBlock(device, left);
+      final var tag = adapter.saveWithFullMetadata();
+      final var blocks = tag.getList(li.cil.oc.core.impl.OCSettings.namespace + "adapter.blocks", net.minecraft.nbt.Tag.TAG_COMPOUND);
+      for (int i = 0; i < blocks.size(); i++) {
+        blocks.getCompound(i).remove("block");
+        blocks.getCompound(i).remove("identity");
+      }
+      tag.remove(li.cil.oc.core.impl.OCSettings.namespace + "adapter.sideChanged"); // as older builds wrote it
+      final BlockPos abs = helper.absolutePos(AT);
+      helper.getLevel().removeBlockEntity(abs);
+      final var loaded = (li.cil.oc.core.impl.common.blockentity.Adapter) BlockEntity.loadStatic(abs, helper.getLevel().getBlockState(abs), tag);
+      helper.getLevel().getChunkAt(abs).addAndRegisterBlockEntity(loaded);
+      helper.runAfterDelay(10, () -> then.accept(table, loaded));
+    });
+  }
+
+  /**
+   * A block placed straight into what the old one left (water, snow: no air between) is not the block the unrecorded
+   * data was saved with (only air counted as a change: it got the old block's address).
+   */
+  @GameTest(template = EMPTY, timeoutTicks = 100)
+  public static void unrecordedAdapterDataGoesNotToABlockPlacedIntoWhatWasLeft(final GameTestHelper helper) {
+    final BlockPos device = AT.east();
+    reloadUnrecorded(helper, device, net.minecraft.world.level.block.Blocks.STRUCTURE_VOID.defaultBlockState(), (table, loaded) -> {
+      loaded.neighborChanged(Direction.EAST); // it looks at what is left
+      helper.setBlock(device, net.minecraft.world.level.block.Blocks.FURNACE);
+      loaded.neighborChanged(Direction.EAST);
+      final String furnace = blockAddress(loaded);
+      helper.assertTrue(table != null && furnace != null && !furnace.equals(table), "a furnace placed into what the table left got its address " + furnace);
+      helper.succeed();
+    });
+  }
+
+  /**
+   * An unrecorded side seen changed stays changed across a save while nothing attaches there (a side closed): the block
+   * there after the next load is not the one the data was saved with (it got its address).
+   */
+  @GameTest(template = EMPTY, timeoutTicks = 100)
+  public static void unrecordedAdapterDataRemembersAChangedSide(final GameTestHelper helper) {
+    final BlockPos device = AT.east();
+    reloadUnrecorded(helper, device, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), (table, loaded) -> {
+      loaded.neighborChanged(Direction.EAST); // seen empty
+      loaded.setSideOpen(Direction.EAST, false);
+      helper.setBlock(device, net.minecraft.world.level.block.Blocks.FURNACE);
+      loaded.neighborChanged(Direction.EAST); // closed: nothing attaches, the data stays unrecorded
+      final var tag = loaded.saveWithFullMetadata();
+      final BlockPos abs = helper.absolutePos(AT);
+      helper.getLevel().removeBlockEntity(abs);
+      final var again = (li.cil.oc.core.impl.common.blockentity.Adapter) BlockEntity.loadStatic(abs, helper.getLevel().getBlockState(abs), tag);
+      helper.getLevel().getChunkAt(abs).addAndRegisterBlockEntity(again);
+      helper.runAfterDelay(10, () -> {
+        again.setSideOpen(Direction.EAST, true);
+        final String furnace = blockAddress(again);
+        helper.assertTrue(table != null && furnace != null && !furnace.equals(table), "a furnace placed while the side was closed got the old table's address " + furnace);
+        helper.succeed();
+      });
+    });
+  }
 }

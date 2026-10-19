@@ -40,9 +40,10 @@ public class Adapter extends BlockEntity implements li.cil.oc.api.network.Enviro
   private final li.cil.oc.api.network.Environment[] blocks = new li.cil.oc.api.network.Environment[6];
   private final ArrayList<ManagedEnvironment> updatingBlocks = new ArrayList<>();
   private final BlockData[] blocksData = new BlockData[6];
-  // per side, whether it has been empty since this adapter was loaded: data saved before blocks were recorded is the
-  // block's there until then
-  private final boolean[] seenEmpty = new boolean[6];
+  // per side, whether its block has changed (or it was empty) since the adapter first looked: data saved before blocks
+  // were recorded is the block's there until then. Saved: the data can outlive a load unattached (a side closed).
+  private final boolean[] sideChanged = new boolean[6];
+  private final net.minecraft.world.level.block.Block[] firstSeen = new net.minecraft.world.level.block.Block[6];
   private final net.minecraft.world.level.block.Block[] lastBlocks = new net.minecraft.world.level.block.Block[6];
   private final Map<String, String> deviceInfo = Map.of(
     DeviceInfo.DeviceAttribute.Class, DeviceInfo.DeviceClass.Bus,
@@ -307,10 +308,13 @@ public class Adapter extends BlockEntity implements li.cil.oc.api.network.Enviro
       var ny = worldPosition.getY() + d.getStepY();
       var nz = worldPosition.getZ() + d.getStepZ();
       var neighborPos = new BlockPos(nx, ny, nz);
+      var neighborState = level().getBlockState(neighborPos);
+      var currentBlock = neighborState.getBlock();
+      // any other block counts, not only air (a block placed into water or snow replaces it at once)
+      if (firstSeen[d.ordinal()] == null) firstSeen[d.ordinal()] = currentBlock;
+      if (firstSeen[d.ordinal()] != currentBlock || neighborState.isAir()) sideChanged[d.ordinal()] = true;
       var te = level().getBlockEntity(neighborPos);
       if (te instanceof Environment) return;
-      var currentBlock = level().getBlockState(neighborPos).getBlock();
-      if (level().getBlockState(neighborPos).isAir()) seenEmpty[d.ordinal()] = true;
       var blockChanged = lastBlocks[d.ordinal()] != currentBlock;
       // the block's own face toward the adapter, as the driver API says (this passed the far face: a block configured
       // per side was asked about its other end)
@@ -364,7 +368,7 @@ public class Adapter extends BlockEntity implements li.cil.oc.api.network.Enviro
             // adapter asked another face then: its drivers may differ now); one placed later, as OC, gets both only for
             // the same set of drivers, which load checks (any block placed there took the old one's address).
             boolean unrecorded = saved != null && (saved.block == null || saved.block.isEmpty()) && saved.identity == null;
-            boolean sameBlock = saved != null && (unrecorded ? !seenEmpty[d.ordinal()]
+            boolean sameBlock = saved != null && (unrecorded ? !sideChanged[d.ordinal()]
               : (saved.block == null || saved.block.isEmpty() || blockId(currentBlock).equals(saved.block))
               && sameDevice(saved.identity, identityOf(environment)));
             if ((sameBlock || unrecorded) && saved.name.equals(environment.getClass().getName())) {
@@ -423,6 +427,8 @@ public class Adapter extends BlockEntity implements li.cil.oc.api.network.Enviro
     if (nbt.contains(OCSettings.namespace + "openSides")) {
       uncompressSides(nbt.getByte(OCSettings.namespace + "openSides"));
     }
+    byte changed = nbt.getByte(OCSettings.namespace + "adapter.sideChanged");
+    for (int i = 0; i < sideChanged.length; i++) sideChanged[i] = (changed & (1 << i)) != 0;
     var blocksNbt = nbt.getList(OCSettings.namespace + "adapter.blocks", Tag.TAG_COMPOUND);
     for (int i = 0; i < Math.min(blocksNbt.size(), blocksData.length); i++) {
       var blockNbt = blocksNbt.getCompound(i);
@@ -444,6 +450,9 @@ public class Adapter extends BlockEntity implements li.cil.oc.api.network.Enviro
     var provider = getEffectiveProvider();
     if (provider != null) save(nbt, provider);
     nbt.putByte(OCSettings.namespace + "openSides", compressSides());
+    byte changed = 0;
+    for (int i = 0; i < sideChanged.length; i++) if (sideChanged[i]) changed |= (byte) (1 << i);
+    nbt.putByte(OCSettings.namespace + "adapter.sideChanged", changed);
     var blocksNbt = new ListTag();
     for (int i = 0; i < blocks.length; i++) {
       var blockNbt = new CompoundTag();
