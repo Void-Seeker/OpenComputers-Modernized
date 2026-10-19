@@ -25,7 +25,15 @@ public final class BundledRedstone {
    * stayed 0 while the side was powered.
    */
   public static boolean canRead(BlockPosition pos, Direction side) {
-    return li.cil.oc.core.impl.util.LoadedChunks.isReady(pos.level(), pos.offset(side).toBlockPos());
+    var level = pos.level();
+    var beyond = pos.offset(side).toBlockPos();
+    if (!li.cil.oc.core.impl.util.LoadedChunks.isReady(level, beyond)) return false;
+    // and what is around it: a solid block's signal is read from its own neighbours (one in a chunk not loaded yet was
+    // loaded there and then, the server thread waiting, beyond the loaded area)
+    for (Direction around : Direction.Plane.HORIZONTAL) {
+      if (!li.cil.oc.core.impl.util.LoadedChunks.isReady(level, beyond.relative(around))) return false;
+    }
+    return true;
   }
 
   public static int computeInput(BlockPosition pos, Direction side) {

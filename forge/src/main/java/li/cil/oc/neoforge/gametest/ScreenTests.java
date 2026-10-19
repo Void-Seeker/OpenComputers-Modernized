@@ -554,15 +554,16 @@ public final class ScreenTests {
   }
 
   /** A far chunk kept loaded at the border (no ticking), with a spot in its middle; the ticket is removed by the cleanup. */
-  private static void inAChunkThatDoesNotTick(final GameTestHelper helper, final java.util.function.BiConsumer<BlockPos, Runnable> then) {
+  private static void inAChunkThatDoesNotTick(final GameTestHelper helper, final int slot, final java.util.function.BiConsumer<BlockPos, Runnable> then) {
     final var level = helper.getLevel();
-    final BlockPos far = new BlockPos(30000 + level.random.nextInt(64) * 16 + 8, 100, -30000 + 8); // its neighbours in its chunk
+    // a row of chunks of each test's own (tests run at the same time), its neighbours in its chunk
+    final BlockPos far = new BlockPos(30000 + level.random.nextInt(64) * 16 + 8, 100, -30000 - slot * 64 + 8);
     final var chunk = new net.minecraft.world.level.ChunkPos(far);
     final var type = net.minecraft.server.level.TicketType.<net.minecraft.world.level.ChunkPos>create("oc_test_border",
       java.util.Comparator.comparingLong(net.minecraft.world.level.ChunkPos::toLong));
     level.getChunkSource().addRegionTicket(type, chunk, 0, chunk); // loaded, at the border: no ticking
     final Runnable cleanup = () -> {
-      for (int dx = -2; dx <= 2; dx++) {
+      for (int dx = -2; dx <= 7; dx++) { // (all in its chunk)
         for (int dy = -1; dy <= 1; dy++) {
           final BlockPos pos = far.offset(dx, dy, 0);
           level.removeBlockEntity(pos);
@@ -574,6 +575,8 @@ public final class ScreenTests {
     TestMachines.when(helper, () -> level.getChunkSource().getChunkNow(chunk.x, chunk.z) != null, 100, () -> {
       boolean handedOver = false;
       try {
+        cleanup.run(); // what a killed run may have left (the test world is kept)
+        level.getChunkSource().addRegionTicket(type, chunk, 0, chunk);
         helper.assertTrue(level.getChunkSource().getChunkNow(chunk.x, chunk.z) != null, "the far chunk did not load");
         helper.assertTrue(!level.shouldTickBlocksAt(chunk.toLong()), "the far chunk ticks");
         then.accept(far, cleanup);
@@ -591,7 +594,7 @@ public final class ScreenTests {
   @GameTest(template = EMPTY, timeoutTicks = 200)
   public static void screenInAChunkThatDoesNotTickFollowsRedstone(final GameTestHelper helper) {
     final var level = helper.getLevel();
-    inAChunkThatDoesNotTick(helper, (far, cleanup) -> {
+    inAChunkThatDoesNotTick(helper, 0, (far, cleanup) -> {
       level.setBlock(far, Blocks.SCREEN_TIER_1.get().defaultBlockState(), 3);
       final var screen = (li.cil.oc.core.impl.common.blockentity.Screen) level.getBlockEntity(far);
       helper.runAfterDelay(5, () -> { // initialize and the network join come from the scheduler, ticking or not
@@ -615,7 +618,7 @@ public final class ScreenTests {
   @GameTest(template = EMPTY, timeoutTicks = 200)
   public static void displayInAChunkThatDoesNotTickReloadsWithNewPower(final GameTestHelper helper) {
     final var level = helper.getLevel();
-    inAChunkThatDoesNotTick(helper, (far, cleanup) -> {
+    inAChunkThatDoesNotTick(helper, 1, (far, cleanup) -> {
       final BlockPos posB = far.east();
       level.setBlock(far, Blocks.SCREEN_TIER_1.get().defaultBlockState(), 3);
       level.setBlock(posB, Blocks.SCREEN_TIER_1.get().defaultBlockState(), 3);
@@ -649,6 +652,33 @@ public final class ScreenTests {
           cleanup.run();
           throw e;
         }
+      });
+    });
+  }
+
+  /**
+   * Reading what powers a screen loads no chunk beyond the loaded area (a solid block's signal is read from its own
+   * neighbours: one in the next chunk, not loaded, was loaded there and then, the server thread waiting).
+   */
+  @GameTest(template = EMPTY, timeoutTicks = 200)
+  public static void screenReadingLoadsNoChunkBeyond(final GameTestHelper helper) {
+    final var level = helper.getLevel();
+    inAChunkThatDoesNotTick(helper, 2, (far, cleanup) -> {
+      final BlockPos edge = far.offset(6, 0, 0); // the screen at x 14 of its chunk, stone at 15: its east side is the next chunk
+      final var next = new net.minecraft.world.level.ChunkPos(edge.east().east());
+      level.setBlock(edge, Blocks.SCREEN_TIER_1.get().defaultBlockState(), 3);
+      helper.runAfterDelay(5, () -> { // joined, its first read done
+        try {
+          helper.assertTrue(level.getChunkSource().getChunkNow(next.x, next.z) == null, "the next chunk is loaded already");
+          // the stone set without updates (they would reach into the next chunk and load it themselves), then the
+          // screen's inputs read there and then (what a chunk it loads holds only for a tick)
+          level.setBlock(edge.east(), net.minecraft.world.level.block.Blocks.STONE.defaultBlockState(), 2 | 16);
+          ((li.cil.oc.core.impl.common.blockentity.Screen) level.getBlockEntity(edge)).checkRedstoneInputChanged();
+          helper.assertTrue(level.getChunkSource().getChunkNow(next.x, next.z) == null, "reading the screen's inputs loaded the next chunk");
+        } finally {
+          cleanup.run();
+        }
+        helper.succeed();
       });
     });
   }

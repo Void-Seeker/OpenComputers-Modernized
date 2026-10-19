@@ -80,11 +80,11 @@ public class Screen extends BlockEntity implements TextBufferHost, SidedEnvironm
     super.initialize();
     if (isServer() && getLevel() != null) {
       EventHandlerDelegate.get().scheduleServer(this);
-      // in a chunk that does not tick, no tick reads its inputs once its display has formed: the check does it, right
-      // after the network join (else what came while it was away waited for an update next to it)
+      // right after the network join, the check forms its display and reads its inputs: in a chunk that does not tick
+      // no tick would (what came while it was away waited for an update next to it); in one that ticks it is what the
+      // first tick would do
       EventHandlerDelegate.get().scheduleServer(() -> {
-        var level = getLevel();
-        if (!isRemoved() && readInputsAfterMerge && level != null && !level.shouldTickBlocksAt(worldPosition)) checkRedstoneInputChanged();
+        if (!isRemoved() && readInputsAfterMerge && getLevel() != null) checkRedstoneInputChanged();
       });
     }
   }
@@ -258,7 +258,7 @@ public class Screen extends BlockEntity implements TextBufferHost, SidedEnvironm
     for (var screen : screens) {
       for (var side : Direction.values()) {
         var pos = new BlockPos(screen.worldPosition.getX() + side.getStepX(), screen.worldPosition.getY() + side.getStepY(), screen.worldPosition.getZ() + side.getStepZ());
-        if (level.hasChunk(pos.getX() >> 4, pos.getZ() >> 4)) {
+        if (li.cil.oc.core.impl.util.LoadedChunks.isReady(level, pos)) {
           var te = level.getBlockEntity(pos);
           if (te instanceof Keyboard keyboard && keyboard.hasNodeOnSide(side.getOpposite())) return true;
         }
@@ -481,7 +481,7 @@ public class Screen extends BlockEntity implements TextBufferHost, SidedEnvironm
         var np = unproject(p[0], p[1], p[2]);
         var npPos = new BlockPos(np[0], np[1], np[2]);
         var level = getLevel();
-        if (level != null && level.hasChunk(npPos.getX() >> 4, npPos.getZ() >> 4)) {
+        if (level != null && li.cil.oc.core.impl.util.LoadedChunks.isReady(level, npPos)) {
           var te = level.getBlockEntity(npPos);
           if (te instanceof Screen s && s.pitch() == pitch() && s.yaw() == yaw() && pending.add(s))
             queue.add(s);
@@ -494,7 +494,7 @@ public class Screen extends BlockEntity implements TextBufferHost, SidedEnvironm
         var np = unproject(p[0], p[1], p[2]);
         var npPos = new BlockPos(np[0], np[1], np[2]);
         var level = getLevel();
-        if (level != null && level.hasChunk(npPos.getX() >> 4, npPos.getZ() >> 4)) {
+        if (level != null && li.cil.oc.core.impl.util.LoadedChunks.isReady(level, npPos)) {
           var te = level.getBlockEntity(npPos);
           if (te instanceof Screen s && s.pitch() == pitch() && s.yaw() == yaw() && pending.add(s))
             queue.add(s);
@@ -507,7 +507,7 @@ public class Screen extends BlockEntity implements TextBufferHost, SidedEnvironm
         var np = unproject(p[0], p[1], p[2]);
         var npPos = new BlockPos(np[0], np[1], np[2]);
         var level = getLevel();
-        if (level != null && level.hasChunk(npPos.getX() >> 4, npPos.getZ() >> 4)) {
+        if (level != null && li.cil.oc.core.impl.util.LoadedChunks.isReady(level, npPos)) {
           var te = level.getBlockEntity(npPos);
           if (te instanceof Screen s && s.pitch() == pitch() && s.yaw() == yaw() && pending.add(s))
             queue.add(s);
@@ -520,7 +520,7 @@ public class Screen extends BlockEntity implements TextBufferHost, SidedEnvironm
         var np = unproject(p[0], p[1], p[2]);
         var npPos = new BlockPos(np[0], np[1], np[2]);
         var level = getLevel();
-        if (level != null && level.hasChunk(npPos.getX() >> 4, npPos.getZ() >> 4)) {
+        if (level != null && li.cil.oc.core.impl.util.LoadedChunks.isReady(level, npPos)) {
           var te = level.getBlockEntity(npPos);
           if (te instanceof Screen s && s.pitch() == pitch() && s.yaw() == yaw() && pending.add(s))
             queue.add(s);
@@ -634,7 +634,7 @@ public class Screen extends BlockEntity implements TextBufferHost, SidedEnvironm
     var np = unproject(op[0] + dx, op[1] + dy, op[2]);
     var pos = new BlockPos(np[0], np[1], np[2]);
     var level = getLevel();
-    if (level != null && level.hasChunk(pos.getX() >> 4, pos.getZ() >> 4)) {
+    if (level != null && li.cil.oc.core.impl.util.LoadedChunks.isReady(level, pos)) { // (not only on its way: no waiting)
       var te = level.getBlockEntity(pos);
       if (te instanceof Screen s && s.tier == tier && s.pitch() == pitch() && s.color == color && s.yaw() == yaw() && !screens.contains(s)) {
         var sp = project(s.origin);
