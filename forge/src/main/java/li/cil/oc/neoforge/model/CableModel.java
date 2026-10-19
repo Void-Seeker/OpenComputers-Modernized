@@ -90,26 +90,7 @@ public class CableModel implements IDynamicBakedModel {
     if (state != null) {
       Integer maskObj = extraData.get(CABLE_CONNECTIONS);
       int mask = maskObj != null ? maskObj : 0;
-      Set<Direction> cableNeighbors = extraData.get(CABLE_NEIGHBORS);
-
-      emitBox(quads, getCableSprite(), CENTER_MIN, CENTER_MAX, CENTER_MIN, CENTER_MAX, CENTER_MIN, CENTER_MAX, 0);
-
-      for (Direction dir : Direction.values()) {
-        if ((mask & (1 << dir.ordinal())) != 0) {
-          double[] arm = armBox(dir);
-          emitBox(quads, getCableSprite(), arm[0], arm[1], arm[2], arm[3], arm[4], arm[5], 0);
-
-          boolean isCableNeighbor = cableNeighbors != null && cableNeighbors.contains(dir);
-          if (!isCableNeighbor) {
-            double[] plug = plugBox(dir);
-            // plugs and caps untinted, as OC 1.12 (and the item here): only the cable takes its colour
-            emitBox(quads, getCapSprite(), plug[0], plug[1], plug[2], plug[3], plug[4], plug[5], -1);
-          }
-        } else if (isUnconnectedCap(mask, dir)) {
-          double[] cap = capBox(dir);
-          emitBox(quads, getCapSprite(), cap[0], cap[1], cap[2], cap[3], cap[4], cap[5], -1);
-        }
-      }
+      quads.addAll(bakeCable(mask, extraData.get(CABLE_NEIGHBORS), getCableSprite(), getCapSprite()));
     } else {
       emitBox(quads, getCableSprite(), CENTER_MIN, CENTER_MAX, CENTER_MIN, CENTER_MAX, CENTER_MIN, CENTER_MAX, 0);
       emitBox(quads, getCableSprite(), 6, 10, 10, 15, 6, 10, 0);
@@ -118,6 +99,38 @@ public class CableModel implements IDynamicBakedModel {
       emitBox(quads, getCapSprite(), 5, 11, 0, 1, 5, 11, -1);
     }
 
+    return quads;
+  }
+
+  /**
+   * The quads of a cable reaching to the sides in the mask (bits by ordinal), with plugs toward what is not a cable and
+   * caps where it ends: a block cable's, and a multipart one's. The cable's are tinted (index 0), the plugs and caps not.
+   */
+  public static List<BakedQuad> bakeCable(int mask, @Nullable Set<Direction> cableNeighbors) {
+    var atlas = Minecraft.getInstance().getTextureAtlas(InventoryMenu.BLOCK_ATLAS);
+    return bakeCable(mask, cableNeighbors, atlas.apply(new ResourceLocation("opencomputers", "block/cable")),
+      atlas.apply(new ResourceLocation("opencomputers", "block/cablecap")));
+  }
+
+  private static List<BakedQuad> bakeCable(int mask, @Nullable Set<Direction> cableNeighbors, TextureAtlasSprite cableSprite, TextureAtlasSprite capSprite) {
+    List<BakedQuad> quads = new ArrayList<>();
+    emitBox(quads, cableSprite, CENTER_MIN, CENTER_MAX, CENTER_MIN, CENTER_MAX, CENTER_MIN, CENTER_MAX, 0);
+    for (Direction dir : Direction.values()) {
+      if ((mask & (1 << dir.ordinal())) != 0) {
+        double[] arm = armBox(dir);
+        emitBox(quads, cableSprite, arm[0], arm[1], arm[2], arm[3], arm[4], arm[5], 0);
+
+        boolean isCableNeighbor = cableNeighbors != null && cableNeighbors.contains(dir);
+        if (!isCableNeighbor) {
+          double[] plug = plugBox(dir);
+          // plugs and caps untinted, as OC 1.12 (and the item here): only the cable takes its colour
+          emitBox(quads, capSprite, plug[0], plug[1], plug[2], plug[3], plug[4], plug[5], -1);
+        }
+      } else if (isUnconnectedCap(mask, dir)) {
+        double[] cap = capBox(dir);
+        emitBox(quads, capSprite, cap[0], cap[1], cap[2], cap[3], cap[4], cap[5], -1);
+      }
+    }
     return quads;
   }
 
