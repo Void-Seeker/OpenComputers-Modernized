@@ -165,12 +165,13 @@ public class CableModel implements IDynamicBakedModel {
     double maxY = PLUG_HALF + sy * OFFSET;
     double minZ = -PLUG_HALF + sz * OFFSET;
     double maxZ = PLUG_HALF + sz * OFFSET;
-    minX = MathCompat.clamp(minX + sx * 10.0, -0.5 - 1e-4, 7.0);
-    maxX = MathCompat.clamp(maxX + sx * 10.0, -7.0, 0.5 + 1e-4);
-    minY = MathCompat.clamp(minY + sy * 10.0, -0.5 - 1e-4, 7.0);
-    maxY = MathCompat.clamp(maxY + sy * 10.0, -7.0, 0.5 + 1e-4);
-    minZ = MathCompat.clamp(minZ + sz * 10.0, -0.5 - 1e-4, 7.0);
-    maxZ = MathCompat.clamp(maxZ + sz * 10.0, -7.0, 0.5 + 1e-4);
+    // in 16ths, as everything here: OC's half a block (+ a little) was left in blocks, which put the plug inside the arm
+    minX = MathCompat.clamp(minX + sx * 10.0, -8.0 - 16e-4, 7.0);
+    maxX = MathCompat.clamp(maxX + sx * 10.0, -7.0, 8.0 + 16e-4);
+    minY = MathCompat.clamp(minY + sy * 10.0, -8.0 - 16e-4, 7.0);
+    maxY = MathCompat.clamp(maxY + sy * 10.0, -7.0, 8.0 + 16e-4);
+    minZ = MathCompat.clamp(minZ + sz * 10.0, -8.0 - 16e-4, 7.0);
+    maxZ = MathCompat.clamp(maxZ + sz * 10.0, -7.0, 8.0 + 16e-4);
     return new double[]{minX + 8.0, maxX + 8.0, minY + 8.0, maxY + 8.0, minZ + 8.0, maxZ + 8.0};
   }
 
@@ -200,7 +201,8 @@ public class CableModel implements IDynamicBakedModel {
     var neighbors = new java.util.HashSet<Direction>();
     for (Direction side : Direction.values()) {
       BlockEntity te = blockView.getBlockEntity(pos.relative(side));
-      if (te instanceof Cable) {
+      // (no plug toward a multipart cable either, as in OC 1.12)
+      if (te instanceof Cable || li.cil.oc.neoforge.common.MultipartHooks.isCablePart(te)) {
         neighbors.add(side);
       }
     }

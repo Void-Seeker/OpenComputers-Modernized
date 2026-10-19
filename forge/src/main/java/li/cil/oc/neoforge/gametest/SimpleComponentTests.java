@@ -686,6 +686,27 @@ public final class SimpleComponentTests {
     helper.succeed();
   }
 
+  /**
+   * Cables reach to cables of their colour or light gray, and not to other colours: the one rule for the cable's shape,
+   * model and highlight.
+   */
+  @GameTest(template = EMPTY)
+  public static void cablesReachToCablesOfTheirColour(final GameTestHelper helper) {
+    final java.util.Map<BlockPos, Integer> colours = java.util.Map.of(AT, li.cil.oc.core.impl.util.Color.Red,
+      AT.east(), li.cil.oc.core.impl.util.Color.Blue, AT.west(), li.cil.oc.core.impl.util.Color.LightGray, AT.north(), li.cil.oc.core.impl.util.Color.Red);
+    colours.forEach((pos, colour) -> {
+      helper.setBlock(pos, Blocks.CABLE.get());
+      ((li.cil.oc.core.impl.common.blockentity.Cable) helper.getBlockEntity(pos)).color(colour);
+    });
+    final BlockPos abs = helper.absolutePos(AT);
+    final int connections = li.cil.oc.neoforge.common.block.Cable.connections(helper.getLevel(), abs);
+    final AABB bounds = Blocks.CABLE.get().getShape(helper.getLevel().getBlockState(abs), helper.getLevel(), abs, CollisionContext.empty()).bounds();
+    helper.assertTrue((connections & (1 << Direction.EAST.get3DDataValue())) == 0 && bounds.maxX < 1, "a red cable reaches to a blue one: " + bounds);
+    helper.assertTrue((connections & (1 << Direction.WEST.get3DDataValue())) != 0 && bounds.minX == 0, "a red cable does not reach to a light gray one: " + bounds);
+    helper.assertTrue((connections & (1 << Direction.NORTH.get3DDataValue())) != 0 && bounds.minZ == 0, "a red cable does not reach to a red one: " + bounds);
+    helper.succeed();
+  }
+
   /** A block entity that is an environment itself as well. */
   public static final class EnvironmentFurnace extends FurnaceBlockEntity implements SimpleComponent, li.cil.oc.api.network.Environment {
     public EnvironmentFurnace(final BlockPos pos, final BlockState state) {
