@@ -272,6 +272,8 @@ public final class IntegrationTests {
   private static final java.util.Set<BlockPos> SECOND_DRIVER_AT = java.util.concurrent.ConcurrentHashMap.newKeySet();
   /** Where the named test driver works: one more driver, with a name of its own that outranks energy's. */
   private static final java.util.Set<BlockPos> NAMED_DRIVER_AT = java.util.concurrent.ConcurrentHashMap.newKeySet();
+  /** Where the generic test driver works (as inventories and tanks: a part with no name of its own). */
+  private static final java.util.Set<BlockPos> GENERIC_DRIVER_AT = java.util.concurrent.ConcurrentHashMap.newKeySet();
   /** Where the other named test driver works: another device, as another machine behind the same bounding block. */
   private static final java.util.Set<BlockPos> OTHER_DRIVER_AT = java.util.concurrent.ConcurrentHashMap.newKeySet();
   private static boolean secondDriverRegistered;
@@ -290,6 +292,26 @@ public final class IntegrationTests {
         @Override
         public li.cil.oc.api.network.ManagedEnvironment createEnvironment(final net.minecraft.world.level.Level world, final BlockPos pos, final Direction side) {
           return new NamedTestEnvironment("test_named");
+        }
+      });
+      li.cil.oc.api.API.driver.add(new li.cil.oc.api.driver.DriverBlock() {
+        @Override
+        public boolean worksWith(final net.minecraft.world.level.Level world, final BlockPos pos, final Direction side) {
+          return GENERIC_DRIVER_AT.contains(pos);
+        }
+
+        @Override
+        public boolean isGeneric() {
+          return true;
+        }
+
+        @Override
+        public li.cil.oc.api.network.ManagedEnvironment createEnvironment(final net.minecraft.world.level.Level world, final BlockPos pos, final Direction side) {
+          return new li.cil.oc.api.prefab.AbstractManagedEnvironment() {
+            { // (alone it makes the block: it needs a node to be seen)
+              setNode(li.cil.oc.api.Network.newNode(this, li.cil.oc.api.network.Visibility.Network).create());
+            }
+          };
         }
       });
       li.cil.oc.api.API.driver.add(new li.cil.oc.api.driver.DriverBlock() {
@@ -430,16 +452,6 @@ public final class IntegrationTests {
       helper.assertTrue(drivers == 2, "the test driver did not come along: " + drivers + " drivers");
       adapter.neighborChanged(Direction.EAST); // energy alone again
       final String alone = blockAddress(adapter);
-      // a driver with a name of its own coming along keeps it too (the block's name changed: it got a new address)
-      final String named;
-      NAMED_DRIVER_AT.add(deviceAbs);
-      try {
-        adapter.neighborChanged(Direction.EAST);
-        named = blockAddress(adapter);
-      } finally {
-        NAMED_DRIVER_AT.remove(deviceAbs);
-      }
-      helper.assertTrue(before != null && before.equals(named), "with a named driver coming along the block got " + named + " instead of " + before);
       helper.assertTrue(before != null && before.equals(after), "the block got " + after + " instead of " + before + " when its drivers changed");
       helper.assertTrue(before.equals(alone), "the block got " + alone + " instead of " + before + " when the driver went again");
       helper.succeed();
@@ -519,6 +531,84 @@ public final class IntegrationTests {
         OTHER_DRIVER_AT.remove(deviceAbs);
       }
       helper.assertTrue(one != null && other != null && !other.equals(one), "another device with energy in the same block got its address " + other);
+      helper.succeed();
+    });
+  }
+
+  /**
+   * A block made up of generic parts alone keeps its address when they change, as a machine whose side goes from energy
+   * to items (no name on either side told them apart: it got a new address).
+   */
+  @GameTest(template = EMPTY, timeoutTicks = 100)
+  public static void adapterKeepsTheAddressWhenGenericPartsChange(final GameTestHelper helper) {
+    registerSecondDriver();
+    final BlockPos device = AT.east();
+    final BlockPos deviceAbs = helper.absolutePos(device);
+    final boolean[] energyOn = {true};
+    final var storage = new net.minecraftforge.energy.EnergyStorage(1000);
+    final LazyOptional<net.minecraftforge.energy.IEnergyStorage> energy = LazyOptional.of(() -> storage);
+    placeWithCapability(helper, device, new ICapabilityProvider() {
+      @Override
+      public <T> @NotNull LazyOptional<T> getCapability(@NotNull Capability<T> cap, @Nullable Direction side) {
+        return cap == ForgeCapabilities.ENERGY && energyOn[0] ? energy.cast() : LazyOptional.empty();
+      }
+    }, "test_energy_generic");
+    helper.setBlock(AT, Blocks.ADAPTER.get());
+    helper.runAfterDelay(10, () -> {
+      final var adapter = (li.cil.oc.core.impl.common.blockentity.Adapter) helper.getBlockEntity(AT);
+      adapter.neighborChanged(Direction.EAST);
+      final String withEnergy = blockAddress(adapter);
+      final String withOther;
+      final int drivers;
+      GENERIC_DRIVER_AT.add(deviceAbs);
+      energyOn[0] = false;
+      try {
+        adapter.neighborChanged(Direction.EAST);
+        withOther = blockAddress(adapter);
+        drivers = blockDrivers(adapter);
+      } finally {
+        GENERIC_DRIVER_AT.remove(deviceAbs);
+      }
+      helper.assertTrue(drivers == 1, "the generic test driver did not take energy's place: " + drivers + " drivers");
+      helper.assertTrue(withEnergy != null && withEnergy.equals(withOther), "with another generic part the block got " + withOther + " instead of " + withEnergy);
+      helper.succeed();
+    });
+  }
+
+  /**
+   * A driver with a name of its own coming, going and coming again keeps the block's address (the block's name
+   * changed: it got a new address).
+   */
+  @GameTest(template = EMPTY, timeoutTicks = 100)
+  public static void adapterKeepsTheAddressWhenANamedDriverComesAndGoes(final GameTestHelper helper) {
+    registerSecondDriver();
+    final BlockPos device = AT.east();
+    final BlockPos deviceAbs = helper.absolutePos(device);
+    placeWithCapability(helper, device, energyProvider(), "test_energy_named");
+    helper.setBlock(AT, Blocks.ADAPTER.get());
+    helper.runAfterDelay(10, () -> {
+      final var adapter = (li.cil.oc.core.impl.common.blockentity.Adapter) helper.getBlockEntity(AT);
+      adapter.neighborChanged(Direction.EAST);
+      final String before = blockAddress(adapter);
+      final String named;
+      final String alone;
+      final String again;
+      try {
+        NAMED_DRIVER_AT.add(deviceAbs);
+        adapter.neighborChanged(Direction.EAST);
+        named = blockAddress(adapter);
+        NAMED_DRIVER_AT.remove(deviceAbs);
+        adapter.neighborChanged(Direction.EAST);
+        alone = blockAddress(adapter);
+        NAMED_DRIVER_AT.add(deviceAbs);
+        adapter.neighborChanged(Direction.EAST);
+        again = blockAddress(adapter);
+      } finally {
+        NAMED_DRIVER_AT.remove(deviceAbs);
+      }
+      helper.assertTrue(before != null && before.equals(named), "with a named driver coming along the block got " + named + " instead of " + before);
+      helper.assertTrue(before.equals(alone), "with the named driver gone the block got " + alone + " instead of " + before);
+      helper.assertTrue(before.equals(again), "with the named driver back the block got " + again + " instead of " + before);
       helper.succeed();
     });
   }

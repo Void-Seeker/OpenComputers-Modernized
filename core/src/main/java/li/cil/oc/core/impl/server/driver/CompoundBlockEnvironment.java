@@ -46,10 +46,11 @@ public class CompoundBlockEnvironment implements ManagedEnvironment, Environment
     this(name, driverNames, environments, namesOf(environments));
   }
 
+  // as the driver names them, except that without the drivers nothing is known to be generic
   private static java.util.Set<String> namesOf(ManagedEnvironment[] environments) {
     java.util.Set<String> names = new java.util.TreeSet<>();
     for (ManagedEnvironment env : environments) {
-      if (env instanceof li.cil.oc.api.driver.NamedBlock named) names.add(named.preferredName());
+      names.add(env instanceof li.cil.oc.api.driver.NamedBlock named ? named.preferredName() : env.getClass().getName());
     }
     return names;
   }

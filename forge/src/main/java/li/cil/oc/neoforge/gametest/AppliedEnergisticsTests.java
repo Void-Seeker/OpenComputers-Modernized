@@ -97,7 +97,7 @@ public final class AppliedEnergisticsTests {
       appeng.api.parts.PartHelper.setPart(helper.getLevel(), abs, Direction.WEST, null, (appeng.api.parts.IPartItem<?>) export);
       adapter.neighborChanged(Direction.EAST);
       final String swapped = compoundAddress(adapter);
-      host.removePartFromSide(Direction.WEST);
+      appeng.api.parts.PartHelper.getPartHost(helper.getLevel(), abs).removePartFromSide(Direction.WEST); // (the bus there now)
       adapter.neighborChanged(Direction.EAST);
       appeng.api.parts.PartHelper.setPart(helper.getLevel(), abs, Direction.WEST, null, iface);
       adapter.neighborChanged(Direction.EAST);
@@ -171,6 +171,57 @@ public final class AppliedEnergisticsTests {
       final String back = compoundAddress(adapter);
       helper.assertTrue(first != null && energy != null && !energy.equals(first), "an energy acceptor put where the interface was got its address " + energy);
       helper.assertTrue(back != null && !back.equals(energy), "an interface put back where the energy acceptor was got its address " + back);
+      helper.succeed();
+    });
+  }
+
+  private static Object identity(final li.cil.oc.core.impl.common.blockentity.Adapter adapter) {
+    for (final var node : adapter.node().reachableNodes()) {
+      if (node.host() instanceof li.cil.oc.core.impl.server.driver.CompoundBlockEnvironment compound) return compound.identity();
+    }
+    return null;
+  }
+
+  private static boolean hasExportBus(final li.cil.oc.core.impl.common.blockentity.Adapter adapter) {
+    for (final var node : adapter.node().reachableNodes()) {
+      if (node.host() instanceof li.cil.oc.core.impl.server.driver.CompoundBlockEnvironment compound) {
+        for (final var env : compound.environments()) {
+          if (env instanceof li.cil.oc.neoforge.integration.appeng.DriverExportBus.Environment) return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  /**
+   * An export bus put where an interface was, with an energy acceptor facing the adapter all along, is a device of its
+   * own (energy alone was left between them, and it matched the export bus: it got the interface's address).
+   */
+  @GameTest(template = EMPTY, timeoutTicks = 100)
+  public static void adapterDoesNotPassAnAddressOnThroughEnergy(final GameTestHelper helper) {
+    final BlockPos cable = new BlockPos(2, 2, 2);
+    final BlockPos adapterPos = cable.west();
+    final BlockPos abs = helper.absolutePos(cable);
+    final var acceptor = (appeng.api.parts.IPartItem<?>) ForgeRegistries.ITEMS.getValue(new ResourceLocation("ae2", "cable_energy_acceptor"));
+    final var iface = (appeng.api.parts.IPartItem<?>) ForgeRegistries.ITEMS.getValue(new ResourceLocation("ae2", "cable_interface"));
+    final var export = (appeng.api.parts.IPartItem<?>) ForgeRegistries.ITEMS.getValue(new ResourceLocation("ae2", "export_bus"));
+    helper.assertTrue(appeng.api.parts.PartHelper.setPart(helper.getLevel(), abs, Direction.WEST, null, acceptor) != null, "the energy acceptor could not be placed");
+    helper.assertTrue(appeng.api.parts.PartHelper.setPart(helper.getLevel(), abs, Direction.NORTH, null, iface) != null, "the interface could not be placed");
+    helper.setBlock(adapterPos, Blocks.ADAPTER.get());
+    helper.runAfterDelay(5, () -> {
+      final var adapter = (li.cil.oc.core.impl.common.blockentity.Adapter) helper.getBlockEntity(adapterPos);
+      adapter.neighborChanged(Direction.EAST);
+      final String first = compoundAddress(adapter);
+      final var firstIdentity = identity(adapter);
+      appeng.api.parts.PartHelper.getPartHost(helper.getLevel(), abs).removePartFromSide(Direction.NORTH);
+      adapter.neighborChanged(Direction.EAST);
+      final var aloneIdentity = identity(adapter);
+      helper.assertTrue(appeng.api.parts.PartHelper.setPart(helper.getLevel(), abs, Direction.NORTH, null, export) != null, "the export bus could not be placed");
+      adapter.neighborChanged(Direction.EAST);
+      final String then = compoundAddress(adapter);
+      helper.assertTrue(hasExportBus(adapter), "the export bus did not come along");
+      helper.assertTrue(first != null && then != null && !then.equals(first), "an export bus put where the interface was got its address " + then
+        + " (" + firstIdentity + " -> " + aloneIdentity + " -> " + identity(adapter) + ")");
       helper.succeed();
     });
   }

@@ -21,7 +21,7 @@ final class TestMachines {
 
   /**
    * Places a microcontroller built from the given parts, boots it with the program as its EEPROM and hands it to
-   * the check five seconds later (tests using it need a longer timeout than the default 100 ticks). The program should end in an endless loop; an error stops the machine.
+   * the check five seconds later (tests using it need a longer timeout than the default 100 ticks). The program should end in an endless loop or report (error("done:" ..)); any other error stops the machine and fails.
    */
   static void runMicrocontroller(final GameTestHelper helper, final BlockPos pos, final List<String> parts, final String program, final Consumer<Microcontroller> check) {
     runMicrocontroller(helper, pos, parts, mc -> program, check);

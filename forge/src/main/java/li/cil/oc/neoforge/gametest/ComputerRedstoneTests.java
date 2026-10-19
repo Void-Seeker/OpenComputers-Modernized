@@ -434,13 +434,17 @@ public final class ComputerRedstoneTests {
   public static void reloadedRobotHearsOfNoAddedComponents(final GameTestHelper helper) {
     TestMachines.runRobot(helper, AT, List.of(Constants.ItemName.RedstoneCardTier1),
       "local t0 = computer.uptime() while computer.uptime() - t0 < 1 do computer.pullSignal(0.1) end\n" // what came at boot
-        + "component.proxy(component.list('redstone')()).setOutput(3, 1)\n" // listening now
-        + "while true do if computer.pullSignal(1) == 'component_added' then error('component_added after a reload') end end\n",
-      40, (robot, result) -> TestMachines.when(helper, () -> total(robot.output()) == 1, 100, () -> {
-        helper.assertTrue(robot.machine().isRunning() && total(robot.output()) == 1, "the robot does not listen yet: " + robot.machine().lastError());
+        + "local rs = component.proxy(component.list('redstone')()) rs.setOutput(3, 1) local n = 0\n" // listening now
+        // each quiet second shows (that the reloaded program ran on, not only that the robot was still "running")
+        + "while true do local s = computer.pullSignal(1) if s == 'component_added' then error('component_added after a reload') end\n"
+        + "if s == nil then n = n + 1 rs.setOutput(3, n % 14 + 2) end end\n",
+      40, (robot, result) -> TestMachines.when(helper, () -> total(robot.output()) >= 1, 100, () -> {
+        helper.assertTrue(robot.machine().isRunning() && total(robot.output()) >= 1, "the robot does not listen yet: " + robot.machine().lastError());
+        final int atReload = total(robot.output());
         final var loaded = reloadRobot(helper, unload(helper));
-        helper.runAfterDelay(60, () -> {
+        TestMachines.when(helper, () -> total(loaded.robot.output()) != atReload, 100, () -> {
           helper.assertTrue(loaded.robot.machine().isRunning(), "the reloaded robot stopped: " + loaded.robot.machine().lastError());
+          helper.assertTrue(total(loaded.robot.output()) != atReload, "the reloaded robot's program did not run on");
           helper.succeed();
         });
       }));

@@ -321,7 +321,9 @@ public class Adapter extends BlockEntity implements li.cil.oc.api.network.Enviro
             // one while the game ran, e.g. when a machine's side configuration changed); not another device in the same
             // block (a cable bus part swapped for another)
             CompoundTag kept = null;
-            var keptIdentity = identityOf(oldEnv);
+            // what it went by, names carried from before included
+            var keptData = blocksData[d.ordinal()];
+            var keptIdentity = keptData != null && keptData.identity != null ? keptData.identity : identityOf(oldEnv);
             if (!blockChanged && oldEnv.node() != null) {
               kept = new CompoundTag();
               oldEnv.node().save(kept, level().registryAccess()); // its address
@@ -332,13 +334,14 @@ public class Adapter extends BlockEntity implements li.cil.oc.api.network.Enviro
             node.disconnect(oldEnv.node());
             var environment = newDriver.createEnvironment(level(), neighborPos, face);
             if (environment != null) {
-              if (kept != null && sameDevice(keptIdentity, identityOf(environment))
-                && environment instanceof li.cil.oc.core.impl.server.driver.CompoundBlockEnvironment compound) {
+              boolean same = kept != null && sameDevice(keptIdentity, identityOf(environment));
+              if (same && environment instanceof li.cil.oc.core.impl.server.driver.CompoundBlockEnvironment compound) {
                 compound.loadAddress(kept, level().registryAccess());
               }
               blocks[d.ordinal()] = environment;
               if (environment.canUpdate()) updatingBlocks.add(environment);
-              blocksData[d.ordinal()] = new BlockData(environment.getClass().getName(), new CompoundTag(), newDriver, blockId(currentBlock), identityOf(environment));
+              blocksData[d.ordinal()] = new BlockData(environment.getClass().getName(), new CompoundTag(), newDriver, blockId(currentBlock),
+                same ? carried(keptIdentity, identityOf(environment)) : identityOf(environment));
               lastBlocks[d.ordinal()] = currentBlock;
               node.connect(environment.node());
             }
@@ -362,7 +365,8 @@ public class Adapter extends BlockEntity implements li.cil.oc.api.network.Enviro
                 compound.loadAddress(saved.data, level().registryAccess());
               }
             }
-            blocksData[d.ordinal()] = new BlockData(environment.getClass().getName(), new CompoundTag(), newDriver, blockId(currentBlock), identityOf(environment));
+            blocksData[d.ordinal()] = new BlockData(environment.getClass().getName(), new CompoundTag(), newDriver, blockId(currentBlock),
+              sameBlock ? carried(saved.identity, identityOf(environment)) : identityOf(environment));
             lastBlocks[d.ordinal()] = currentBlock;
             node.connect(environment.node());
           }
@@ -503,10 +507,24 @@ public class Adapter extends BlockEntity implements li.cil.oc.api.network.Enviro
     if (before == null || before.isEmpty() || now.isEmpty()) return true;
     var specificBefore = specific(before);
     var specificNow = specific(now);
+    // generic parts alone on both sides: nothing tells them apart but the block, which matched (a machine's side set
+    // from energy to items got a new address)
+    if (specificBefore.isEmpty() && specificNow.isEmpty()) return true;
     var a = specificBefore.isEmpty() || specificNow.isEmpty() ? before : specificBefore;
     var b = specificBefore.isEmpty() || specificNow.isEmpty() ? now : specificNow;
     for (String name : a) if (b.contains(name)) return true;
     return false;
+  }
+
+  /**
+   * What the same device goes by now: a device left with generic parts alone keeps its names from before (energy alone
+   * matched what came next: an export bus placed where the interface was, energy beside both, got its address).
+   */
+  private static java.util.Set<String> carried(java.util.Set<String> before, java.util.Set<String> now) {
+    if (before == null || !specific(now).isEmpty()) return now;
+    var result = new java.util.TreeSet<>(now);
+    result.addAll(specific(before));
+    return result;
   }
 
   private static java.util.Set<String> specific(java.util.Set<String> names) {
