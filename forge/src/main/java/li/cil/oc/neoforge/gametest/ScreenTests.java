@@ -427,4 +427,29 @@ public final class ScreenTests {
       });
     });
   }
+
+  /**
+   * A two-screen display powered behind one screen stays toggled when power comes behind the other too (each screen
+   * kept its own flag: the second one toggled it back as if the display had no input).
+   */
+  @GameTest(template = EMPTY, timeoutTicks = 100)
+  public static void multiBlockScreenPoweredBehindBothScreensTogglesOnce(final GameTestHelper helper) {
+    helper.setBlock(AT, Blocks.SCREEN_TIER_1.get());
+    helper.setBlock(AT.east(), Blocks.SCREEN_TIER_1.get());
+    helper.runAfterDelay(10, () -> {
+      final var a = (li.cil.oc.core.impl.common.blockentity.Screen) helper.getBlockEntity(AT);
+      helper.assertTrue(a.screens.size() == 2, "the two screens did not merge: " + a.screens.size());
+      final boolean before = a.origin.buffer.getPowerState();
+      helper.setBlock(AT.below(), net.minecraft.world.level.block.Blocks.REDSTONE_BLOCK);
+      helper.runAfterDelay(2, () -> {
+        final boolean once = a.origin.buffer.getPowerState();
+        helper.setBlock(AT.east().below(), net.minecraft.world.level.block.Blocks.REDSTONE_BLOCK);
+        helper.runAfterDelay(2, () -> {
+          helper.assertTrue(once != before, "power behind one screen did not toggle the display");
+          helper.assertTrue(a.origin.buffer.getPowerState() == once, "power behind the second screen toggled the display again");
+          helper.succeed();
+        });
+      });
+    });
+  }
 }

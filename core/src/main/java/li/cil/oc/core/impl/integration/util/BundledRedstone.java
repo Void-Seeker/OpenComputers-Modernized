@@ -25,15 +25,7 @@ public final class BundledRedstone {
    * stayed 0 while the side was powered.
    */
   public static boolean canRead(BlockPosition pos, Direction side) {
-    var p = pos.offset(side).toBlockPos();
-    var level = pos.level();
-    if (level == null) return false;
-    int cx = p.getX() >> 4, cz = p.getZ() >> 4;
-    // loaded, not only on its way (one still loading was loaded there and then, the server thread waiting for it)
-    if (level instanceof net.minecraft.server.level.ServerLevel server && server.getServer().isSameThread()) {
-      return server.getChunkSource().getChunkNow(cx, cz) != null;
-    }
-    return level.hasChunk(cx, cz);
+    return li.cil.oc.core.impl.util.LoadedChunks.isReady(pos.level(), pos.offset(side).toBlockPos());
   }
 
   public static int computeInput(BlockPosition pos, Direction side) {

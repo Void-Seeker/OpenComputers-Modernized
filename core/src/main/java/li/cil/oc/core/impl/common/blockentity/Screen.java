@@ -267,6 +267,7 @@ public class Screen extends BlockEntity implements TextBufferHost, SidedEnvironm
     origin = this;
     screens.clear();
     screens.add(this);
+    hadRedstoneInput = maxInput() > 0;
     cachedBounds = null;
     invertTouchMode = false;
   }
@@ -562,19 +563,21 @@ public class Screen extends BlockEntity implements TextBufferHost, SidedEnvironm
     }
   }
 
+  // the multi-block's: its origin's flag (each screen kept its own, and power behind a second screen of a powered
+  // multi-block toggled it as if it had none)
   private void noteRedstoneInput() {
     boolean hasRedstoneInput = screens.stream().mapToInt(Screen::maxInput).max().orElse(0) > 0;
-    if (hasRedstoneInput != hadRedstoneInput) {
-      hadRedstoneInput = hasRedstoneInput;
-      setChanged();
+    if (hasRedstoneInput != origin.hadRedstoneInput) {
+      origin.hadRedstoneInput = hasRedstoneInput;
+      origin.setChanged();
     }
   }
 
   protected void onRedstoneInputChanged(RedstoneChangedEventArgs ignoredArgs) {
     boolean hasRedstoneInput = screens.stream().mapToInt(Screen::maxInput).max().orElse(0) > 0;
-    if (hasRedstoneInput != hadRedstoneInput) {
-      hadRedstoneInput = hasRedstoneInput;
-      setChanged();
+    if (hasRedstoneInput != origin.hadRedstoneInput) {
+      origin.hadRedstoneInput = hasRedstoneInput;
+      origin.setChanged();
       if (hasRedstoneInput) origin.buffer.setPowerState(!origin.buffer.getPowerState());
     }
   }
@@ -627,6 +630,7 @@ public class Screen extends BlockEntity implements TextBufferHost, SidedEnvironm
             screen.cachedBounds = null;
             screen.setChanged();
           }
+          newOrigin.hadRedstoneInput = newScreens.stream().anyMatch(screen -> screen.maxInput() > 0);
           return true;
         }
       }

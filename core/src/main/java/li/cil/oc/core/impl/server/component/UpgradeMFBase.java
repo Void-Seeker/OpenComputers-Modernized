@@ -151,7 +151,7 @@ public abstract class UpgradeMFBase extends AbstractManagedEnvironment implement
         coord.toVec3().distanceTo(new Vec3(host.xPosition(), host.yPosition(), host.zPosition())))) {
         disconnect();
       } else if (seenBlockEntity != null && seenBlockEntity.isRemoved()
-        && host.level().isLoaded(new BlockPos(coord.x(), coord.y(), coord.z()))) {
+        && li.cil.oc.core.impl.util.LoadedChunks.isReady(host.level(), new BlockPos(coord.x(), coord.y(), coord.z()))) {
         // the bound block's chunk came back with new block entities, and no block update (it kept the removed one)
         updateBoundState();
       }

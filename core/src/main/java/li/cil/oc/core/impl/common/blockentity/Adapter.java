@@ -308,12 +308,16 @@ public class Adapter extends BlockEntity implements li.cil.oc.api.network.Enviro
   public void updateEntity() {
     super.updateEntity();
     if (!updatingBlocks.isEmpty()) {
-      for (var block : updatingBlocks) block.update();
+      // a copy: an update can bind something (an MFU taking its block back connects a node, and the adapter looks at
+      // its sides again), and the list changed under the loop
+      for (var block : new ArrayList<>(updatingBlocks)) {
+        if (updatingBlocks.contains(block)) block.update();
+      }
     }
     if (isServer() && level().getGameTime() % OCSettings.get().tickFrequency == 0) {
       for (var d : Direction.values()) {
         var bound = boundEntities[d.ordinal()];
-        if (blocks[d.ordinal()] != null && bound != null && bound.isRemoved() && level().isLoaded(worldPosition.relative(d))) {
+        if (blocks[d.ordinal()] != null && bound != null && bound.isRemoved() && li.cil.oc.core.impl.util.LoadedChunks.isReady(level(), worldPosition.relative(d))) {
           // the block's chunk came back with new block entities and no block update: it kept the removed one (frozen
           // values; items taken from it were still in the block)
           releaseSide(d.ordinal());
