@@ -48,6 +48,10 @@ public interface InventoryWorldControl extends InventoryAware, WorldAware, SideR
     ItemStack stack = inventory().getItem(selectedSlot());
     if (!stack.isEmpty()) {
       BlockPosition blockPos = position().offset(facing);
+      // not in front of a chunk that is not ready: an inventory there was not seen, and the items fell out in front of it
+      if (!li.cil.oc.core.impl.util.LoadedChunks.isReady(blockPos.level(), blockPos.toBlockPos())) {
+        return ResultWrapper.result(false, "not loaded");
+      }
       InventoryAccess inv = inventoryAtSide(blockPos, facing);
       if (inv != null && inv.stillValid(fakePlayer()) && mayInteract(blockPos, facing.getOpposite())) {
         if (!InventoryUtils.insertIntoInventory(stack, inv, count)) {

@@ -607,7 +607,8 @@ public abstract class RobotBase extends BlockEntity implements li.cil.oc.core.im
     }
     if (isServer()) {
       if (node != null && node.network() != null) {
-        machine.update();
+        // its machine is updated with the running robots each tick, as in OC (updated here too, a running robot's
+        // computer ran at twice the pace: uptime, timers and sleeps, and its per-tick work)
         if (this instanceof li.cil.oc.core.impl.common.inventory.ComponentInventory ci) {
           ci.updateComponents();
         }

@@ -197,7 +197,7 @@ public class Disassembler extends BlockEntity implements li.cil.oc.api.network.E
   public void updateEntity() {
     super.updateEntity();
     var level = getLevel();
-    if (level != null && level.getGameTime() % OCSettings.get().tickFrequency == 0) {
+    if (level != null && level.getGameTime() % OCSettings.get().tickFrequency == 0 && neighboursReady()) {
       if (queue.isEmpty()) {
         boolean instant = disassembleNextInstantly;
         disassemble(removeItem(0, 1), instant);
@@ -299,6 +299,14 @@ public class Disassembler extends BlockEntity implements li.cil.oc.api.network.E
       if (direction != null) spawnStackInWorld(removed, direction);
       else spawnStackInWorld(removed);
     }
+  }
+
+  // the chunks of the blocks around it, which take its output (one still loading was not seen: the parts spilled)
+  private boolean neighboursReady() {
+    for (var side : Direction.Plane.HORIZONTAL) {
+      if (!li.cil.oc.core.impl.util.LoadedChunks.isReady(getLevel(), worldPosition.relative(side))) return false;
+    }
+    return true;
   }
 
   private void drop(ItemStack stack) {

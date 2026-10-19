@@ -460,4 +460,22 @@ public final class RobotActionTests {
         helper.succeed();
       });
   }
+
+  /**
+   * A running robot's computer runs at the game's pace (it was updated twice a tick, from its block entity and from the
+   * running robots: uptime and timers ran double and its per-tick work twice).
+   */
+  @GameTest(template = EMPTY, timeoutTicks = 300)
+  public static void robotComputerRunsAtTheGamesPace(final GameTestHelper helper) {
+    TestMachines.runRobot(helper, AT, List.of(), "while true do computer.pullSignal(1) end", 20, (robot, ignored) -> {
+      final double uptime = robot.machine().upTime();
+      final long time = helper.getLevel().getGameTime();
+      helper.runAfterDelay(40, () -> {
+        final double ran = robot.machine().upTime() - uptime;
+        final double passed = (helper.getLevel().getGameTime() - time) / 20.0;
+        helper.assertTrue(Math.abs(ran - passed) < 0.11, "the robot's uptime went " + ran + " s in " + passed + " s of game time");
+        helper.succeed();
+      });
+    });
+  }
 }
