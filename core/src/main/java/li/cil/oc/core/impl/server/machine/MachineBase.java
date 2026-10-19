@@ -1166,6 +1166,9 @@ public abstract class MachineBase extends AbstractManagedEnvironment implements 
         threadPool.schedule(this, OCSettings.get().executionDelay, TimeUnit.MILLISECONDS);
       }
     }
+    // closed at the tick's end, as stop() does (only an update closed it: a robot that shut itself down, updated only
+    // while running, was left stopping for good - its Lua state, chunk loader and ports kept)
+    if (value == State.Stopping) platformScheduleClose();
     host.markChanged();
     return prev;
   }
@@ -1206,7 +1209,9 @@ public abstract class MachineBase extends AbstractManagedEnvironment implements 
             } else if (result instanceof ExecutionResult.SynchronizedCall) switchTo(State.SynchronizedCall);
             else if (result instanceof ExecutionResult.Shutdown) {
               if (((ExecutionResult.Shutdown) result).reboot) switchTo(State.Restarting);
-              else switchTo(State.Stopping);
+              else {
+                switchTo(State.Stopping); // (which has it closed)
+              }
             } else if (result instanceof ExecutionResult.Error) {
               beep("--");
               crash(((ExecutionResult.Error) result).message != null ? ((ExecutionResult.Error) result).message : "unknown error");
@@ -1221,7 +1226,10 @@ public abstract class MachineBase extends AbstractManagedEnvironment implements 
               state.push(State.SynchronizedCall);
             else if (result instanceof ExecutionResult.Shutdown) {
               if (((ExecutionResult.Shutdown) result).reboot) state.push(State.Restarting);
-              else state.push(State.Stopping);
+              else {
+                state.push(State.Stopping);
+                platformScheduleClose();
+              }
             } else if (result instanceof ExecutionResult.Error)
               crash(((ExecutionResult.Error) result).message != null ? ((ExecutionResult.Error) result).message : "unknown error");
             state.push(State.Paused);

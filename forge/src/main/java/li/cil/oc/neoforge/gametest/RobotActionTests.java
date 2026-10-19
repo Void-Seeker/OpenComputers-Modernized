@@ -478,4 +478,49 @@ public final class RobotActionTests {
       });
     });
   }
+
+  private static String machineState(final li.cil.oc.api.machine.Machine machine) {
+    try {
+      final var field = li.cil.oc.core.impl.server.machine.MachineBase.class.getDeclaredField("state");
+      field.setAccessible(true);
+      final Object stack = field.get(machine);
+      return String.valueOf(stack.getClass().getMethod("peek").invoke(stack));
+    } catch (ReflectiveOperationException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  /** A robot that shuts itself down stops for good. */
+  @GameTest(template = EMPTY, timeoutTicks = 300)
+  public static void robotShuttingItselfDownStops(final GameTestHelper helper) {
+    TestMachines.runRobot(helper, AT, List.of(), "computer.pullSignal(0.5) computer.shutdown()", 20, (robot, ignored) ->
+      TestMachines.when(helper, () -> "Stopped".equals(machineState(robot.machine())), 100, () -> {
+        helper.assertTrue("Stopped".equals(machineState(robot.machine())), "the robot that shut itself down is " + machineState(robot.machine()));
+        helper.succeed();
+      }));
+  }
+
+  /**
+   * A robot stopping when it is no longer among the running robots (the order a shutdown finishing between their
+   * update and the robot's tick gives) stops for good: nothing else updates it (it stayed stopping, its Lua state,
+   * chunk loader and ports kept).
+   */
+  @GameTest(template = EMPTY, timeoutTicks = 300)
+  public static void robotStoppingOutsideTheRunningRobotsStops(final GameTestHelper helper) {
+    TestMachines.runRobot(helper, AT, List.of(), "while true do computer.pullSignal(1) end", 20, (robot, ignored) -> {
+      li.cil.oc.core.impl.util.EventHandlerDelegate.get().onRobotStopped(robot);
+      try { // what run() does with a shutdown
+        final var switchTo = li.cil.oc.core.impl.server.machine.MachineBase.class.getDeclaredMethod("switchTo",
+          li.cil.oc.core.impl.server.machine.MachineBase.State.class);
+        switchTo.setAccessible(true);
+        switchTo.invoke(robot.machine(), li.cil.oc.core.impl.server.machine.MachineBase.State.Stopping);
+      } catch (ReflectiveOperationException e) {
+        throw new RuntimeException(e);
+      }
+      TestMachines.when(helper, () -> "Stopped".equals(machineState(robot.machine())), 40, () -> {
+        helper.assertTrue("Stopped".equals(machineState(robot.machine())), "the robot is " + machineState(robot.machine()));
+        helper.succeed();
+      });
+    });
+  }
 }

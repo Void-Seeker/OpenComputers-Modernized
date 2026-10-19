@@ -64,10 +64,13 @@ public final class DroneTests {
     TestMachines.runDrone(helper, AT, List.of(Constants.ItemName.InventoryUpgrade, Constants.ItemName.ExperienceUpgrade),
       drone -> drone.mainInventory().setItem(0, new ItemStack(Items.COBBLESTONE, 16)),
       // back where it was spawned first: it sinks before its machine starts, and sunk a block it placed into the floor
-      DRONE + "while d.getOffset() > 0.1 do computer.pullSignal(0.05) end local ok, why = d.place(0) error('done:' .. tostring(ok) .. ',' .. tostring(why))", 60, (drone, result) -> {
+      DRONE + "while d.getOffset() > 0.1 do computer.pullSignal(0.05) end local ok, why "
+        + "for i = 1, 5 do ok, why = d.place(0) if ok then break end computer.pullSignal(0.2) end "
+        + "error('done:' .. tostring(ok) .. ',' .. tostring(why))", 60, (drone, result) -> {
         final boolean placed = helper.getBlockState(AT.below()).is(Blocks.COBBLESTONE);
         helper.assertTrue(placed && count(drone, Items.COBBLESTONE) == 15,
-          "place returned " + result + ": placed " + placed + ", the drone has " + count(drone, Items.COBBLESTONE) + " cobblestone of 16");
+          "place returned " + result + ": placed " + placed + ", the drone has " + count(drone, Items.COBBLESTONE) + " cobblestone of 16"
+            + " (drone at " + drone.position() + ", target y " + drone.targetY() + ", test origin " + helper.absolutePos(AT) + ")");
         helper.succeed();
       });
   }

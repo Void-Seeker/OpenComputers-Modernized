@@ -772,6 +772,8 @@ public abstract class Robot extends RobotBase implements Computer, PowerInformat
         org.slf4j.LoggerFactory.getLogger(Robot.class).warn("Could not load a robot's computer.", e);
       }
       setRunning(machine.isRunning());
+      // with the running robots, which update its machine (a robot loaded over while set up was left out)
+      if (machine.isRunning() && EventHandlerDelegate.get() != null) EventHandlerDelegate.get().onRobotStart(this);
     }
   }
 
