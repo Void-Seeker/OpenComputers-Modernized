@@ -381,6 +381,8 @@ public abstract class MachineBase extends AbstractManagedEnvironment implements 
           return false;
         }
         switchTo(State.Starting);
+        // a close still scheduled from its last stop (its own update had closed it) ended this start at the tick's end
+        platformUnscheduleClose();
         host.markChanged();
         uptime = 0;
         node.sendToReachable("computer.started");
@@ -795,7 +797,7 @@ public abstract class MachineBase extends AbstractManagedEnvironment implements 
       if (!lockForServer("closing")) return;
       try {
         synchronized (state) {
-          tryClose();
+          if (tryClose()) platformUnscheduleClose(); // (closed: the one scheduled at the tick's end has nothing to do)
         }
       } finally {
         executionLock.unlock();

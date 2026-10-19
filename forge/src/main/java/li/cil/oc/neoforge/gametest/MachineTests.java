@@ -127,4 +127,23 @@ public final class MachineTests {
       helper.succeed();
     });
   }
+
+  /**
+   * A machine stopped, closed by its own update and started again in the same tick keeps running (the close still
+   * scheduled from the stop ran at the tick's end and ended the new start).
+   */
+  @GameTest(template = EMPTY, timeoutTicks = 400)
+  public static void machineStartedAgainAfterItsCloseKeepsRunning(final GameTestHelper helper) {
+    TestMachines.runMicrocontroller(helper, AT, PARTS, "while true do computer.pullSignal(1) end\n", mc -> {
+      final var machine = mc.machine();
+      machine.stop(); // stopping, its close scheduled for the tick's end
+      machine.update(); // its own update closes it first
+      helper.assertTrue(!machine.isRunning(), "the stopped machine runs");
+      helper.assertTrue(machine.start(), "the machine did not start again: " + machine.lastError());
+      helper.runAfterDelay(3, () -> {
+        helper.assertTrue(machine.isRunning(), "the machine started again was closed at the tick's end: " + machine.lastError());
+        helper.succeed();
+      });
+    });
+  }
 }

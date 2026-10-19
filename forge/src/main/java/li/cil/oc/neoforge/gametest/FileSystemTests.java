@@ -232,6 +232,11 @@ public final class FileSystemTests {
   }
 
   private static li.cil.oc.core.impl.util.SafeThreadPool fileSavePool() {
+    try { // the pool comes with the first buffered drive (none made yet, in some test orders)
+      Class.forName("li.cil.oc.core.impl.server.fs.FileSystem$BufferedFileSystem", true, FileSystemTests.class.getClassLoader());
+    } catch (ClassNotFoundException e) {
+      throw new IllegalStateException(e);
+    }
     for (final var pool : li.cil.oc.core.impl.util.ThreadPoolFactory.safePools) {
       if ("FileSystem".equals(pool.name())) return pool;
     }
