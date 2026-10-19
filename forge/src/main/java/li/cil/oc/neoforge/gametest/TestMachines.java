@@ -85,12 +85,12 @@ final class TestMachines {
     helper.runAfterDelay(5, () -> {
       ((li.cil.oc.api.network.Connector) robot.machine().node()).changeBuffer(20000);
       helper.assertTrue(robot.machine().start(), "the robot did not start: " + robot.machine().lastError());
-      helper.runAfterDelay(delay, () -> {
+      helper.runAfterDelay(delay, () -> when(helper, () -> reported(program, robot.machine()), 100, () -> {
         final String error = robot.machine().lastError();
         final int at = error == null ? -1 : error.indexOf("done:");
         helper.assertTrue(error == null || at >= 0, "the program failed: " + error);
         check.accept(robot, at >= 0 ? error.substring(at + 5) : null);
-      });
+      }));
     });
   }
 
@@ -118,12 +118,26 @@ final class TestMachines {
     helper.runAfterDelay(5, () -> {
       ((li.cil.oc.api.network.Connector) drone.machine().node()).changeBuffer(20000);
       helper.assertTrue(drone.start(), "the drone did not start: " + drone.machine().lastError());
-      helper.runAfterDelay(delay, () -> {
+      helper.runAfterDelay(delay, () -> when(helper, () -> reported(program, drone.machine()), 100, () -> {
         final String error = drone.machine().lastError();
         final int at = error == null ? -1 : error.indexOf("done:");
         helper.assertTrue(error == null || at >= 0, "the program failed: " + error);
         check.accept(drone, at >= 0 ? error.substring(at + 5) : null);
-      });
+      }));
     });
+  }
+
+  // whether a program that reports (error("done:" ..)) has, or stopped otherwise; one that runs on is ready at once
+  private static boolean reported(final String program, final li.cil.oc.api.machine.Machine machine) {
+    return !program.contains("done:") || machine.lastError() != null || !machine.isRunning();
+  }
+
+  /**
+   * Runs then once ready holds, checking each tick, or after max ticks: the test server ticks far faster than 20 a
+   * second while the machines run in real time (a program had not reported yet within 40 ticks while many booted).
+   */
+  static void when(final GameTestHelper helper, final java.util.function.BooleanSupplier ready, final int max, final Runnable then) {
+    if (max <= 0 || ready.getAsBoolean()) then.run();
+    else helper.runAfterDelay(1, () -> when(helper, ready, max - 1, then));
   }
 }

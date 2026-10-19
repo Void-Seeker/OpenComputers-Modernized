@@ -33,7 +33,28 @@ public class CompoundBlockEnvironment implements ManagedEnvironment, Environment
     return environments;
   }
 
+  // the names of what it is made up of, generic drivers (energy, inventories, tanks) left out: the adapter tells the
+  // same device from another in the same block by them
+  private final java.util.Set<String> identity;
+
+  public java.util.Set<String> identity() {
+    return identity;
+  }
+
   public CompoundBlockEnvironment(String name, String[] driverNames, ManagedEnvironment[] environments) {
+    this(name, driverNames, environments, namesOf(environments));
+  }
+
+  private static java.util.Set<String> namesOf(ManagedEnvironment[] environments) {
+    java.util.Set<String> names = new java.util.TreeSet<>();
+    for (ManagedEnvironment env : environments) {
+      if (env instanceof li.cil.oc.api.driver.NamedBlock named) names.add(named.preferredName());
+    }
+    return names;
+  }
+
+  public CompoundBlockEnvironment(String name, String[] driverNames, ManagedEnvironment[] environments, java.util.Set<String> identity) {
+    this.identity = java.util.Collections.unmodifiableSet(new java.util.TreeSet<>(identity));
     this.driverNames = driverNames;
     this.environments = environments;
     Visibility maxVis = Visibility.None;

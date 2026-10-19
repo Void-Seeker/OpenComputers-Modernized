@@ -356,6 +356,11 @@ public final class ScreenTests {
     final var set = buffer(4, 1);
     set.set(0, 0, wide, false);
     helper.assertTrue(set.set(1, 0, " ", false), "writing the other half of a wide character changed nothing");
+    final var cut = buffer(4, 1);
+    cut.set(0, 0, wide, false);
+    cut.buffer[0][1] = 'A'; // as a bitblt cutting a wide character leaves it
+    helper.assertTrue(cut.set(0, 0, wide, false), "writing a wide character again over its cut other half changed nothing");
+    helper.assertTrue(cut.get(1, 0) == ' ', "the other half of the wide character is " + (char) cut.get(1, 0));
     helper.succeed();
   }
 
@@ -369,6 +374,22 @@ public final class ScreenTests {
     b.set(2, 1, new String(Character.toChars(0x4E2D)), false);
     b.copy(-3, -2, 15, 5, 3, 1);
     helper.assertTrue(b.get(2, 1) == ' ', "the wide character at 2 lost its other half and was kept: " + Integer.toHexString(b.get(2, 1)));
+    helper.succeed();
+  }
+
+  /** A copy that writes nothing in a row clears nothing there (it cleared the wide character before the target). */
+  @GameTest(template = EMPTY)
+  public static void copyWritingNothingClearsNothing(final GameTestHelper helper) {
+    final int wide = 0x4E2D;
+    final String w = new String(Character.toChars(wide));
+    final var fromRight = buffer(8, 1);
+    fromRight.set(3, 0, w, false);
+    final boolean rightChanged = fromRight.copy(8, 0, 2, 1, -4, 0); // the source right of the buffer
+    final var fromLeft = buffer(8, 1);
+    fromLeft.set(0, 0, w, false);
+    final boolean leftChanged = fromLeft.copy(-5, 0, 3, 1, 6, 0); // the source left of the buffer
+    helper.assertTrue(fromRight.get(3, 0) == wide && !rightChanged, "a copy from right of the buffer cleared the wide character: " + rightChanged);
+    helper.assertTrue(fromLeft.get(0, 0) == wide && !leftChanged, "a copy from left of the buffer cleared the wide character: " + leftChanged);
     helper.succeed();
   }
 }

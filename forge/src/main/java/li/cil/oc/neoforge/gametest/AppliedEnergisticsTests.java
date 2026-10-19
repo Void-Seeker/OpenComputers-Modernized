@@ -96,4 +96,34 @@ public final class AppliedEnergisticsTests {
       helper.succeed();
     });
   }
+
+  /**
+   * An interface part keeps its address while another part comes and goes elsewhere on the cable bus (the bus's driver
+   * set and name changed: it got a new address each time).
+   */
+  @GameTest(template = EMPTY, timeoutTicks = 100)
+  public static void adapterKeepsTheAddressWhenAnotherPartComesAndGoes(final GameTestHelper helper) {
+    final BlockPos cable = new BlockPos(2, 2, 2);
+    final BlockPos adapterPos = cable.west();
+    final BlockPos abs = helper.absolutePos(cable);
+    final var iface = (appeng.api.parts.IPartItem<?>) ForgeRegistries.ITEMS.getValue(new ResourceLocation("ae2", "cable_interface"));
+    final var importBus = ForgeRegistries.ITEMS.getValue(new ResourceLocation("ae2", "import_bus"));
+    helper.assertTrue(importBus instanceof appeng.api.parts.IPartItem<?>, "AE2's import bus is not here: " + importBus);
+    helper.assertTrue(appeng.api.parts.PartHelper.setPart(helper.getLevel(), abs, Direction.WEST, null, iface) != null, "the interface part could not be placed");
+    helper.setBlock(adapterPos, Blocks.ADAPTER.get());
+    helper.runAfterDelay(5, () -> {
+      final var adapter = (li.cil.oc.core.impl.common.blockentity.Adapter) helper.getBlockEntity(adapterPos);
+      adapter.neighborChanged(Direction.EAST);
+      final String first = compoundAddress(adapter);
+      helper.assertTrue(appeng.api.parts.PartHelper.setPart(helper.getLevel(), abs, Direction.NORTH, null, (appeng.api.parts.IPartItem<?>) importBus) != null, "the import bus could not be placed");
+      adapter.neighborChanged(Direction.EAST);
+      final String withBus = compoundAddress(adapter);
+      appeng.api.parts.PartHelper.getPartHost(helper.getLevel(), abs).removePartFromSide(Direction.NORTH);
+      adapter.neighborChanged(Direction.EAST);
+      final String withoutBus = compoundAddress(adapter);
+      helper.assertTrue(first != null && first.equals(withBus), "with an import bus added elsewhere the interface got " + withBus + " instead of " + first);
+      helper.assertTrue(first.equals(withoutBus), "with the import bus gone again the interface got " + withoutBus + " instead of " + first);
+      helper.succeed();
+    });
+  }
 }

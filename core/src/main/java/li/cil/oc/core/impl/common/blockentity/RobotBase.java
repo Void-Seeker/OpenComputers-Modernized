@@ -465,6 +465,18 @@ public abstract class RobotBase extends BlockEntity implements li.cil.oc.core.im
     setBundledInput(side, li.cil.oc.core.impl.integration.util.BundledRedstone.computeBundledInput(position(), side));
   }
 
+  /**
+   * Reads every side; one whose neighbour chunk is not loaded yet is read again on a later tick (a robot that moved
+   * next to a chunk still loading kept what it had read at its old place).
+   */
+  public void readRedstoneInputs() {
+    shouldUpdateInput = false;
+    for (Direction side : Direction.values()) {
+      if (!li.cil.oc.core.impl.integration.util.BundledRedstone.canRead(position(), side)) shouldUpdateInput = true;
+      updateRedstoneInput(side);
+    }
+  }
+
   public int maxInput() {
     int max = 0;
     for (int v : input) if (v > max) max = v;
@@ -631,11 +643,8 @@ public abstract class RobotBase extends BlockEntity implements li.cil.oc.core.im
         }
       }
       if (shouldUpdateInput && !machinePending()) {
-        shouldUpdateInput = false;
         try {
-          for (net.minecraft.core.Direction side : net.minecraft.core.Direction.values()) {
-            updateRedstoneInput(side);
-          }
+          readRedstoneInputs();
         } catch (Throwable t) {
           LOGGER.warn("Error updating redstone input for robot at {}: {}", worldPosition, t.toString());
         }

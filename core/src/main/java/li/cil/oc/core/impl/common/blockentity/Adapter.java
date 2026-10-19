@@ -321,7 +321,7 @@ public class Adapter extends BlockEntity implements li.cil.oc.api.network.Enviro
             // one while the game ran, e.g. when a machine's side configuration changed); not another device in the same
             // block (a cable bus part swapped for another)
             CompoundTag kept = null;
-            String keptName = componentName(oldEnv);
+            var keptIdentity = identityOf(oldEnv);
             if (!blockChanged && oldEnv.node() != null) {
               kept = new CompoundTag();
               oldEnv.node().save(kept, level().registryAccess()); // its address
@@ -332,13 +332,13 @@ public class Adapter extends BlockEntity implements li.cil.oc.api.network.Enviro
             node.disconnect(oldEnv.node());
             var environment = newDriver.createEnvironment(level(), neighborPos, face);
             if (environment != null) {
-              if (kept != null && keptName.equals(componentName(environment))
+              if (kept != null && sameDevice(keptIdentity, identityOf(environment))
                 && environment instanceof li.cil.oc.core.impl.server.driver.CompoundBlockEnvironment compound) {
                 compound.loadAddress(kept, level().registryAccess());
               }
               blocks[d.ordinal()] = environment;
               if (environment.canUpdate()) updatingBlocks.add(environment);
-              blocksData[d.ordinal()] = new BlockData(environment.getClass().getName(), new CompoundTag(), newDriver, blockId(currentBlock), componentName(environment));
+              blocksData[d.ordinal()] = new BlockData(environment.getClass().getName(), new CompoundTag(), newDriver, blockId(currentBlock), identityOf(environment));
               lastBlocks[d.ordinal()] = currentBlock;
               node.connect(environment.node());
             }
@@ -350,19 +350,19 @@ public class Adapter extends BlockEntity implements li.cil.oc.api.network.Enviro
             blocks[d.ordinal()] = environment;
             if (environment.canUpdate()) updatingBlocks.add(environment);
             var saved = blocksData[d.ordinal()];
-            // only the same block (the same id, going by the same name) gets its data and address back (saved before
+            // only the same block (the same id, the same device of those it holds) gets its data and address back (saved before
             // ids: taken as its own block); its address even if other drivers make it up now. A different block placed
             // there is a device of its own (one made up of the same drivers took over the old one's address and data).
             boolean sameBlock = saved != null && (saved.block == null || saved.block.isEmpty()
               || (blockId(currentBlock).equals(saved.block)
-              && (saved.component == null || saved.component.isEmpty() || saved.component.equals(componentName(environment)))));
+              && sameDevice(saved.identity, identityOf(environment))));
             if (sameBlock && saved.name.equals(environment.getClass().getName())) {
               environment.load(saved.data, level().registryAccess());
               if (environment instanceof li.cil.oc.core.impl.server.driver.CompoundBlockEnvironment compound) {
                 compound.loadAddress(saved.data, level().registryAccess());
               }
             }
-            blocksData[d.ordinal()] = new BlockData(environment.getClass().getName(), new CompoundTag(), newDriver, blockId(currentBlock), componentName(environment));
+            blocksData[d.ordinal()] = new BlockData(environment.getClass().getName(), new CompoundTag(), newDriver, blockId(currentBlock), identityOf(environment));
             lastBlocks[d.ordinal()] = currentBlock;
             node.connect(environment.node());
           }
@@ -415,7 +415,13 @@ public class Adapter extends BlockEntity implements li.cil.oc.api.network.Enviro
     for (int i = 0; i < Math.min(blocksNbt.size(), blocksData.length); i++) {
       var blockNbt = blocksNbt.getCompound(i);
       if (blockNbt.contains("name") && blockNbt.contains("data")) {
-        blocksData[i] = new BlockData(blockNbt.getString("name"), blockNbt.getCompound("data"), blockNbt.getString("block"), blockNbt.getString("component"));
+        java.util.Set<String> identity = null; // saved before it was recorded
+        if (blockNbt.contains("identity", Tag.TAG_LIST)) {
+          identity = new java.util.TreeSet<>();
+          var names = blockNbt.getList("identity", Tag.TAG_STRING);
+          for (int n = 0; n < names.size(); n++) identity.add(names.getString(n));
+        }
+        blocksData[i] = new BlockData(blockNbt.getString("name"), blockNbt.getCompound("data"), blockNbt.getString("block"), identity);
       }
     }
   }
@@ -435,7 +441,11 @@ public class Adapter extends BlockEntity implements li.cil.oc.api.network.Enviro
         blockNbt.putString("name", blocksData[i].name);
         blockNbt.put("data", blocksData[i].data.copy()); // the chunk is written later, off the server thread
         if (blocksData[i].block != null) blockNbt.putString("block", blocksData[i].block);
-        if (blocksData[i].component != null) blockNbt.putString("component", blocksData[i].component);
+        if (blocksData[i].identity != null) {
+          var names = new ListTag();
+          for (String name : blocksData[i].identity) names.add(net.minecraft.nbt.StringTag.valueOf(name));
+          blockNbt.put("identity", names);
+        }
       }
       blocksNbt.add(blockNbt);
     }
@@ -471,16 +481,27 @@ public class Adapter extends BlockEntity implements li.cil.oc.api.network.Enviro
     return true;
   }
 
-  // block: the id of the block the data came from, component: the name it went by (only the same device gets its
-  // address back: one id holds many, as AE2's cable bus parts or Mekanism's bounding blocks)
-  private record BlockData(String name, CompoundTag data, DriverBlock driver, String block, String component) {
-    BlockData(String name, CompoundTag data, String block, String component) {
-      this(name, data, null, block, component);
+  // block: the id of the block the data came from; identity: the names of what it was made up of (only the same device
+  // gets its address back: one id holds many, as AE2's cable bus parts or Mekanism's bounding blocks); null: unknown
+  private record BlockData(String name, CompoundTag data, DriverBlock driver, String block, java.util.Set<String> identity) {
+    BlockData(String name, CompoundTag data, String block, java.util.Set<String> identity) {
+      this(name, data, null, block, identity);
     }
   }
 
-  private static String componentName(Object environment) {
-    return environment instanceof li.cil.oc.api.network.Environment env && env.node() instanceof li.cil.oc.api.network.Component c ? c.name() : "";
+  private static java.util.Set<String> identityOf(Object environment) {
+    return environment instanceof li.cil.oc.core.impl.server.driver.CompoundBlockEnvironment compound ? compound.identity() : java.util.Set.of();
+  }
+
+  /**
+   * The same device as before, of those in the same block: one of the names it went by is still among them (a part
+   * added elsewhere on a cable bus, or energy coming and going, keeps it; an interface swapped for an export bus does
+   * not). Generic drivers have no name here, and nothing known tells nothing.
+   */
+  private static boolean sameDevice(java.util.Set<String> before, java.util.Set<String> now) {
+    if (before == null || before.isEmpty() || now.isEmpty()) return true;
+    for (String name : before) if (now.contains(name)) return true;
+    return false;
   }
 
   private static String blockId(net.minecraft.world.level.block.Block block) {

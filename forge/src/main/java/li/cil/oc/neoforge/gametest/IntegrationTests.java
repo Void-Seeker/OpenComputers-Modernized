@@ -270,6 +270,10 @@ public final class IntegrationTests {
 
   /** Where the test driver works: a block there is made up of one more driver (the tank and inventory drivers are off by default). */
   private static final java.util.Set<BlockPos> SECOND_DRIVER_AT = java.util.concurrent.ConcurrentHashMap.newKeySet();
+  /** Where the named test driver works: one more driver, with a name of its own that outranks energy's. */
+  private static final java.util.Set<BlockPos> NAMED_DRIVER_AT = java.util.concurrent.ConcurrentHashMap.newKeySet();
+  /** Where the other named test driver works: another device, as another machine behind the same bounding block. */
+  private static final java.util.Set<BlockPos> OTHER_DRIVER_AT = java.util.concurrent.ConcurrentHashMap.newKeySet();
   private static boolean secondDriverRegistered;
 
   private static synchronized void registerSecondDriver() {
@@ -277,6 +281,28 @@ public final class IntegrationTests {
     secondDriverRegistered = true;
     li.cil.oc.core.impl.server.driver.Registry.INSTANCE.setLocked(false);
     try {
+      li.cil.oc.api.API.driver.add(new li.cil.oc.api.driver.DriverBlock() {
+        @Override
+        public boolean worksWith(final net.minecraft.world.level.Level world, final BlockPos pos, final Direction side) {
+          return NAMED_DRIVER_AT.contains(pos);
+        }
+
+        @Override
+        public li.cil.oc.api.network.ManagedEnvironment createEnvironment(final net.minecraft.world.level.Level world, final BlockPos pos, final Direction side) {
+          return new NamedTestEnvironment("test_named");
+        }
+      });
+      li.cil.oc.api.API.driver.add(new li.cil.oc.api.driver.DriverBlock() {
+        @Override
+        public boolean worksWith(final net.minecraft.world.level.Level world, final BlockPos pos, final Direction side) {
+          return OTHER_DRIVER_AT.contains(pos);
+        }
+
+        @Override
+        public li.cil.oc.api.network.ManagedEnvironment createEnvironment(final net.minecraft.world.level.Level world, final BlockPos pos, final Direction side) {
+          return new NamedTestEnvironment("test_other");
+        }
+      });
       li.cil.oc.api.API.driver.add(new li.cil.oc.api.driver.DriverBlock() {
         @Override
         public boolean worksWith(final net.minecraft.world.level.Level world, final BlockPos pos, final Direction side) {
@@ -291,6 +317,24 @@ public final class IntegrationTests {
       });
     } finally {
       li.cil.oc.core.impl.server.driver.Registry.INSTANCE.setLocked(true);
+    }
+  }
+
+  private static final class NamedTestEnvironment extends li.cil.oc.api.prefab.AbstractManagedEnvironment implements li.cil.oc.api.driver.NamedBlock {
+    private final String name;
+
+    NamedTestEnvironment(final String name) {
+      this.name = name;
+    }
+
+    @Override
+    public String preferredName() {
+      return name;
+    }
+
+    @Override
+    public int priority() {
+      return 1;
     }
   }
 
@@ -384,6 +428,16 @@ public final class IntegrationTests {
       }
       final String after = blockAddress(adapter);
       helper.assertTrue(drivers == 2, "the test driver did not come along: " + drivers + " drivers");
+      // a driver with a name of its own coming along keeps it too (the block's name changed: it got a new address)
+      final String named;
+      NAMED_DRIVER_AT.add(deviceAbs);
+      try {
+        adapter.neighborChanged(Direction.EAST);
+        named = blockAddress(adapter);
+      } finally {
+        NAMED_DRIVER_AT.remove(deviceAbs);
+      }
+      helper.assertTrue(before != null && before.equals(named), "with a named driver coming along the block got " + named + " instead of " + before);
       helper.assertTrue(before != null && before.equals(after), "the block got " + after + " instead of " + before + " when its drivers changed");
       helper.succeed();
     });
@@ -430,6 +484,38 @@ public final class IntegrationTests {
       adapter.neighborChanged(Direction.EAST);
       final String bell = blockAddress(adapter);
       helper.assertTrue(table != null && bell != null && !bell.equals(table), "a bell placed over an enchanting table of the same drivers got its address " + bell);
+      helper.succeed();
+    });
+  }
+
+  /**
+   * Another device in the same block gets an address of its own even when both have energy (generic drivers tell
+   * nothing: two machines behind the same bounding block both named energy_device too).
+   */
+  @GameTest(template = EMPTY, timeoutTicks = 100)
+  public static void adapterTellsDevicesApartByTheirOwnNames(final GameTestHelper helper) {
+    registerSecondDriver();
+    final BlockPos device = AT.east();
+    final BlockPos deviceAbs = helper.absolutePos(device);
+    placeWithCapability(helper, device, energyProvider(), "test_energy_devices");
+    helper.setBlock(AT, Blocks.ADAPTER.get());
+    helper.runAfterDelay(10, () -> {
+      final var adapter = (li.cil.oc.core.impl.common.blockentity.Adapter) helper.getBlockEntity(AT);
+      final String one;
+      final String other;
+      try {
+        NAMED_DRIVER_AT.add(deviceAbs);
+        adapter.neighborChanged(Direction.EAST);
+        one = blockAddress(adapter);
+        NAMED_DRIVER_AT.remove(deviceAbs);
+        OTHER_DRIVER_AT.add(deviceAbs);
+        adapter.neighborChanged(Direction.EAST);
+        other = blockAddress(adapter);
+      } finally {
+        NAMED_DRIVER_AT.remove(deviceAbs);
+        OTHER_DRIVER_AT.remove(deviceAbs);
+      }
+      helper.assertTrue(one != null && other != null && !other.equals(one), "another device with energy in the same block got its address " + other);
       helper.succeed();
     });
   }

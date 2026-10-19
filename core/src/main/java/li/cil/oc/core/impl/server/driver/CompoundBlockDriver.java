@@ -29,17 +29,19 @@ public class CompoundBlockDriver implements DriverBlock {
     for (DriverBlock driver : blocks) {
       ManagedEnvironment env = driver.createEnvironment(world, pos, side);
       if (env != null) {
-        list.add(new Object[]{driver.getClass().getName(), env});
+        list.add(new Object[]{driver.getClass().getName(), env, driver});
       }
     }
     if (list.isEmpty()) return null;
     ManagedEnvironment[] envs = new ManagedEnvironment[list.size()];
     String[] names = new String[list.size()];
+    java.util.Set<String> identity = new java.util.TreeSet<>();
     for (int i = 0; i < list.size(); i++) {
       names[i] = (String) list.get(i)[0];
       envs[i] = (ManagedEnvironment) list.get(i)[1];
+      if (!((DriverBlock) list.get(i)[2]).isGeneric() && envs[i] instanceof NamedBlock named) identity.add(named.preferredName());
     }
-    return new CompoundBlockEnvironment(cleanName(tryGetName(world, pos, envs)), names, envs);
+    return new CompoundBlockEnvironment(cleanName(tryGetName(world, pos, envs)), names, envs, identity);
   }
 
   @Override

@@ -102,7 +102,7 @@ public final class PowerTests {
     TestMachines.runDrone(helper, AT, List.of(Constants.ItemName.GeneratorUpgrade, Constants.ItemName.InventoryUpgrade),
       drone -> drone.mainInventory().setItem(0, new ItemStack(Items.COAL, 8)),
       "local d = component.proxy(component.list('drone')())\nd.select(1)\nlocal g = component.proxy(component.list('generator')())\ng.insert(4)\nwhile true do computer.pullSignal(1) end\n",
-      40, (drone, result) -> {
+      40, (drone, result) -> TestMachines.when(helper, () -> generatorFuel(drone) > 0, 100, () -> {
         final int inGenerator = generatorFuel(drone);
         helper.assertTrue(inGenerator > 0, "the drone's generator holds " + inGenerator + " fuel");
         int before = inGenerator;
@@ -124,7 +124,7 @@ public final class PowerTests {
           helper.assertTrue(after == expected, "a drone with " + expected + " coal (" + inGenerator + " in its generator) has " + after + " after a portal (" + fuelThere + " in the generator there)");
           helper.succeed();
         });
-      });
+      }));
   }
 
   /** Waypoints are found up to the range asked (the search box reached only half of it). */

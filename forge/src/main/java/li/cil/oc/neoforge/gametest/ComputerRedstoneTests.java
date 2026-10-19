@@ -48,14 +48,14 @@ public final class ComputerRedstoneTests {
   public static void microcontrollerOutputsGoOffWhenItStops(final GameTestHelper helper) {
     TestMachines.runMicrocontroller(helper, AT, List.of(Constants.ItemName.CPUTier1, Constants.ItemName.RAMTier2, Constants.ItemName.RedstoneCardTier1),
       "component.proxy(component.list('redstone')()).setOutput(3, 15)\nwhile true do computer.pullSignal(1) end\n",
-      mc -> {
+      mc -> TestMachines.when(helper, () -> mc.output()[3] == 15, 100, () -> {
         helper.assertTrue(mc.isOutputEnabled() && mc.output()[3] == 15, "the running microcontroller does not output 15 at its front: " + java.util.Arrays.toString(mc.output()));
         mc.machine().stop();
         helper.runAfterDelay(20, () -> {
           helper.assertTrue(mc.output()[3] == 0, "the stopped microcontroller still outputs " + java.util.Arrays.toString(mc.output()));
           helper.succeed();
         });
-      });
+      }));
   }
 
   /** A Redstone I/O block placed next to a powered block reads it (inputs were read only after a neighbour changed). */
@@ -275,7 +275,7 @@ public final class ComputerRedstoneTests {
   public static void reloadedRobotKeepsItsOutputs(final GameTestHelper helper) {
     TestMachines.runRobot(helper, AT, List.of(Constants.ItemName.RedstoneCardTier1),
       "component.proxy(component.list('redstone')()).setOutput(3, 15)\nwhile true do computer.pullSignal(1) end\n",
-      40, (robot, result) -> {
+      40, (robot, result) -> TestMachines.when(helper, () -> robot.isOutputEnabled() && total(robot.output()) == 15, 100, () -> {
         helper.assertTrue(robot.isOutputEnabled() && total(robot.output()) == 15, "the running robot outputs " + java.util.Arrays.toString(robot.output()));
         final BlockPos abs = helper.absolutePos(AT);
         final var proxy = (li.cil.oc.core.impl.common.blockentity.RobotProxy) helper.getLevel().getBlockEntity(abs);
@@ -291,7 +291,7 @@ public final class ComputerRedstoneTests {
           helper.assertTrue(again.isOutputEnabled() && total(again.output()) == 15, "the reloaded robot outputs " + java.util.Arrays.toString(again.output()) + ", enabled " + again.isOutputEnabled());
           helper.succeed();
         });
-      });
+      }));
   }
 
   /** A stopped robot lets go of what it powers through a block, and of its bundled outputs (a lamp behind stayed lit; cables kept their colours). */
@@ -303,7 +303,7 @@ public final class ComputerRedstoneTests {
     helper.setBlock(lamp, net.minecraft.world.level.block.Blocks.REDSTONE_LAMP);
     TestMachines.runRobot(helper, AT, List.of(Constants.ItemName.RedstoneCardTier1),
       "component.proxy(component.list('redstone')()).setOutput(3, 15)\nwhile true do computer.pullSignal(1) end\n",
-      40, (robot, result) -> {
+      40, (robot, result) -> TestMachines.when(helper, () -> helper.getBlockState(lamp).getValue(RedstoneLampBlock.LIT), 100, () -> {
         helper.assertTrue(helper.getBlockState(lamp).getValue(RedstoneLampBlock.LIT), "the lamp behind the block the robot powers is off: " + java.util.Arrays.toString(robot.output()));
         robot.bundledOutput()[Direction.SOUTH.ordinal()][0] = 15; // as a bundled card sets it
         robot.machine().stop();
@@ -313,7 +313,7 @@ public final class ComputerRedstoneTests {
           helper.assertTrue(robot.bundledOutput()[Direction.SOUTH.ordinal()][0] == 0, "the stopped robot keeps its bundled output");
           helper.succeed();
         });
-      });
+      }));
   }
 
   /** A rack's first reading of a side is no change: a stopped server with a redstone card stays off (it started by itself). */
@@ -378,7 +378,7 @@ public final class ComputerRedstoneTests {
     }
     helper.runAfterDelay(5, () -> {
       helper.assertTrue(computer.machine().start(), "the case did not start: " + computer.machine().lastError());
-      helper.runAfterDelay(60, () -> {
+      helper.runAfterDelay(60, () -> TestMachines.when(helper, () -> computer.isOutputEnabled() && total(computer.output()) == 15, 100, () -> {
         helper.assertTrue(computer.isOutputEnabled() && total(computer.output()) == 15, "the running case outputs " + java.util.Arrays.toString(computer.output()));
         final BlockPos abs = helper.absolutePos(AT);
         computer.markUnloading();
@@ -392,7 +392,7 @@ public final class ComputerRedstoneTests {
           helper.assertTrue(loaded.isOutputEnabled() && total(loaded.output()) == 15, "the reloaded case outputs " + java.util.Arrays.toString(loaded.output()) + ", enabled " + loaded.isOutputEnabled());
           helper.succeed();
         });
-      });
+      }));
     });
   }
 
@@ -450,7 +450,7 @@ public final class ComputerRedstoneTests {
   public static void robotLoadedOverStillFollowsItsMachine(final GameTestHelper helper) {
     TestMachines.runRobot(helper, AT, List.of(Constants.ItemName.RedstoneCardTier1),
       "component.proxy(component.list('redstone')()).setOutput(3, 15)\nwhile true do computer.pullSignal(1) end\n",
-      40, (robot, result) -> {
+      40, (robot, result) -> TestMachines.when(helper, () -> robot.isOutputEnabled() && total(robot.output()) == 15, 100, () -> {
         helper.assertTrue(robot.isOutputEnabled() && total(robot.output()) == 15, "the running robot outputs " + java.util.Arrays.toString(robot.output()));
         final var proxy = (li.cil.oc.core.impl.common.blockentity.RobotProxy) helper.getLevel().getBlockEntity(helper.absolutePos(AT));
         proxy.load(proxy.saveWithFullMetadata());
@@ -462,7 +462,7 @@ public final class ComputerRedstoneTests {
             helper.succeed();
           });
         });
-      });
+      }));
   }
 
   /**
@@ -479,7 +479,7 @@ public final class ComputerRedstoneTests {
     helper.setBlock(newLamp, net.minecraft.world.level.block.Blocks.REDSTONE_LAMP);
     TestMachines.runRobot(helper, AT, List.of(Constants.ItemName.RedstoneCardTier1),
       "component.proxy(component.list('redstone')()).setOutput(3, 15)\nwhile true do computer.pullSignal(1) end\n",
-      40, (robot, result) -> {
+      40, (robot, result) -> TestMachines.when(helper, () -> helper.getBlockState(lamp).getValue(RedstoneLampBlock.LIT), 100, () -> {
         helper.assertTrue(helper.getBlockState(lamp).getValue(RedstoneLampBlock.LIT), "the lamp behind the block the robot powers is off");
         helper.assertTrue(robot.move(Direction.UP), "the robot did not move up");
         helper.runAfterDelay(10, () -> {
@@ -487,7 +487,7 @@ public final class ComputerRedstoneTests {
           helper.assertTrue(helper.getBlockState(newLamp).getValue(RedstoneLampBlock.LIT), "the lamp behind the block the robot powers at its new place is off");
           helper.succeed();
         });
-      });
+      }));
   }
 
   /** A broken case lets go of what it powered through a block (a lamp behind it stayed lit). */
@@ -577,6 +577,9 @@ public final class ComputerRedstoneTests {
         helper.getLevel().getChunkAt(abs).setBlockEntity(ghost); // as a chunk load: in the level, onLoad still to come
         helper.getLevel().removeBlockEntity(abs); // the chunk unloads
         ghost.onLoad(); // what the next block entity tick does with the fresh block entities
+        final String address = ghost.robot.computerAddress();
+        helper.assertTrue(address == null || li.cil.oc.core.impl.server.ServerRobotRegistry.INSTANCE.get(helper.getLevel(), address) != ghost,
+          "a removed proxy put itself in the robot registry");
         helper.runAfterDelay(40, () -> {
           helper.assertTrue(ghost.robot.isRemoved() && !ghost.robot.machine().isRunning(), "the robot of a removed proxy runs: " + ghost.robot.machine().isRunning() + ", removed " + ghost.robot.isRemoved());
           helper.succeed();
@@ -605,6 +608,23 @@ public final class ComputerRedstoneTests {
           helper.assertTrue(again.machine().isRunning(), "a microcontroller saved before its machine was loaded came back stopped: " + again.machine().lastError());
           helper.succeed();
         });
+      });
+  }
+
+  /** A robot reads a side again later while its neighbour chunk is not loaded yet (a moved robot kept its old place's input). */
+  @GameTest(template = EMPTY, timeoutTicks = 300)
+  public static void robotReadsASideAgainWhenItsChunkComes(final GameTestHelper helper) {
+    TestMachines.runRobot(helper, AT, List.of(Constants.ItemName.RedstoneCardTier1),
+      "while true do computer.pullSignal(1) end\n", 40, (robot, result) -> {
+        final BlockPos at = robot.getBlockPos();
+        robot.setBlockPos(at.offset(100000, 0, 0)); // next to chunks that are not loaded
+        try {
+          robot.readRedstoneInputs();
+          helper.assertTrue(robot.shouldUpdateInput(), "the robot gave up on sides it could not read");
+        } finally {
+          robot.setBlockPos(at);
+        }
+        helper.succeed();
       });
   }
 }

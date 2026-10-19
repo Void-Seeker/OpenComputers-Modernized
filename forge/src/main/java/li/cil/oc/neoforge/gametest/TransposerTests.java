@@ -196,7 +196,7 @@ public final class TransposerTests {
       + "ok, why = tp.placeBlock(2, 3, 2)\n"
       + "expect(\"place bone meal\", \"not a block\", why, ok)\n"
       + "while true do computer.pullSignal(1) end\n";
-    TestMachines.runMicrocontroller(helper, pos, List.of(Constants.ItemName.CPUTier1, Constants.ItemName.RAMTier2, Constants.BlockName.Transposer), program, mc -> {
+    TestMachines.runMicrocontroller(helper, pos, List.of(Constants.ItemName.CPUTier1, Constants.ItemName.RAMTier2, Constants.BlockName.Transposer), program, mc -> TestMachines.when(helper, () -> state(helper, place).is(net.minecraft.world.level.block.Blocks.STONE), 100, () -> {
       helper.assertTrue(state(helper, place).is(net.minecraft.world.level.block.Blocks.STONE), "no stone was placed: " + state(helper, place));
       helper.assertTrue(box.getItem(0).is(Items.STONE) && box.getItem(0).getCount() == 1, "stone slot holds " + box.getItem(0));
       helper.assertTrue(box.getItem(1).is(Items.BONE_MEAL) && box.getItem(1).getCount() == 3, "bone meal slot holds " + box.getItem(1));
@@ -209,7 +209,7 @@ public final class TransposerTests {
       helper.assertTrue(state(helper, water).getValue(LayeredCauldronBlock.LEVEL) == 3, "the water did not come back into the cauldron");
       helper.assertTrue(!state(helper, pour).getFluidState().isSource(), "the poured water source is still there");
       helper.succeed();
-    });
+    }));
   }
 
   /**
