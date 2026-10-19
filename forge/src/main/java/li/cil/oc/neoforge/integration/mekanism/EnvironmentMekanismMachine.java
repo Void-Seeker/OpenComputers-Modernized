@@ -19,7 +19,7 @@ import mekanism.common.integration.computer.MethodHelpData;
 
 public class EnvironmentMekanismMachine extends ManagedBlockEntityEnvironment<IComputerTile> implements ManagedPeripheral, NamedBlock, DocumentedPeripheral {
 
-  private Holder holder = new Holder();
+  private volatile Holder holder = new Holder();
   private long boundAt = Long.MIN_VALUE;
 
   public EnvironmentMekanismMachine(final IComputerTile tile) {
@@ -30,18 +30,41 @@ public class EnvironmentMekanismMachine extends ManagedBlockEntityEnvironment<IC
 
   // A multiblock (induction matrix, dynamic tank, boiler, turbine, reactor ports) binds its methods to the multiblock
   // formed at that moment, and says so with isComputerCapabilityPersistent() == false: bound once, the methods were
-  // missing when the adapter came before the multiblock, and stale after it re-formed. Bound again, once a tick.
+  // missing when the adapter came before the multiblock, and stale after it re-formed. Bound again once a tick, on
+  // the server thread (the method list is also read from computer threads: they only read what was bound).
   private Holder holder() {
-    if (!BlockEntity.isComputerCapabilityPersistent()) {
-      final long now = gameTime();
-      if (now != boundAt) {
-        final Holder fresh = new Holder();
-        BlockEntity.getComputerMethods(fresh);
-        holder = fresh;
-        boundAt = now;
-      }
-    }
     return holder;
+  }
+
+  private void rebind() {
+    if (BlockEntity.isComputerCapabilityPersistent()) return;
+    final long now = gameTime();
+    if (now == boundAt) return;
+    boundAt = now;
+    final Holder fresh = new Holder();
+    BlockEntity.getComputerMethods(fresh);
+    final boolean methodsChanged = !java.util.Arrays.equals(holder.methodNames(), fresh.methodNames());
+    holder = fresh;
+    final var self = node();
+    if (methodsChanged && self != null && self.network() != null) {
+      // other methods (the multiblock formed or broke up): seen again by the computers, as a component added anew,
+      // so a primary proxy made with the old list is replaced
+      final List<li.cil.oc.api.network.Node> neighbors = new java.util.ArrayList<>();
+      for (final var n : self.neighbors()) neighbors.add(n);
+      for (final var n : neighbors) self.disconnect(n);
+      for (final var n : neighbors) n.connect(self);
+    }
+  }
+
+  @Override
+  public boolean canUpdate() {
+    return !BlockEntity.isComputerCapabilityPersistent();
+  }
+
+  @Override
+  public void update() {
+    super.update();
+    rebind();
   }
 
   private long gameTime() {
@@ -117,6 +140,7 @@ public class EnvironmentMekanismMachine extends ManagedBlockEntityEnvironment<IC
 
   @Override
   public Object[] invoke(final String method, final Context context, final Arguments args) {
+    rebind(); // on the server thread (the callbacks are not direct): the multiblock as it is this tick
     final Collection<BoundMethodHolder.BoundMethodData<?>> candidates = holder().methods(method);
     if (candidates.isEmpty()) {
       throw new IllegalArgumentException("no such method: " + method);

@@ -103,7 +103,7 @@ public final class DriverFileSystem extends Item {
         environment = new Drive(Math.max(capacity, 0), platterCount, label, host, sound, speed, drive.isLocked());
       } else {
         li.cil.oc.api.fs.FileSystem fs = li.cil.oc.api.FileSystem.fromSaveDirectory(address, Math.max(capacity, 0), OCSettings.get().bufferChanges);
-        if (drive.isLocked()) {
+        if (drive.isLocked() && fs != null) { // none: a folder refused (asReadOnly(null) threw)
           fs = li.cil.oc.api.FileSystem.asReadOnly(fs);
           label = new ReadOnlyLabel(label.getLabel());
         }

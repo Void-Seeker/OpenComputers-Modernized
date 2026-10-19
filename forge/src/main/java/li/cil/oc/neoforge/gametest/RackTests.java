@@ -320,4 +320,15 @@ public final class RackTests {
       helper.succeed();
     });
   }
+
+  /** A rack faces where its block state says, also when its saved facing says otherwise (an old wrench, a structure). */
+  @GameTest(template = EMPTY)
+  public static void rackFacesWhereItsBlockFaces(final GameTestHelper helper) {
+    final Rack rack = rack(helper);
+    final var tag = rack.saveWithFullMetadata();
+    tag.putInt(li.cil.oc.core.impl.OCSettings.namespace + "facing", Direction.EAST.ordinal());
+    final var loaded = (Rack) net.minecraft.world.level.block.entity.BlockEntity.loadStatic(rack.getBlockPos(), rack.getBlockState(), tag);
+    helper.assertTrue(loaded != null && loaded.facing() == Direction.NORTH, "a north-facing rack block loaded facing " + (loaded == null ? null : loaded.facing()));
+    helper.succeed();
+  }
 }

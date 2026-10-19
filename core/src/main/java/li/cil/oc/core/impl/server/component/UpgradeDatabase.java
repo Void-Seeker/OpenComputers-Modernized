@@ -157,12 +157,12 @@ public class UpgradeDatabase extends AbstractManagedEnvironment implements li.ci
       }
     }
     ItemStack stack = new ItemStack(item, 1);
+    // the whole tag, as OC: CustomData leaves out the vanilla keys (StoredEnchantments, Enchantments, display), and an
+    // enchanted book was stored as a plain one that nothing matched; the damage after it (the damage is in the tag)
+    if (tag != null) stack.setTag(tag);
     if (stack.isDamageableItem()) {
       stack.setDamageValue(damage);
     }
-    // the whole tag, as OC: CustomData leaves out the vanilla keys (StoredEnchantments, Enchantments, display), and an
-    // enchanted book was stored as a plain one that nothing matched
-    if (tag != null) stack.setTag(tag);
     data.setItem(slot, stack);
     return ResultWrapper.result(true);
   }

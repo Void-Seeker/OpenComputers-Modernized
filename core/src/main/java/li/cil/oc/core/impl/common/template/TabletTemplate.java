@@ -90,7 +90,8 @@ public final class TabletTemplate {
     } else {
       LOGGER.warn("Unknown tablet case item: {} (tier={})", itemName, info.tier);
     }
-    if (info.container != null) result.add(info.container);
+    // tier 1 has no container slot: one there is the copy older assemblies kept of the first part (it came back twice)
+    if (info.container != null && info.tier != Tier.One) result.add(info.container);
     boolean first = true;
     for (var item : info.items) {
       if (first) {

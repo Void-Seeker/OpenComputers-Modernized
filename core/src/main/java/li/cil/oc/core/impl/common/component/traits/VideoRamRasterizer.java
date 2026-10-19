@@ -15,49 +15,59 @@ public interface VideoRamRasterizer {
 
   void onBufferRamDestroy(li.cil.oc.core.impl.common.component.GpuTextBuffer ram);
 
+  // The pages are changed from computer threads (direct GPU calls) and read on the server thread (sent to a client
+  // that asks for the screen): all of it under the map's lock.
   default boolean addBuffer(GpuTextBuffer ram) {
-    var gpu = getInternalBuffers().get(ram.owner);
-    if (gpu == null) {
-      gpu = new VirtualRamDevice();
-      getInternalBuffers().put(ram.owner, gpu);
+    synchronized (getInternalBuffers()) {
+      var gpu = getInternalBuffers().get(ram.owner);
+      if (gpu == null) {
+        gpu = new VirtualRamDevice();
+        getInternalBuffers().put(ram.owner, gpu);
+      }
+      boolean preexists = gpu.addBuffer(ram);
+      if (!preexists || ram.dirty) {
+        onBufferRamInit(ram);
+      }
+      return preexists;
     }
-    boolean preexists = gpu.addBuffer(ram);
-    if (!preexists || ram.dirty) {
-      onBufferRamInit(ram);
-    }
-    return preexists;
   }
 
   default boolean removeBuffer(String owner, int id) {
-    var gpu = getInternalBuffers().get(owner);
-    if (gpu != null) {
-      var ram = gpu.getBuffer(id);
-      if (ram != null) {
-        onBufferRamDestroy(ram);
-        return gpu.removeBuffers(new int[]{id}) == 1;
+    synchronized (getInternalBuffers()) {
+      var gpu = getInternalBuffers().get(owner);
+      if (gpu != null) {
+        var ram = gpu.getBuffer(id);
+        if (ram != null) {
+          onBufferRamDestroy(ram);
+          return gpu.removeBuffers(new int[]{id}) == 1;
+        }
       }
+      return false;
     }
-    return false;
   }
 
   default int removeAllBuffers(String owner) {
-    int count = 0;
-    var gpu = getInternalBuffers().get(owner);
-    if (gpu != null) {
-      for (int id : gpu.bufferIndexes()) {
-        if (removeBuffer(owner, id)) count++;
+    synchronized (getInternalBuffers()) {
+      int count = 0;
+      var gpu = getInternalBuffers().get(owner);
+      if (gpu != null) {
+        for (int id : gpu.bufferIndexes()) {
+          if (removeBuffer(owner, id)) count++;
+        }
       }
+      return count;
     }
-    return count;
   }
 
   @SuppressWarnings("UnusedReturnValue")
   default int removeAllBuffers() {
-    int count = 0;
-    for (String owner : getInternalBuffers().keySet()) {
-      count += removeAllBuffers(owner);
+    synchronized (getInternalBuffers()) {
+      int count = 0;
+      for (String owner : new java.util.ArrayList<>(getInternalBuffers().keySet())) {
+        count += removeAllBuffers(owner);
+      }
+      return count;
     }
-    return count;
   }
 
   default boolean loadBuffer(String owner, int id, CompoundTag nbt) {
@@ -67,9 +77,11 @@ public interface VideoRamRasterizer {
   }
 
   default li.cil.oc.core.impl.common.component.GpuTextBuffer getBuffer(String owner, int id) {
-    var gpu = getInternalBuffers().get(owner);
-    if (gpu != null) return gpu.getBuffer(id);
-    return null;
+    synchronized (getInternalBuffers()) {
+      var gpu = getInternalBuffers().get(owner);
+      if (gpu != null) return gpu.getBuffer(id);
+      return null;
+    }
   }
 
   class VirtualRamDevice extends VideoRamDevice {

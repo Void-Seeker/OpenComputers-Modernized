@@ -59,7 +59,14 @@ public final class PowerTests {
       "component.proxy(component.list('robot')()).select(1)\nlocal g = component.proxy(component.list('generator')())\nlocal ok, why = g.insert(4)\nerror('done:' .. tostring(ok) .. ' ' .. tostring(g.count()))\n",
       40, (robot, result) -> {
         helper.assertTrue(result != null && result.startsWith("true "), "the generator took no fuel: " + result);
-        final int inGenerator = Integer.parseInt(result.substring(5).trim()); // what is left after it began to burn one
+        // what it holds right now (it begins to burn one whenever it likes)
+        int held = -1;
+        for (final var env : robot.componentEnvironments()) {
+          if (env instanceof li.cil.oc.core.impl.server.component.UpgradeGenerator generator) {
+            held = ((Number) generator.count(context(), new ArgumentsImpl(new Object[0]))[0]).intValue();
+          }
+        }
+        final int inGenerator = held;
         helper.assertTrue(inGenerator > 0, "the generator holds no fuel: " + result);
         int before = inGenerator;
         for (int i = 0; i < robot.mainInventory().getContainerSize(); i++) before += coalIn(robot.mainInventory().getItem(i));

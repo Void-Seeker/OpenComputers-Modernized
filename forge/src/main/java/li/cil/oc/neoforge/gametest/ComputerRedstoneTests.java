@@ -151,7 +151,7 @@ public final class ComputerRedstoneTests {
     helper.runAfterDelay(5, () -> {
       io.node.connect(listener);
       try {
-        io.setBundledInput(Direction.EAST, 1, 200);
+        io.setBundledInput(Direction.EAST, 1, 200); // the block read its inputs when placed: this is a change
         helper.assertTrue(signals.contains("redstone_changed"), "a bundled input change made the signals " + signals);
       } finally {
         listener.remove();
@@ -182,5 +182,82 @@ public final class ComputerRedstoneTests {
       helper.assertTrue(Integer.valueOf(15).equals(table.get(3)), "the redstone block at the case's front shows in the table as " + table);
       helper.succeed();
     });
+  }
+
+  /** What ChunkMap.scheduleUnload does to a microcontroller, then the chunk coming back. */
+  private static void reload(final GameTestHelper helper, final li.cil.oc.core.impl.common.blockentity.Microcontroller mc,
+                             final java.util.function.Consumer<net.minecraft.nbt.CompoundTag> edit,
+                             final java.util.function.Consumer<li.cil.oc.core.impl.common.blockentity.Microcontroller> then) {
+    final BlockPos abs = mc.getBlockPos();
+    mc.markUnloading();
+    final var saved = mc.saveWithoutMetadata();
+    edit.accept(saved);
+    helper.getLevel().removeBlockEntity(abs);
+    helper.runAfterDelay(3, () -> {
+      final var reloaded = (li.cil.oc.core.impl.common.blockentity.Microcontroller) helper.getLevel().getBlockEntity(abs);
+      reloaded.load(saved);
+      then.accept(reloaded);
+    });
+  }
+
+  /** A running microcontroller reloaded with its chunk still drives its outputs (they came back switched off). */
+  @GameTest(template = EMPTY, timeoutTicks = 400)
+  public static void reloadedMicrocontrollerKeepsItsOutputs(final GameTestHelper helper) {
+    TestMachines.runMicrocontroller(helper, AT, List.of(Constants.ItemName.CPUTier1, Constants.ItemName.RAMTier2, Constants.ItemName.RedstoneCardTier1),
+      "component.proxy(component.list('redstone')()).setOutput(3, 15)\nwhile true do computer.pullSignal(1) end\n",
+      mc -> reload(helper, mc, tag -> {
+      }, reloaded -> helper.runAfterDelay(40, () -> {
+        helper.assertTrue(reloaded.machine().isRunning(), "the reloaded microcontroller stopped: " + reloaded.machine().lastError());
+        helper.assertTrue(reloaded.isOutputEnabled() && reloaded.output()[3] == 15, "the reloaded microcontroller outputs " + java.util.Arrays.toString(reloaded.output()) + ", enabled " + reloaded.isOutputEnabled());
+        helper.succeed();
+      })));
+  }
+
+  /** A stopped microcontroller saved with outputs on (before outputs followed the machine) has them cleared once loaded. */
+  @GameTest(template = EMPTY, timeoutTicks = 400)
+  public static void stuckMicrocontrollerOutputsAreClearedOnLoad(final GameTestHelper helper) {
+    TestMachines.runMicrocontroller(helper, AT, List.of(Constants.ItemName.CPUTier1, Constants.ItemName.RAMTier2, Constants.ItemName.RedstoneCardTier1),
+      "while true do computer.pullSignal(1) end\n",
+      mc -> {
+        mc.machine().stop();
+        helper.runAfterDelay(10, () -> {
+          mc.output()[3] = 15; // as an older version left it
+          reload(helper, mc, tag -> {
+          }, reloaded -> helper.runAfterDelay(20, () -> {
+            helper.assertTrue(!reloaded.machine().isRunning() && reloaded.output()[3] == 0, "the stopped microcontroller loaded with " + java.util.Arrays.toString(reloaded.output()));
+            helper.succeed();
+          }));
+        });
+      });
+  }
+
+  /** A robot's outputs go off when it stops, and a placed robot reads what is powered (outputs stayed; inputs read 0). */
+  @GameTest(template = EMPTY, timeoutTicks = 300)
+  public static void robotRedstoneFollowsItsMachine(final GameTestHelper helper) {
+    helper.setBlock(AT.east(), net.minecraft.world.level.block.Blocks.REDSTONE_BLOCK);
+    TestMachines.runRobot(helper, AT, List.of(Constants.ItemName.RedstoneCardTier1),
+      "local rs = component.proxy(component.list('redstone')())\nrs.setOutput(3, 15)\nlocal seen = rs.getInput(5)\nlocal on = rs.getOutput(3)\nerror('done:' .. seen .. ' ' .. on)\n",
+      40, (robot, result) -> {
+        // the robot faces south: its left (5) is east
+        helper.assertTrue(result != null && result.matches("15(\\.0)? 15(\\.0)?"), "the robot read and set " + result);
+        helper.runAfterDelay(5, () -> {
+          int total = 0;
+          for (final int v : robot.output()) total += v;
+          helper.assertTrue(!robot.isOutputEnabled() && total == 0, "the stopped robot outputs " + java.util.Arrays.toString(robot.output()));
+          helper.succeed();
+        });
+      });
+  }
+
+  /** A rack's outputs are cleared when they are switched off (they stayed on). */
+  @GameTest(template = EMPTY)
+  public static void rackOutputsAreClearedWhenSwitchedOff(final GameTestHelper helper) {
+    helper.setBlock(AT, Blocks.RACK.get());
+    final var rack = (li.cil.oc.core.impl.common.blockentity.Rack) helper.getBlockEntity(AT);
+    rack.setOutputEnabled(true);
+    rack.setOutput(Direction.UP, 15);
+    rack.setOutputEnabled(false);
+    helper.assertTrue(rack.getOutput(Direction.UP) == 0, "a rack switched off still outputs " + rack.getOutput(Direction.UP));
+    helper.succeed();
   }
 }

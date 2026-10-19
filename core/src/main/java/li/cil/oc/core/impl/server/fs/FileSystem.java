@@ -229,13 +229,9 @@ public final class FileSystem implements li.cil.oc.api.detail.FileSystemAPI {
     File path = new File(baseDir, OCSettings.savePath + root);
     // inside the save folder only: the root is a drive's address from its item, and one like ../../x reached (and
     // deleted, were it a file) anything the server can write
-    try {
-      if (!path.getCanonicalFile().toPath().startsWith(new File(baseDir, OCSettings.savePath).getCanonicalFile().toPath())) {
-        LOGGER.warn("Refusing a file system outside the save folder: {}", root);
-        return null;
-      }
-    } catch (java.io.IOException e) {
-      LOGGER.warn("Cannot resolve the file system folder {}", root, e);
+    // compared as written, ".." resolved but links not (a save folder that is a link is the player's choice)
+    if (!path.toPath().toAbsolutePath().normalize().startsWith(new File(baseDir, OCSettings.savePath).toPath().toAbsolutePath().normalize())) {
+      LOGGER.warn("Refusing a file system outside the save folder: {}", root);
       return null;
     }
     if (path.exists() && !path.isDirectory()) {

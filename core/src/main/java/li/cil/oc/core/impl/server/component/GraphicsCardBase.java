@@ -269,8 +269,11 @@ public class GraphicsCardBase extends AbstractManagedEnvironment implements Devi
     return screen(dstIdx, dst -> {
       int col = args.optInteger(1, 1);
       int row = args.optInteger(2, 1);
-      int w = MathCompat.clamp(args.optInteger(3, dst.getWidth()), 0, dst.getWidth());
-      int h = MathCompat.clamp(args.optInteger(4, dst.getHeight()), 0, dst.getHeight());
+      int w = args.optInteger(3, dst.getWidth());
+      int h = args.optInteger(4, dst.getHeight());
+      // charged for what can reach the screen, never below nothing (a negative size made the cost negative: the card
+      // gave energy); the copy itself takes the size given (an offset left of the screen draws from further right)
+      long area = (long) MathCompat.clamp(w, 0, dst.getWidth()) * MathCompat.clamp(h, 0, dst.getHeight());
       int srcIdx = args.optInteger(5, bufferIndex);
       return screen(srcIdx, src -> {
         int fromCol = args.optInteger(6, 1);
@@ -296,7 +299,7 @@ public class GraphicsCardBase extends AbstractManagedEnvironment implements Devi
         }
         budgetExhausted = false;
 
-        if (resolveInvokeCosts(dstIdx, context, budgetCost, (long) w * h, energyCost)) {
+        if (resolveInvokeCosts(dstIdx, context, budgetCost, area, energyCost)) {
           if (dstIdx == srcIdx) {
             int tx = col - fromCol;
             int ty = row - fromRow;

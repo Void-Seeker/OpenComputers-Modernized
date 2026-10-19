@@ -64,6 +64,7 @@ public final class EventHandler {
 
   /** A stopped server leaves nothing for the next one (they ran against the old levels). */
   public static void onServerStopped() {
+    li.cil.oc.core.impl.server.machine.MachineBase.closeAll();
     synchronized (pendingServer) {
       pendingServer.clear();
     }
@@ -236,10 +237,8 @@ public final class EventHandler {
     synchronized (EventHandler.class) {
       if (!worldLevel.isClientSide()) {
         var serverLevel = (net.minecraft.server.level.ServerLevel) worldLevel;
-        for (var entity : serverLevel.getEntities().getAll()) {
-          if (entity instanceof MachineHost host) host.machine().stop();
-        }
-        // and every machine still in it: block entities in chunks that never unload (spawn, forced) included
+        // the machines of block entities still in it (chunks that never unload: spawn, forced); not entities': the
+        // level saves them after this event, and drones stopped here came back off (they close at server stop)
         li.cil.oc.core.impl.server.machine.MachineBase.closeAllIn(serverLevel);
         keyboards.removeIf(kb -> kb.host == null || kb.host.level() == worldLevel); // they were kept forever
         Callbacks.clear();

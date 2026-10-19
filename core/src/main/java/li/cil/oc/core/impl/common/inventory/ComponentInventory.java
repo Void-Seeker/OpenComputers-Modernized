@@ -327,11 +327,15 @@ public interface ComponentInventory extends Inventory, Environment {
       // OC: into the driver's tag for the stack. A tablet's is its HDD's, inside it; the tablet's own oc:data is its
       // machine, which a charger replaced with the file system's state. And the stack's own inventory is not the
       // component's to clear: a database upgrade's entries were wiped whenever its host saved.
+      // saved aside first: a save that throws leaves the item's data as it was (clearing the live tag first lost a
+      // disk's address and file system state to one failing save)
+      CompoundTag saved = new CompoundTag();
+      component.save(saved, provider);
       CompoundTag data = dataTag(driver, stack);
       for (String key : List.copyOf(data.getAllKeys())) {
         if (!key.equals(OCSettings.namespace + "items")) data.remove(key);
       }
-      component.save(data, provider);
+      for (String key : saved.getAllKeys()) data.put(key, saved.get(key));
     } catch (Throwable e) {
       LOGGER.warn("An item component of type '{}' (provided by driver '{}') threw an error while saving.", component.getClass().getName(), driver.getClass().getName(), e);
     }

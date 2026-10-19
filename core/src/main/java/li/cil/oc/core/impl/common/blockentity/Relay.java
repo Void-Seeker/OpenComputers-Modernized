@@ -454,6 +454,10 @@ public class Relay extends HubBlockEntity implements ComponentInventory, PowerAc
     if (nbt.contains(OCSettings.namespace + "strength")) {
       strength = MathCompat.clamp(nbt.getDouble(OCSettings.namespace + "strength"), 0, maxWirelessRange());
     }
+    // relays saved before a new card got its range: once, a wireless card with no strength sends at its range
+    if (!nbt.getBoolean(OCSettings.namespace + "strengthKnown") && strength <= 0 && maxWirelessRange() > 0) {
+      strength = maxWirelessRange();
+    }
     if (nbt.contains(OCSettings.namespace + "isRepeater")) {
       isRepeater = nbt.getBoolean(OCSettings.namespace + "isRepeater");
     }
@@ -469,6 +473,7 @@ public class Relay extends HubBlockEntity implements ComponentInventory, PowerAc
     var provider = getEffectiveProvider();
     if (provider != null) save(nbt, provider);
     nbt.putDouble(OCSettings.namespace + "strength", strength);
+    nbt.putBoolean(OCSettings.namespace + "strengthKnown", true);
     nbt.putBoolean(OCSettings.namespace + "isRepeater", isRepeater);
     var tagList = new ListTag();
     for (var n : componentNodes) {

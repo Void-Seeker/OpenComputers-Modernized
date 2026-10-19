@@ -47,7 +47,7 @@ public class DriverPartInterface extends DriverSidedBlockEntity {
 
     public Environment(IPartHost host, Direction side) {
       super(host, "me_interface");
-      this.aeSide = side.getOpposite();
+      this.aeSide = side; // the cable's face toward the adapter (the adapter passes the block's own face)
     }
 
     @Override
@@ -69,6 +69,15 @@ public class DriverPartInterface extends DriverSidedBlockEntity {
     public IActionHost tile() {
       var host = getBlockEntity();
       var part = host.getPart(aeSide);
+      if (!(part instanceof InterfacePart)) {
+        // the interface on another face of the cable, as worksWith accepts
+        for (Direction dir : Direction.values()) {
+          if (host.getPart(dir) instanceof InterfacePart other) {
+            part = other;
+            break;
+          }
+        }
+      }
       if (part instanceof IActionHost actionHost) {
         return actionHost;
       }

@@ -71,10 +71,11 @@ public abstract class RobotBase extends BlockEntity implements li.cil.oc.core.im
   public boolean pendingOnLoadSkip = false;
 
   public li.cil.oc.api.network.Node node;
-  public final int[] input = new int[6];
+  // -1: not read yet (a first reading is no change; zeros made an already powered side a 0 -> 15 change)
+  public final int[] input = new int[]{-1, -1, -1, -1, -1, -1};
   public final int[] output = new int[6];
 
-  public final int[][] bundledInput = new int[6][16];
+  public final int[][] bundledInput = Microcontroller.unknownBundledInput(); // a first reading is no change
   public final int[][] bundledOutput = new int[6][16];
 
   public final Set<String> users = new HashSet<>();
@@ -84,7 +85,8 @@ public abstract class RobotBase extends BlockEntity implements li.cil.oc.core.im
   public boolean isOutputEnabled = false;
   /** Set once the robot item has been dropped, so the block's removal does not drop it again. */
   public boolean droppedAsItem = false;
-  public boolean shouldUpdateInput = false;
+  public boolean shouldUpdateInput = true; // read once placed (a placed robot read nothing until a neighbour changed)
+  private boolean outputStateChecked = false;
 
   public RobotBase(BlockEntityType<?> type, BlockPos pos, BlockState state) {
     super(type, pos, state);
@@ -396,9 +398,10 @@ public abstract class RobotBase extends BlockEntity implements li.cil.oc.core.im
     return bundledOutput;
   }
 
-  // enabled while a redstone card is installed, like a computer case
+  // as a computer case: enabled while it runs with a redstone card, cleared when it stops (a robot that crashed or
+  // stopped kept its outputs on)
   public boolean isOutputEnabled() {
-    return isOutputEnabled || hasRedstoneCard();
+    return isOutputEnabled;
   }
 
   public void setOutputEnabled(boolean value) {
@@ -441,7 +444,7 @@ public abstract class RobotBase extends BlockEntity implements li.cil.oc.core.im
     int newValue = li.cil.oc.core.impl.integration.util.BundledRedstone.computeInput(position(), side);
     if (oldValue != newValue) {
       input[side.ordinal()] = newValue;
-      onRedstoneInputChanged(side.ordinal(), oldValue, newValue);
+      if (oldValue >= 0) onRedstoneInputChanged(side.ordinal(), oldValue, newValue);
     }
     setBundledInput(side, li.cil.oc.core.impl.integration.util.BundledRedstone.computeBundledInput(position(), side));
   }
@@ -579,9 +582,11 @@ public abstract class RobotBase extends BlockEntity implements li.cil.oc.core.im
       }
       boolean running = machine.isRunning();
       boolean errored = machine.lastError() != null;
-      if (isRunning != running || hasErrored != errored) {
+      if (isRunning != running || hasErrored != errored || !outputStateChecked) {
+        outputStateChecked = true;
         isRunning = running;
         hasErrored = errored;
+        setOutputEnabled(running && hasRedstoneCard());
         setChanged();
         li.cil.oc.core.impl.common.PacketSender.sendComputerState(this, isRunning, errored);
         if (li.cil.oc.core.impl.util.EventHandlerDelegate.get() != null) {

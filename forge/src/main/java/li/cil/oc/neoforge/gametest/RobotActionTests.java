@@ -360,11 +360,17 @@ public final class RobotActionTests {
   public static void robotRedstoneOutputsByItsOwnSides(final GameTestHelper helper) {
     TestMachines.runRobot(helper, AT, List.of(Constants.ItemName.RedstoneCardTier1),
       ROBOT + "r.turn(false) local rs = component.proxy(component.list('redstone')()) rs.setOutput(3, 15) local o = rs.getOutput() "
-        + "error('done:' .. tostring(o[3]) .. ',' .. tostring(o[5]))", 60, (robot, result) -> {
-        // what the robot gives its east neighbour (vanilla asks the emitter with the direction towards it)
+        + "while true do if computer.pullSignal(1) == 'report' then error('done:' .. tostring(o[3]) .. ',' .. tostring(o[5])) end end", 60, (robot, ignored) -> {
+        // what the robot gives its east neighbour while it runs (vanilla asks the emitter with the direction towards it);
+        // a stopped robot's outputs are off
         final int signal = helper.getLevel().getSignal(helper.absolutePos(AT), net.minecraft.core.Direction.WEST);
-        helper.assertTrue("15,0".equals(result) && signal == 15, "getOutput()[front], [world east] = " + result + "; the block to the east gets " + signal);
-        helper.succeed();
+        robot.machine().signal("report");
+        helper.runAfterDelay(10, () -> {
+          final String error = String.valueOf(robot.machine().lastError());
+          final String result = error.contains("done:") ? error.substring(error.indexOf("done:") + 5) : error;
+          helper.assertTrue("15,0".equals(result) && signal == 15, "getOutput()[front], [world east] = " + result + "; the block to the east gets " + signal);
+          helper.succeed();
+        });
       });
   }
 

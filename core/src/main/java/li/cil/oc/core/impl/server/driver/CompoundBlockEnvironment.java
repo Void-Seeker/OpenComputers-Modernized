@@ -96,8 +96,10 @@ public class CompoundBlockEnvironment implements ManagedEnvironment, Environment
 
   @Override
   public void load(CompoundTag nbt, HolderLookup.Provider provider) {
-    if (nbt.contains("typeHash") && nbt.getLong("typeHash") != typeHash()) return;
+    // the address is kept whatever drivers make up the block now (programs know it); only the drivers' data is not
+    // loaded into a different set of them
     node.load(nbt, provider);
+    if (nbt.contains("typeHash") && nbt.getLong("typeHash") != typeHash()) return;
     for (int i = 0; i < driverNames.length; i++) {
       if (nbt.contains(driverNames[i])) {
         try {

@@ -432,6 +432,7 @@ public class Microcontroller extends BlockEntity implements PowerAcceptor, Hub, 
   private final int[] _rsInput = new int[]{-1, -1, -1, -1, -1, -1};
   private final int[] _rsOutput = new int[6];
   private boolean _isOutputEnabled = false;
+  private boolean outputStateChecked = false;
 
   @Override
   public boolean isOutputEnabled() {
@@ -649,7 +650,11 @@ public class Microcontroller extends BlockEntity implements PowerAcceptor, Hub, 
         boolean running = m.isRunning();
         String lastError = m.lastError();
         boolean errored = lastError != null;
-        if (_isRunning != running || _hasErrored != errored) {
+        if (_isRunning != running || _hasErrored != errored || !outputStateChecked) {
+          // also once after loading: a reloaded running one gets its outputs back, a stopped one saved with outputs
+          // still on (before outputs followed the machine) has them cleared
+          if (!outputStateChecked && !hasRedstoneCard()) _isOutputEnabled = true;
+          outputStateChecked = true;
           _isRunning = running;
           _hasErrored = errored;
           setChanged();
@@ -869,8 +874,14 @@ public class Microcontroller extends BlockEntity implements PowerAcceptor, Hub, 
   }
 
   // bundled redstone needs real storage, the trait's defaults are throw-away arrays
-  private final int[][] _bundledInput = new int[6][16];
+  private final int[][] _bundledInput = unknownBundledInput(); // -1: not read yet, no change on the first reading
   private final int[][] _bundledOutput = new int[6][16];
+
+  static int[][] unknownBundledInput() {
+    var input = new int[6][16];
+    for (var colors : input) java.util.Arrays.fill(colors, -1);
+    return input;
+  }
 
   @Override
   public int[][] bundledInput() {

@@ -277,4 +277,33 @@ public final class FileSystemTests {
     }
     helper.runAfterDelay(25, helper::succeed);
   }
+
+  /** An unmanaged disk image that cannot be read is moved aside, not overwritten with an empty disk at the next save. */
+  @GameTest(template = EMPTY, timeoutTicks = 100)
+  public static void unreadableDiskImagesAreKeptAside(final GameTestHelper helper) {
+    final ItemStack floppy = item(Constants.ItemName.Floppy);
+    li.cil.oc.core.impl.common.item.data.DriveData.setUnmanaged(floppy, true);
+    floppyInDrive(helper, floppy, (env, chunk) -> {
+      final String address = env.node().address();
+      final File image = new File(worldRoot(helper), OCSettings.savePath + address + ".bin");
+      final File folder = image.getParentFile();
+      try {
+        java.nio.file.Files.write(image.toPath(), new byte[]{1, 2, 3, 4});
+        final CompoundTag tag = new CompoundTag();
+        env.save(tag, helper.getLevel().registryAccess());
+        java.nio.file.Files.write(image.toPath(), new byte[]{1, 2, 3, 4}); // cut, as after a kill mid-write
+        env.load(tag, helper.getLevel().registryAccess());
+        final File[] aside = folder.listFiles((dir, name) -> name.startsWith(address + ".bin.unreadable-"));
+        helper.assertTrue(aside != null && aside.length == 1, "the unreadable image was not kept aside: " + java.util.Arrays.toString(folder.list()));
+        env.save(new CompoundTag(), helper.getLevel().registryAccess());
+        helper.assertTrue(!new File(folder, address + ".bin.part").exists(), "a .part file was left behind");
+      } catch (java.io.IOException e) {
+        throw new RuntimeException(e);
+      } finally {
+        final File[] leftovers = folder.listFiles((dir, name) -> name.startsWith(address + ".bin"));
+        if (leftovers != null) for (final File f : leftovers) f.delete();
+      }
+      helper.runAfterDelay(20, helper::succeed);
+    });
+  }
 }

@@ -388,6 +388,7 @@ public class Raid extends BlockEntity implements li.cil.oc.api.network.Environme
     @Override
     public void load(CompoundTag nbt, HolderLookup.Provider provider) {
       if (nbt.contains(OCSettings.namespace + "label")) label = nbt.getString(OCSettings.namespace + "label");
+      else if (nbt.getBoolean(OCSettings.namespace + "noLabel")) label = null; // cleared, not the default name
     }
 
     @Override
@@ -395,6 +396,7 @@ public class Raid extends BlockEntity implements li.cil.oc.api.network.Environme
       // setLabel(nil) leaves null, and a null string threw: the RAID was left out of the chunk save (back empty, its
       // disks gone) and breaking it was aborted, the next break dropping nothing
       if (label != null) nbt.putString(OCSettings.namespace + "label", label);
+      else nbt.putBoolean(OCSettings.namespace + "noLabel", true); // it came back as "raid" after a reload
     }
   }
 }

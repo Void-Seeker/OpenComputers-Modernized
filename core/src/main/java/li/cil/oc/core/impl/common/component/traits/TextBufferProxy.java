@@ -141,6 +141,7 @@ public interface TextBufferProxy extends li.cil.oc.api.internal.TextBuffer {
       int x, y;
       String truncated;
       if (vertical) {
+        if (row < 0 && -row >= sLength) return; // entirely above the screen (the offset ran past the string)
         if (row < 0) {
           x = col;
           y = 0;
@@ -161,8 +162,9 @@ public interface TextBufferProxy extends li.cil.oc.api.internal.TextBuffer {
           truncated = truncate(s, sLength, 0, data().width - col);
         }
       }
+      // the clients get where it went (with the row it was asked at, they cut a string above the screen again)
       if (data().set(x, y, truncated, vertical))
-        onBufferSet(x, row, truncated, vertical);
+        onBufferSet(x, y, truncated, vertical);
     }
   }
 

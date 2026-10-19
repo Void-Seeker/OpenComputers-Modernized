@@ -585,4 +585,66 @@ public final class ItemDataTests {
       "nanomachine damage types: overload " + registry.getId(overload.type()) + ", hungry " + registry.getId(hungry.type()));
     helper.succeed();
   }
+
+  /** A component save that throws leaves the item's data as it was (it was cleared first: a disk lost its address). */
+  @GameTest(template = EMPTY)
+  public static void aFailingComponentSaveKeepsTheItemsData(final GameTestHelper helper) {
+    final ItemStack hdd = item(Constants.ItemName.HDDTier1);
+    final CompoundTag node = new CompoundTag();
+    node.putString("address", "keep-me");
+    Item.getDataTag(hdd).put("node", node);
+    final var failing = new li.cil.oc.api.prefab.AbstractManagedEnvironment() {
+      @Override
+      public void save(CompoundTag nbt, net.minecraft.core.HolderLookup.Provider provider) {
+        nbt.putString("partial", "x");
+        throw new IllegalStateException("save failed");
+      }
+    };
+    host(helper).save(failing, li.cil.oc.api.API.driver.driverFor(hdd), hdd, helper.getLevel().registryAccess());
+    helper.assertTrue("keep-me".equals(Item.address(hdd)), "after a failing save the disk's data is " + Item.peekDataTag(hdd));
+    helper.succeed();
+  }
+
+  /** database.set with a tag keeps the damage given (the tag replaced it: a damaged tool was stored as a new one). */
+  @GameTest(template = EMPTY)
+  public static void databaseSetKeepsTheDamageWithATag(final GameTestHelper helper) {
+    final var entries = new SimpleContainer(9);
+    final var database = new li.cil.oc.core.impl.server.component.UpgradeDatabase(entries);
+    database.set(context(), new ArgumentsImpl(new Object[]{1, "minecraft:iron_pickaxe", 100, "{display:{Name:'\"x\"'}}"}));
+    final ItemStack stored = entries.getItem(0);
+    helper.assertTrue(stored.getDamageValue() == 100 && stored.hasCustomHoverName(), "database.set stored " + stored + " damaged " + stored.getDamageValue() + " " + stored.getTag());
+    helper.succeed();
+  }
+
+  /** A tier 1 tablet assembled before the container fix gives its first part back once (twice: the container copy). */
+  @GameTest(template = EMPTY)
+  public static void oldTier1TabletsGiveTheirPartsOnce(final GameTestHelper helper) {
+    final var data = new TabletData();
+    data.tier = li.cil.oc.core.common.Tier.One;
+    data.container = item(Constants.ItemName.RedstoneCardTier1);
+    data.items = new ArrayList<>(Collections.nCopies(32, null));
+    data.items.set(0, item(Constants.BlockName.ScreenTier1));
+    data.items.set(1, item(Constants.ItemName.RedstoneCardTier1));
+    final ItemStack tablet = data.createItemStack();
+    final Object[] parts = li.cil.oc.core.impl.common.template.TabletTemplate.disassemble(tablet, new ItemStack[0]);
+    int cards = 0;
+    for (final Object part : parts) {
+      if (part instanceof ItemStack s && !s.isEmpty() && li.cil.oc.api.Items.get(s) == li.cil.oc.api.Items.get(Constants.ItemName.RedstoneCardTier1)) cards += s.getCount();
+    }
+    helper.assertTrue(cards == 1, "an old tier 1 tablet disassembled into " + cards + " redstone cards");
+    helper.succeed();
+  }
+
+  /** A RAID's label cleared to nil stays cleared through a save (it came back as "raid"). */
+  @GameTest(template = EMPTY)
+  public static void raidLabelClearedStaysCleared(final GameTestHelper helper) {
+    final var label = new li.cil.oc.core.impl.common.blockentity.Raid.RaidLabel();
+    label.setLabel(null);
+    final CompoundTag tag = new CompoundTag();
+    label.save(tag, helper.getLevel().registryAccess());
+    final var loaded = new li.cil.oc.core.impl.common.blockentity.Raid.RaidLabel();
+    loaded.load(tag, helper.getLevel().registryAccess());
+    helper.assertTrue(loaded.getLabel() == null, "a cleared RAID label came back as " + loaded.getLabel());
+    helper.succeed();
+  }
 }

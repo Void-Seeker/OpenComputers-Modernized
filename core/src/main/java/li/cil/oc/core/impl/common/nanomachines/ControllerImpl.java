@@ -43,6 +43,8 @@ public class ControllerImpl implements Controller, WirelessEndpoint {
   public boolean hadPower = true;
   public volatile boolean activeBehaviorsDirty = true;
   public boolean hasSentConfiguration = false;
+  // the player this controller was installed for left the End: the new player object is the same life
+  public boolean leftTheEnd = false;
 
   public ControllerImpl(Player player) {
     this.player = player;

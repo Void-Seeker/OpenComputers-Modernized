@@ -129,18 +129,42 @@ public abstract class MachineBase extends AbstractManagedEnvironment implements 
   // never closed, their Lua states leaked, and their queued work ran against the old level in the next world
   private static final java.util.Set<MachineBase> liveMachines = java.util.Collections.synchronizedSet(java.util.Collections.newSetFromMap(new java.util.WeakHashMap<>()));
 
-  /** Closes the machines whose host is in the given level (it is unloading; everything was saved before). */
+  /**
+   * Closes the machines of block entities in the given level, which is unloading (its chunks were saved). Not those
+   * of entities (drones): a level saves its entities after this, and they were saved switched off.
+   */
   public static void closeAllIn(net.minecraft.world.level.Level level) {
-    java.util.List<MachineBase> machines;
-    synchronized (liveMachines) {
-      machines = new java.util.ArrayList<>(liveMachines);
-    }
-    for (var machine : machines) {
+    for (var machine : snapshot()) {
       try {
-        if (machine.host.level() == level) machine.close();
+        if (machine.host.level() == level && !(machine.host instanceof net.minecraft.world.entity.Entity)) machine.close();
       } catch (Throwable t) {
         LOGGER.warn("Could not close a computer of an unloading level.", t);
       }
+    }
+  }
+
+  /**
+   * Closes every machine left once the server has stopped (everything is saved then, entities too), waiting a little
+   * for one busy in a call: in single player the next world runs in the same game, and their Lua states leaked.
+   */
+  public static void closeAll() {
+    for (var machine : snapshot()) {
+      try {
+        for (int attempt = 0; attempt < 100 && !machine.close(); attempt++) {
+          Thread.sleep(10);
+        }
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        return;
+      } catch (Throwable t) {
+        LOGGER.warn("Could not close a computer at server stop.", t);
+      }
+    }
+  }
+
+  private static java.util.List<MachineBase> snapshot() {
+    synchronized (liveMachines) {
+      return new java.util.ArrayList<>(liveMachines);
     }
   }
 

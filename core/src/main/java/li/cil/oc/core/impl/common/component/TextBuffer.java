@@ -82,14 +82,16 @@ public class TextBuffer extends TextBufferBase {
     try {
       pb.writeUTF(node.address());
       boolean any = false;
-      for (var device : getInternalBuffers().values()) {
-        for (int id : device.bufferIndexes()) {
-          var ram = device.getBuffer(id);
-          if (ram == null) continue;
-          var nbt = new CompoundTag();
-          ram.save(nbt, null);
-          PacketSender.appendTextBufferRamInit(pb, ram.owner, ram.id, nbt);
-          any = true;
+      synchronized (getInternalBuffers()) {
+        for (var device : getInternalBuffers().values()) {
+          for (int id : device.bufferIndexes()) {
+            var ram = device.getBuffer(id);
+            if (ram == null) continue;
+            var nbt = new CompoundTag();
+            ram.save(nbt, null);
+            PacketSender.appendTextBufferRamInit(pb, ram.owner, ram.id, nbt);
+            any = true;
+          }
         }
       }
       if (any) pb.sendToPlayer(player);

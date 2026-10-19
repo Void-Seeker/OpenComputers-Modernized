@@ -31,19 +31,31 @@ public final class NanomachineTests {
     return player;
   }
 
-  /** Leaving the End keeps the nanomachines' energy (it was drained as on death). */
+  /**
+   * Leaving the End keeps the nanomachines' energy and inputs: the exit portal makes a new player object for the same
+   * player, and the controller moves to it (it was drained and reset as on death).
+   */
   @GameTest(template = EMPTY)
-  public static void leavingTheEndKeepsTheEnergy(final GameTestHelper helper) {
+  public static void leavingTheEndKeepsEnergyAndInputs(final GameTestHelper helper) {
     final FakePlayer player = player(helper);
     final var controller = (ControllerImpl) li.cil.oc.api.Nanomachines.installController(player);
+    final FakePlayer respawned = new FakePlayer(helper.getLevel(), player.getGameProfile());
+    respawned.setId(player.getId()); // what PlayerList.respawn does: the same entity id, so the same nanomachines
+    respawned.getPersistentData().put(net.minecraft.world.entity.player.Player.PERSISTED_NBT_TAG,
+      player.getPersistentData().getCompound(net.minecraft.world.entity.player.Player.PERSISTED_NBT_TAG)); // and Forge's restoreFrom
     try {
+      controller.reconfigure();
       controller.changeBuffer(500);
+      controller.setInput(0, true);
       final double before = controller.getLocalBuffer();
-      MinecraftForge.EVENT_BUS.post(new PlayerEvent.PlayerRespawnEvent(player, true));
-      helper.assertTrue(before > 0 && controller.getLocalBuffer() == before, "leaving the End took the energy from " + before + " to " + controller.getLocalBuffer());
-      MinecraftForge.EVENT_BUS.post(new PlayerEvent.PlayerRespawnEvent(player, false));
-      helper.assertTrue(controller.getLocalBuffer() == 0, "a respawn after death left " + controller.getLocalBuffer() + " energy");
+      MinecraftForge.EVENT_BUS.post(new PlayerEvent.PlayerRespawnEvent(respawned, true));
+      MinecraftForge.EVENT_BUS.post(new net.minecraftforge.event.TickEvent.PlayerTickEvent(net.minecraftforge.event.TickEvent.Phase.END, respawned));
+      final var moved = (ControllerImpl) li.cil.oc.api.Nanomachines.getController(respawned);
+      helper.assertTrue(moved != null && moved != controller && moved.player == respawned, "the nanomachines did not move to the new player object");
+      helper.assertTrue(moved.getLocalBuffer() == before, "leaving the End took the energy from " + before + " to " + moved.getLocalBuffer());
+      helper.assertTrue(moved.getInput(0), "leaving the End switched the inputs off");
     } finally {
+      li.cil.oc.api.Nanomachines.uninstallController(respawned);
       li.cil.oc.api.Nanomachines.uninstallController(player);
     }
     helper.succeed();

@@ -30,7 +30,7 @@ public class Redstone extends BlockEntity implements Environment, BundledRedston
   protected boolean shouldUpdateInput = true;
   private final int[] _input = new int[]{-1, -1, -1, -1, -1, -1};
   private final int[] _output = new int[6];
-  private final int[][] _bundledInput = new int[6][16];
+  private final int[][] _bundledInput = Microcontroller.unknownBundledInput(); // a first reading is no change
   private final int[][] _bundledOutput = new int[6][16];
 
   public Redstone(BlockPos pos, BlockState state) {

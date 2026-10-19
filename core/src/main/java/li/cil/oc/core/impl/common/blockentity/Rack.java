@@ -53,7 +53,7 @@ public class Rack extends HubBlockEntity implements PowerAcceptor, PowerBalancer
   // Redstone storage; the trait's defaults are throw-away arrays, so the rack never noticed inputs or kept outputs.
   private final int[] _rsInput = new int[]{-1, -1, -1, -1, -1, -1};
   private final int[] _rsOutput = new int[6];
-  private final int[][] _bundledInput = new int[6][16];
+  private final int[][] _bundledInput = Microcontroller.unknownBundledInput(); // a first reading is no change
   private final int[][] _bundledOutput = new int[6][16];
   private final ItemStack[] items = new ItemStack[getContainerSize()];
   private final ItemStack[] pendingRemovalItems = new ItemStack[items.length];
@@ -316,7 +316,10 @@ public class Rack extends HubBlockEntity implements PowerAcceptor, PowerBalancer
     var c = connector(side);
     if (c.isPresent()) {
       var conn = c.get();
-      double capped = MathCompat.clamp(amount, 0, Math.min(energyThroughput(), conn.globalBufferSize() - conn.globalBuffer()));
+      // never a negative bound: a network can hold a little more than its size (rounding, a connector gone), and the
+      // clamp threw - out of another mod's cable tick, crashing the server
+      double room = Math.max(0, conn.globalBufferSize() - conn.globalBuffer());
+      double capped = MathCompat.clamp(amount, 0, Math.min(energyThroughput(), room));
       if (doReceive) return capped - conn.changeBuffer(capped);
       return capped;
     }
@@ -635,6 +638,14 @@ public class Rack extends HubBlockEntity implements PowerAcceptor, PowerBalancer
   public void setOutputEnabled(boolean value) {
     if (value != _isOutputEnabled) {
       _isOutputEnabled = value;
+      if (!value) {
+        // cleared, as a case's (they stayed on with no server left to drive them)
+        java.util.Arrays.fill(_rsOutput, 0);
+        for (var colors : _bundledOutput) java.util.Arrays.fill(colors, 0);
+        if (getLevel() != null && !getLevel().isClientSide) {
+          for (var side : Direction.values()) onRedstoneOutputChanged(side);
+        }
+      }
       onRedstoneOutputEnabledChanged();
     }
   }
@@ -855,6 +866,9 @@ public class Rack extends HubBlockEntity implements PowerAcceptor, PowerBalancer
     super.readFromNBTForServer(nbt);
     if (nbt.contains(FacingTag)) {
       facing = Direction.from3DDataValue(nbt.getInt(FacingTag));
+    // the block state says where it faces (an old wrench turned only the field; structures turn only the state)
+    if (getBlockState().hasProperty(net.minecraft.world.level.block.state.properties.BlockStateProperties.HORIZONTAL_FACING))
+      facing = getBlockState().getValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.HORIZONTAL_FACING);
     }
     isRelayEnabled = nbt.getBoolean(IsRelayEnabledTag);
     var mappingList = nbt.getList(NodeMappingTag, Tag.TAG_INT_ARRAY);
@@ -897,6 +911,9 @@ public class Rack extends HubBlockEntity implements PowerAcceptor, PowerBalancer
     super.readFromNBTForClient(nbt);
     if (nbt.contains(FacingTag)) {
       facing = Direction.from3DDataValue(nbt.getInt(FacingTag));
+    // the block state says where it faces (an old wrench turned only the field; structures turn only the state)
+    if (getBlockState().hasProperty(net.minecraft.world.level.block.state.properties.BlockStateProperties.HORIZONTAL_FACING))
+      facing = getBlockState().getValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.HORIZONTAL_FACING);
     }
     var data = nbt.getList(LastDataTag, Tag.TAG_COMPOUND);
     for (int i = 0; i < data.size() && i < lastData.length; i++) {

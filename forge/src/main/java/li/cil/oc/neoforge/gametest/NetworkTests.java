@@ -116,4 +116,26 @@ public final class NetworkTests {
       helper.succeed();
     });
   }
+
+  /** A relay saved with a wireless card and no strength (before cards got their range) sends at its range once loaded. */
+  @GameTest(template = EMPTY, timeoutTicks = 100)
+  public static void oldRelayWithAWirelessCardGetsItsRange(final GameTestHelper helper) {
+    helper.setBlock(AT, Blocks.RELAY.get());
+    final var relay = (li.cil.oc.core.impl.common.blockentity.Relay) helper.getBlockEntity(AT);
+    helper.runAfterDelay(2, () -> {
+      int slot = -1;
+      final ItemStack card = item(Constants.ItemName.WirelessNetworkCardTier2);
+      for (int i = 0; i < relay.getContainerSize() && slot < 0; i++) {
+        if (relay.canPlaceItem(i, card)) slot = i;
+      }
+      relay.setItem(slot, card);
+      relay.strength = 0;
+      final var tag = relay.saveWithFullMetadata();
+      tag.remove(OCSettings.namespace + "strengthKnown");
+      final var loaded = (li.cil.oc.core.impl.common.blockentity.Relay) net.minecraft.world.level.block.entity.BlockEntity.loadStatic(relay.getBlockPos(), relay.getBlockState(), tag);
+      helper.assertTrue(loaded != null && loaded.strength == OCSettings.get().maxWirelessRange[li.cil.oc.core.common.Tier.Two],
+        "an old relay with a tier 2 card loads with strength " + (loaded == null ? null : loaded.strength));
+      helper.succeed();
+    });
+  }
 }

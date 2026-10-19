@@ -191,6 +191,10 @@ public class Drive extends AbstractManagedEnvironment implements DeviceInfo {
       }
     } catch (Throwable t) {
       LOGGER.warn("Failed loading drive contents for '{}'.", node.address(), t);
+      // kept aside: the next save would write the empty disk over what may still be recovered
+      File path = savePath();
+      File aside = new File(path.getParentFile(), path.getName() + ".unreadable-" + System.currentTimeMillis());
+      if (path.exists() && !path.renameTo(aside)) LOGGER.warn("Could not move {} aside.", path);
     }
     headPos = MathCompat.clamp(nbt.getInt("headPos"), 0, sectorToHeadPos(sectorCount));
     if (label != null) {
@@ -210,7 +214,14 @@ public class Drive extends AbstractManagedEnvironment implements DeviceInfo {
       GZIPOutputStream zos = new GZIPOutputStream(bos);
       zos.write(data);
       zos.close();
-      Files.write(bos.toByteArray(), path);
+      // written beside it and moved over it: a kill mid-write left a cut gzip, unreadable, and the whole disk lost
+      File temp = new File(path.getParentFile(), path.getName() + ".part");
+      Files.write(bos.toByteArray(), temp);
+      try {
+        java.nio.file.Files.move(temp.toPath(), path.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING, java.nio.file.StandardCopyOption.ATOMIC_MOVE);
+      } catch (java.nio.file.AtomicMoveNotSupportedException e) {
+        java.nio.file.Files.move(temp.toPath(), path.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+      }
     } catch (Throwable t) {
       LOGGER.warn("Failed saving drive contents for '{}'.", node.address(), t);
     }

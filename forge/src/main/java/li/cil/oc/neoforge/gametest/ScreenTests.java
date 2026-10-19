@@ -179,4 +179,65 @@ public final class ScreenTests {
       helper.succeed();
     });
   }
+
+  /** A vertical string reaching above the screen is cut there, one entirely above changes nothing (it threw). */
+  @GameTest(template = EMPTY)
+  public static void verticalTextAboveTheScreenIsCut(final GameTestHelper helper) {
+    withTier3(helper, screen -> {
+      try {
+        screen.buffer.set(0, -5, "ab", true);
+      } catch (Throwable t) {
+        helper.fail("a vertical string above the screen threw " + t);
+      }
+      screen.buffer.set(0, -1, "abc", true);
+      helper.assertTrue(screen.buffer.getCodePoint(0, 0) == 'b' && screen.buffer.getCodePoint(0, 1) == 'c', "\"abc\" from row 0 starts with '" + (char) screen.buffer.getCodePoint(0, 0) + "'");
+      helper.succeed();
+    });
+  }
+
+  /** A case with a GPU and a tier 1 screen above it runs the Lua; then gets the case once it stopped (or 300 ticks). */
+  private static void runCase(final GameTestHelper helper, final String lua, final java.util.function.Consumer<li.cil.oc.core.impl.common.blockentity.Case> then) {
+    helper.setBlock(AT, Blocks.CASE_TIER_1.get());
+    helper.setBlock(AT.above(), Blocks.SCREEN_TIER_1.get());
+    final var computer = (li.cil.oc.core.impl.common.blockentity.Case) helper.getBlockEntity(AT);
+    for (final net.minecraft.world.item.ItemStack part : List.of(li.cil.oc.api.Items.get(Constants.ItemName.CPUTier1).createItemStack(1),
+      li.cil.oc.api.Items.get(Constants.ItemName.RAMTier2).createItemStack(1), li.cil.oc.api.Items.get(Constants.ItemName.GraphicsCardTier1).createItemStack(1),
+      li.cil.oc.api.Items.registerEEPROM("screen test", lua.getBytes(java.nio.charset.StandardCharsets.UTF_8), null, false))) {
+      int slot = -1;
+      for (int i = 0; i < computer.getContainerSize() && slot < 0; i++) {
+        if (computer.getItem(i).isEmpty() && computer.canPlaceItem(i, part)) slot = i;
+      }
+      helper.assertTrue(slot >= 0, "no case slot takes " + part);
+      computer.setItem(slot, part);
+    }
+    final boolean[] started = {false};
+    final int[] ticks = {0};
+    helper.onEachTick(() -> {
+      if (started[0] || ticks[0]++ > 100) return;
+      final var connector = (li.cil.oc.api.network.Connector) computer.machine().node();
+      if (connector.globalBuffer() < 200) connector.changeBuffer(200 - connector.globalBuffer());
+      started[0] = computer.machine().start();
+    });
+    helper.runAfterDelay(250, () -> {
+      helper.assertTrue(started[0], "the case never started: " + computer.machine().lastError());
+      then.accept(computer);
+    });
+  }
+
+  /** A bitblt starting left of the screen draws up to its right edge (the size was cut to the screen first: the last columns stayed). */
+  @GameTest(template = EMPTY, timeoutTicks = 400)
+  public static void bitbltFromLeftOfTheScreenReachesItsRightEdge(final GameTestHelper helper) {
+    runCase(helper, "local gpu = component.proxy(component.list('gpu')())\n"
+      + "while not component.list('screen')() do computer.pullSignal(0.1) end\n"
+      + "gpu.bind(component.list('screen')())\n"
+      + "local w, h = gpu.getResolution()\n"
+      + "local page = gpu.allocateBuffer(w + 10, 2)\n"
+      + "gpu.setActiveBuffer(page) gpu.fill(1, 1, w + 10, 2, 'X') gpu.setActiveBuffer(0)\n"
+      + "gpu.fill(1, 1, w, h, ' ')\n"
+      + "gpu.bitblt(0, -9, 1, w + 10, 2, page, 1, 1)\n"
+      + "error('done:' .. gpu.get(w, 1))\n", computer -> {
+      helper.assertTrue(String.valueOf(computer.machine().lastError()).contains("done:X"), "the screen's last column after the bitblt: " + computer.machine().lastError());
+      helper.succeed();
+    });
+  }
 }

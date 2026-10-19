@@ -222,4 +222,23 @@ public final class IntegrationTests {
       helper.succeed();
     });
   }
+
+  /** A block whose drivers changed keeps its component address (it got a new one: programs lost it). */
+  @GameTest(template = EMPTY)
+  public static void compoundBlockKeepsItsAddressWhenItsDriversChange(final GameTestHelper helper) {
+    final java.util.function.Supplier<li.cil.oc.api.network.ManagedEnvironment> env = () -> new li.cil.oc.api.prefab.AbstractManagedEnvironment() {
+    };
+    final var before = new li.cil.oc.core.impl.server.driver.CompoundBlockEnvironment("test", new String[]{"one", "two"},
+      new li.cil.oc.api.network.ManagedEnvironment[]{env.get(), new li.cil.oc.api.prefab.AbstractManagedEnvironment() {
+      }});
+    li.cil.oc.api.Network.joinNewNetwork(before.node());
+    final String address = before.node().address();
+    final var tag = new net.minecraft.nbt.CompoundTag();
+    before.save(tag, helper.getLevel().registryAccess());
+    before.node().remove();
+    final var after = new li.cil.oc.core.impl.server.driver.CompoundBlockEnvironment("test", new String[]{"one"}, new li.cil.oc.api.network.ManagedEnvironment[]{env.get()});
+    after.load(tag, helper.getLevel().registryAccess());
+    helper.assertTrue(address != null && address.equals(after.node().address()), "the address " + address + " became " + after.node().address());
+    helper.succeed();
+  }
 }
