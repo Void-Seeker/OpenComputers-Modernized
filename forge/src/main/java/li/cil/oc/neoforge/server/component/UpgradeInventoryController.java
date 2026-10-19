@@ -79,12 +79,26 @@ public class UpgradeInventoryController {
         int slot = args.optInteger(0, 1);
         if (!host.isContainerSlot(slot))
           return ResultWrapper.result(false, "not a container slot");
-        net.minecraft.world.item.ItemStack selected = inventory().getItem(selectedSlot());
+        int selectedSlot = selectedSlot();
+        net.minecraft.world.item.ItemStack selected = inventory().getItem(selectedSlot);
         if (!selected.isEmpty() && !host.canPlaceItem(slot, selected))
           return ResultWrapper.result(false, "Invalid upgrade");
         net.minecraft.world.item.ItemStack equipped = host.getItem(slot);
-        host.setItem(slot, selected);
-        inventory().setItem(selectedSlot(), equipped);
+        // one, taken out of its slot first: an inventory upgrade going in or out resizes the inventory, which dropped
+        // the vanished slots with it (a copy of what went in), and what came out went over the slot the selection was
+        // moved to, or nowhere when no slot was left
+        net.minecraft.world.item.ItemStack rest = selected.copy();
+        net.minecraft.world.item.ItemStack upgrade = rest.split(1);
+        inventory().setItem(selectedSlot, rest);
+        host.setItem(slot, upgrade);
+        if (!equipped.isEmpty()) {
+          if (selectedSlot < inventory().getContainerSize() && inventory().getItem(selectedSlot).isEmpty()) {
+            inventory().setItem(selectedSlot, equipped);
+          } else {
+            li.cil.oc.core.impl.util.InventoryUtils.insertIntoInventory(equipped, inventory(), null, 64);
+            if (!equipped.isEmpty()) host.spawnStackInWorld(equipped, host.facing());
+          }
+        }
         return ResultWrapper.result(true);
       }
       return ResultWrapper.result(false);

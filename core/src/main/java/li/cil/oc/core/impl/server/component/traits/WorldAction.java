@@ -41,4 +41,12 @@ public final class WorldAction {
   public static boolean checkBlockBreak(Level level, BlockPos pos, BlockState state) {
     return handler.checkBlockBreak(level, pos, state);
   }
+
+  public static boolean mayInteract(Level level, BlockPosition pos, Direction face, Player player) {
+    return handler.mayInteract(level, pos, face, player);
+  }
+
+  public static boolean checkBlockBreak(Level level, BlockPos pos, BlockState state, Player player) {
+    return handler.checkBlockBreak(level, pos, state, player);
+  }
 }

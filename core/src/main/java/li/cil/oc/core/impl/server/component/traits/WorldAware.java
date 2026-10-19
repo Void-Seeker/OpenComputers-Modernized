@@ -25,9 +25,10 @@ public interface WorldAware {
     return WorldAction.getFakePlayer(level(), position());
   }
 
+  // as the agent's player (its owner's) where there is one, as in OC: claims denied robots what their owners may do
   default boolean mayInteract(BlockPosition blockPos, Direction face) {
     try {
-      return WorldAction.mayInteract(level(), blockPos, face);
+      return WorldAction.mayInteract(level(), blockPos, face, fakePlayer());
     } catch (Throwable t) {
       Log.get().warn("Some event handler threw up while checking for permission to access a block.", t);
       return false;
@@ -67,10 +68,10 @@ public interface WorldAware {
     // a liquid block itself - not any block holding water (waterlogged stairs, slabs, chests are what they are: they
     // counted as liquid, and a robot moving in replaced them with itself)
     if (state.getBlock() instanceof net.minecraft.world.level.block.LiquidBlock) {
-      return new Object[]{WorldAction.checkBlockBreak(level(), pos, state), "liquid"};
+      return new Object[]{WorldAction.checkBlockBreak(level(), pos, state, fakePlayer()), "liquid"};
     }
     if (state.canBeReplaced()) {
-      return new Object[]{WorldAction.checkBlockBreak(level(), pos, state), "replaceable"};
+      return new Object[]{WorldAction.checkBlockBreak(level(), pos, state, fakePlayer()), "replaceable"};
     }
     if (state.getCollisionShape(level(), pos).isEmpty()) {
       return new Object[]{true, "passable"};

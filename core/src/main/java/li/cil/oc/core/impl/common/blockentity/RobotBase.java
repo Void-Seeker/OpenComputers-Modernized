@@ -491,6 +491,7 @@ public abstract class RobotBase extends BlockEntity implements li.cil.oc.core.im
   public void updateInventorySize() {
     int before = inventorySize;
     synchronized (this) {
+      int oldSize = getContainerSize();
       int totalCapacity = 0;
       for (int slot : containerSlots()) {
         var stack = getItem(slot);
@@ -514,6 +515,7 @@ public abstract class RobotBase extends BlockEntity implements li.cil.oc.core.im
         }
       }
       inventorySize = Math.min(maxInventorySize(), totalCapacity);
+      moveComponents(oldSize, getContainerSize());
     }
     selectedSlot = MathCompat.clamp(selectedSlot, 0, Math.max(0, mainInventory.getContainerSize() - 1));
     if (before > inventorySize && isServer()) {
@@ -526,6 +528,25 @@ public abstract class RobotBase extends BlockEntity implements li.cil.oc.core.im
         }
       }
     }
+  }
+
+  /**
+   * The component slots come after the inventory, so their components move with its size, as in OC (they stayed put:
+   * a grown inventory saved none of them and held live ones under its slots, which taking an item out of removed; a
+   * shrunk one found none).
+   */
+  private void moveComponents(int oldSize, int newSize) {
+    if (oldSize == newSize || !(this instanceof li.cil.oc.core.impl.common.inventory.ComponentInventory ci)) return;
+    var comps = ci._components();
+    if (comps == null) return;
+    var moved = new li.cil.oc.api.network.ManagedEnvironment[newSize];
+    System.arraycopy(comps, 0, moved, 0, Math.min(equipmentInventory.getContainerSize(), comps.length)); // tool, containers
+    int count = componentCount();
+    for (int i = 0; i < count; i++) {
+      int from = oldSize - count + i;
+      if (from >= 0 && from < comps.length) moved[newSize - count + i] = comps[from];
+    }
+    ci._components(moved);
   }
 
   public boolean isAnimatingMove() {
@@ -1176,6 +1197,8 @@ public abstract class RobotBase extends BlockEntity implements li.cil.oc.core.im
 
   @Override
   public boolean stillValid(@NotNull Player player) {
+    // not once the robot is gone (broken, unloaded): its open GUI took from and gave to a robot no longer there
+    if (isRemoved() || droppedAsItem) return false;
     double d = player.distanceToSqr(worldPosition.getX() + 0.5, worldPosition.getY() + 0.5, worldPosition.getZ() + 0.5);
     return d <= 64;
   }

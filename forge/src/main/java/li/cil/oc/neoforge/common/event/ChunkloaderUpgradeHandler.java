@@ -11,6 +11,7 @@ import li.cil.oc.neoforge.server.component.UpgradeChunkloader;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
+import net.minecraftforge.event.server.ServerStoppedEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 
 public final class ChunkloaderUpgradeHandler {
@@ -83,14 +84,21 @@ public final class ChunkloaderUpgradeHandler {
     }
   }
 
+  // only an active loader's chunks go along (every move forced chunks, for free, which nothing let go of again)
   @SubscribeEvent
   public static void onMove(RobotMoveEvent.Post e) {
     Node machineNode = e.agent.machine().node();
     for (Node node : machineNode.reachableNodes()) {
-      if (node.host() instanceof UpgradeChunkloader) {
-        updateLoadedChunk((UpgradeChunkloader) node.host());
+      if (node.host() instanceof UpgradeChunkloader loader && loader.active()) {
+        updateLoadedChunk(loader);
       }
     }
+  }
+
+  // the stopped server's levels are let go (they were kept, and with them every loader's chunks of a world left)
+  @SubscribeEvent
+  public static void onServerStopped(ServerStoppedEvent e) {
+    worldChunks.clear();
   }
 
 }

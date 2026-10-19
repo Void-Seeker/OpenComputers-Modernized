@@ -30,6 +30,7 @@ public abstract class UpgradeChunkloaderBase extends AbstractManagedEnvironment 
     put(DeviceAttribute.Product, "Realizer9001-CL");
   }};
   protected boolean active = false;
+  private boolean wasActive = false; // as saved: a robot's machine resumes after a reload, it sends no computer.started
 
   public UpgradeChunkloaderBase(EnvironmentHost host) {
     this.host = host;
@@ -73,22 +74,41 @@ public abstract class UpgradeChunkloaderBase extends AbstractManagedEnvironment 
     return ResultWrapper.result(setActive(args.checkBoolean(0), true));
   }
 
+  public boolean active() {
+    return active;
+  }
+
   @Override
   public void onConnect(Node node) {
     super.onConnect(node);
     if (node == this.node) {
-      if (host instanceof Context && ((Context) host).isRunning()) {
-        requestTicket(false);
-      }
+      // a robot is no Context: its loader comes back as it was saved, as OC's chunk tickets did (it came back off,
+      // its chunks still forced, for good)
+      boolean restore = host instanceof Context ? ((Context) host).isRunning() : wasActive;
+      wasActive = false;
+      if (restore) requestTicket(false);
     }
   }
 
   @Override
   public void onDisconnect(Node node) {
     super.onDisconnect(node);
-    if (node == this.node) {
+    // also when its host's machine goes (a broken robot only removes that: its chunks stayed forced)
+    if (node == this.node || host instanceof li.cil.oc.api.machine.MachineHost mh && mh.machine() != null && node == mh.machine().node()) {
       setActive(false);
     }
+  }
+
+  @Override
+  public void load(net.minecraft.nbt.CompoundTag nbt, net.minecraft.core.HolderLookup.Provider provider) {
+    super.load(nbt, provider);
+    wasActive = nbt.getBoolean("active");
+  }
+
+  @Override
+  public void save(net.minecraft.nbt.CompoundTag nbt, net.minecraft.core.HolderLookup.Provider provider) {
+    super.save(nbt, provider);
+    if (active) nbt.putBoolean("active", true);
   }
 
   @Override

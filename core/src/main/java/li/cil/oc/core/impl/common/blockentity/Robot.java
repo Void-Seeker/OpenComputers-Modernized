@@ -409,11 +409,6 @@ public abstract class Robot extends RobotBase implements Computer, PowerInformat
   }
 
   @Override
-  public void setSelectedSlot(int index) {
-    selectedSlot = index;
-  }
-
-  @Override
   public int selectedTank() {
     return selectedTank;
   }

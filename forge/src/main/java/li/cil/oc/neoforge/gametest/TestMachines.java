@@ -66,8 +66,18 @@ final class TestMachines {
   static void runRobot(final GameTestHelper helper, final BlockPos pos, final List<String> parts,
                        final Consumer<li.cil.oc.core.impl.common.blockentity.Robot> setup, final String program, final int delay,
                        final java.util.function.BiConsumer<li.cil.oc.core.impl.common.blockentity.Robot, String> check) {
+    runRobot(helper, pos, List.of(), parts, setup, program, delay, check);
+  }
+
+  /** The same, with containers (in slots 1 to 3). */
+  static void runRobot(final GameTestHelper helper, final BlockPos pos, final List<String> containers, final List<String> parts,
+                       final Consumer<li.cil.oc.core.impl.common.blockentity.Robot> setup, final String program, final int delay,
+                       final java.util.function.BiConsumer<li.cil.oc.core.impl.common.blockentity.Robot, String> check) {
     final var data = new li.cil.oc.core.impl.common.item.data.RobotData();
     data.name = "tester";
+    for (final String container : containers) {
+      data.containers.add(li.cil.oc.api.Items.get(container).createItemStack(1));
+    }
     for (final String part : List.of(li.cil.oc.core.Constants.ItemName.CPUTier1, li.cil.oc.core.Constants.ItemName.RAMTier1, li.cil.oc.core.Constants.ItemName.RAMTier1)) {
       data.components.add(li.cil.oc.api.Items.get(part).createItemStack(1));
     }
