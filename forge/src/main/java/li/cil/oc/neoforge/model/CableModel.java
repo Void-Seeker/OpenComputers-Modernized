@@ -6,7 +6,6 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
-import li.cil.oc.api.network.SidedEnvironment;
 import li.cil.oc.core.impl.common.blockentity.Cable;
 import li.cil.oc.core.impl.util.Color;
 import net.minecraft.client.Minecraft;
@@ -227,12 +226,7 @@ public class CableModel implements IDynamicBakedModel {
   }
 
   private static boolean isOCNeighbor(BlockEntity te, Direction side) {
-    if (te instanceof li.cil.oc.core.impl.common.blockentity.RobotProxy) return false;
-    if (te instanceof li.cil.oc.api.network.Environment || te instanceof SidedEnvironment) {
-      if (te instanceof SidedEnvironment sideEnv) return sideEnv.canConnect(side);
-      return true;
-    }
-    return false;
+    return li.cil.oc.core.impl.common.block.Cable.hasNetworkNode(te, side);
   }
 
   @Override

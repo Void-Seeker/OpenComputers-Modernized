@@ -8,7 +8,6 @@ import li.cil.oc.api.machine.Arguments;
 import li.cil.oc.api.machine.Callback;
 import li.cil.oc.api.machine.Context;
 import li.cil.oc.api.network.Connector;
-import li.cil.oc.api.network.Environment;
 import li.cil.oc.api.network.EnvironmentHost;
 import li.cil.oc.api.network.Node;
 import li.cil.oc.api.network.Packet;
@@ -190,8 +189,8 @@ public abstract class DebugCardBase extends AbstractManagedEnvironment implement
           Node n = ((SidedEnvironment) te).sidedNode(dir);
           if (n != null) return n;
         }
-      } else if (te instanceof Environment) {
-        return ((Environment) te).node();
+      } else if (li.cil.oc.core.impl.server.network.Network.isEnvironment(te)) {
+        return li.cil.oc.core.impl.server.network.Network.environmentNode(te);
       }
     }
     return null;

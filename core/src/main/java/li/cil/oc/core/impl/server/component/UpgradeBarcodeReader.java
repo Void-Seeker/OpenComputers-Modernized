@@ -5,7 +5,6 @@ import li.cil.oc.api.Network;
 import li.cil.oc.api.driver.DeviceInfo;
 import li.cil.oc.api.network.Analyzable;
 import li.cil.oc.api.network.Component;
-import li.cil.oc.api.network.Environment;
 import li.cil.oc.api.network.EnvironmentHost;
 import li.cil.oc.api.network.Message;
 import li.cil.oc.api.network.Node;
@@ -61,8 +60,8 @@ public class UpgradeBarcodeReader extends AbstractManagedEnvironment implements 
           processNodes(((Analyzable) te).onAnalyze((Player) data[2], side, hitX, hitY, hitZ), nbt);
         } else if (te instanceof SidedEnvironment) {
           processNodes(new Node[]{((SidedEnvironment) te).sidedNode(side)}, nbt);
-        } else if (te instanceof Environment) {
-          processNodes(new Node[]{((Environment) te).node()}, nbt);
+        } else if (te instanceof net.minecraft.world.level.block.entity.BlockEntity blockEntity && li.cil.oc.core.impl.server.network.Network.isEnvironment(blockEntity)) {
+          processNodes(new Node[]{li.cil.oc.core.impl.server.network.Network.environmentNode(blockEntity)}, nbt);
         }
       }
     }

@@ -109,17 +109,31 @@ public class Network implements li.cil.oc.api.detail.NetworkAPI, Distributor {
     if (blockEntity instanceof li.cil.oc.core.impl.common.blockentity.RobotProxy) return null;
     if (blockEntity instanceof SidedEnvironment) {
       return ((SidedEnvironment) blockEntity).sidedNode(side);
-    } else if (blockEntity instanceof Environment) {
-      return ((Environment) blockEntity).node();
-    } else if (blockEntity instanceof li.cil.oc.api.network.SimpleComponent) {
-      // (an Environment in OC 1.12, where SidedComponent applied to it)
+    } else if (isEnvironment(blockEntity)) {
+      // as OC 1.12: closed sides of a SidedComponent (it connected on all)
       if (side != null && blockEntity instanceof li.cil.oc.api.network.SidedComponent sided && !sided.canConnectNode(side)) return null;
-      if (simpleComponentHandler != null) return simpleComponentHandler.apply(blockEntity);
-      return null;
+      return environmentNode(blockEntity);
     } else if (cbMultipartAvailable) {
       return getMultiPartNode(blockEntity);
     } else if (capabilityNodeHandler != null) {
       return capabilityNodeHandler.apply(blockEntity, side);
+    }
+    return null;
+  }
+
+  /**
+   * Whether the block entity is an environment as OC 1.12 saw it: one, or a SimpleComponent (which it made one; here it
+   * gets its node from the platform's simpleComponentHandler).
+   */
+  public static boolean isEnvironment(BlockEntity blockEntity) {
+    return blockEntity instanceof Environment || blockEntity instanceof li.cil.oc.api.network.SimpleComponent;
+  }
+
+  /** The node of an environment as OC 1.12 saw it (see isEnvironment); null for other block entities. */
+  public static Node environmentNode(BlockEntity blockEntity) {
+    if (blockEntity instanceof Environment environment) return environment.node();
+    if (blockEntity instanceof li.cil.oc.api.network.SimpleComponent && simpleComponentHandler != null) {
+      return simpleComponentHandler.apply(blockEntity);
     }
     return null;
   }

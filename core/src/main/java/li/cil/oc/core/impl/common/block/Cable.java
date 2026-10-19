@@ -58,13 +58,10 @@ public class Cable extends SimpleBlock implements CustomDrops<li.cil.oc.core.imp
       BlockEntity neighbor = getter.getBlockEntity(neighborPos);
       boolean isOCNeighbor = false;
       int neighborColor = Color.LightGray;
-      if (neighbor instanceof li.cil.oc.api.network.Environment) {
-        if (!(neighbor instanceof li.cil.oc.core.impl.common.blockentity.RobotProxy)
-          && (!(neighbor instanceof SidedEnvironment sideEnv) || sideEnv.canConnect(side))) {
-          isOCNeighbor = true;
-          if (neighbor instanceof li.cil.oc.core.impl.common.blockentity.Cable neighborCable) {
-            neighborColor = neighborCable.color();
-          }
+      if (hasNetworkNode(neighbor, side.getOpposite())) {
+        isOCNeighbor = true;
+        if (neighbor instanceof li.cil.oc.core.impl.common.blockentity.Cable neighborCable) {
+          neighborColor = neighborCable.color();
         }
       }
       if (isOCNeighbor) {
@@ -74,6 +71,17 @@ public class Cable extends SimpleBlock implements CustomDrops<li.cil.oc.core.imp
       }
     }
     return shape;
+  }
+
+  /**
+   * Whether a cable connects to the block entity on its given face (the one toward the cable), as OC 1.12's
+   * Cable.hasNetworkNode, on either side; multipart cables aside. A SimpleComponent counts (an Environment in OC 1.12).
+   */
+  public static boolean hasNetworkNode(BlockEntity blockEntity, Direction face) {
+    if (blockEntity == null || blockEntity instanceof li.cil.oc.core.impl.common.blockentity.RobotProxy) return false;
+    if (blockEntity instanceof SidedEnvironment sided) return sided.canConnect(face);
+    if (!li.cil.oc.core.impl.server.network.Network.isEnvironment(blockEntity)) return false;
+    return !(blockEntity instanceof li.cil.oc.api.network.SidedComponent sided) || sided.canConnectNode(face);
   }
 
   public static VoxelShape armFor(Direction side) {

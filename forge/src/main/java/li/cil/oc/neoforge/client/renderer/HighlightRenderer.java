@@ -5,7 +5,6 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import java.util.Random;
 import li.cil.oc.api.detail.ItemInfo;
-import li.cil.oc.api.network.SidedEnvironment;
 import li.cil.oc.core.Constants;
 import li.cil.oc.core.impl.OCSettings;
 import li.cil.oc.core.impl.client.Textures;
@@ -198,14 +197,8 @@ public final class HighlightRenderer {
       var neighborPos = pos.relative(side);
       var neighbor = level.getBlockEntity(neighborPos);
       if (neighbor != null && !(neighbor instanceof li.cil.oc.neoforge.common.blockentity.RobotProxy)) {
-        boolean hasNode;
-        if (neighbor instanceof SidedEnvironment sided) {
-          hasNode = sided.canConnect(side.getOpposite());
-        } else if (neighbor instanceof li.cil.oc.api.network.Environment) {
-          hasNode = true;
-        } else {
-          hasNode = li.cil.oc.neoforge.common.MultipartHooks.hasOCPart(neighbor);
-        }
+        boolean hasNode = li.cil.oc.core.impl.common.block.Cable.hasNetworkNode(neighbor, side.getOpposite())
+          || li.cil.oc.neoforge.common.MultipartHooks.hasOCPart(neighbor);
         if (hasNode) {
           int neighborColor = li.cil.oc.core.impl.util.Color.LightGray;
           if (neighbor instanceof Cable nc) {

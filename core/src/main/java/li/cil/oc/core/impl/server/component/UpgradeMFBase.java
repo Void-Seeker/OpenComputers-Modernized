@@ -5,7 +5,6 @@ import java.util.function.Consumer;
 import li.cil.oc.api.Network;
 import li.cil.oc.api.driver.DeviceInfo;
 import li.cil.oc.api.driver.DriverBlock;
-import li.cil.oc.api.network.Environment;
 import li.cil.oc.api.network.EnvironmentHost;
 import li.cil.oc.api.network.Node;
 import li.cil.oc.api.network.Visibility;
@@ -34,7 +33,8 @@ public abstract class UpgradeMFBase extends AbstractManagedEnvironment implement
     put(DeviceAttribute.Vendor, Constants.DeviceInfo.Scummtech);
     put(DeviceAttribute.Product, "ERR NAME NOT FOUND");
   }};
-  protected Environment otherEnv = null;
+  // the bound block entity, an environment (see Network.isEnvironment) the MFU connects to directly
+  protected BlockEntity otherEnv = null;
   protected li.cil.oc.api.network.ManagedEnvironment otherDrvEnv = null;
   protected DriverBlock otherDrvDriver = null;
   // the block entity the bound block's environment was made for, and the one last seen at the bound place
@@ -71,13 +71,14 @@ public abstract class UpgradeMFBase extends AbstractManagedEnvironment implement
       BlockPos blockPos = new BlockPos(coord.x(), coord.y(), coord.z());
       BlockEntity te = host.level().getBlockEntity(blockPos);
       seenBlockEntity = te;
-      if (otherEnv != null && otherEnv instanceof BlockEntity) {
-        connectToTileNode((BlockEntity) otherEnv, node::disconnect);
+      if (otherEnv != null) {
+        connectToTileNode(otherEnv, node::disconnect);
         otherEnv = null;
       }
-      if (te instanceof Environment) {
+      // (a SimpleComponent too, as in OC 1.12: it bound a driver's environment, or none, instead of the block's node)
+      if (li.cil.oc.core.impl.server.network.Network.isEnvironment(te)) {
         letGoOfBlock(true);
-        otherEnv = (Environment) te;
+        otherEnv = te;
         connectToTileNode(te, node::connect);
       } else {
         var w = coord.level();
@@ -133,8 +134,8 @@ public abstract class UpgradeMFBase extends AbstractManagedEnvironment implement
   }
 
   private void disconnect() {
-    if (otherEnv != null && otherEnv instanceof BlockEntity) {
-      connectToTileNode((BlockEntity) otherEnv, node::disconnect);
+    if (otherEnv != null) {
+      connectToTileNode(otherEnv, node::disconnect);
       otherEnv = null;
     }
     letGoOfBlock(true);
@@ -170,8 +171,8 @@ public abstract class UpgradeMFBase extends AbstractManagedEnvironment implement
   @Override
   public void onDisconnect(Node node) {
     super.onDisconnect(node);
-    if (otherEnv != null && otherEnv instanceof BlockEntity) {
-      connectToTileNode((BlockEntity) otherEnv, otherNode -> {
+    if (otherEnv != null) {
+      connectToTileNode(otherEnv, otherNode -> {
         if (node == otherNode) otherEnv = null;
       });
     }

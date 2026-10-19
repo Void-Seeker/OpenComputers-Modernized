@@ -1,6 +1,5 @@
 package li.cil.oc.neoforge.common.block;
 
-import li.cil.oc.api.network.SidedEnvironment;
 import li.cil.oc.core.impl.util.Color;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -29,12 +28,11 @@ public class Cable extends li.cil.oc.core.impl.common.block.Cable {
       BlockEntity neighbor = getter.getBlockEntity(neighborPos);
       boolean isOCNeighbor = false;
       int neighborColor = Color.LightGray;
-      if (neighbor instanceof li.cil.oc.api.network.Environment && !(neighbor instanceof li.cil.oc.neoforge.common.blockentity.RobotProxy)) {
-        if (!(neighbor instanceof SidedEnvironment sideEnv) || sideEnv.canConnect(side)) {
-          isOCNeighbor = true;
-          if (neighbor instanceof li.cil.oc.core.impl.common.blockentity.Cable neighborCable) {
-            neighborColor = neighborCable.color();
-          }
+      // (asked about its face toward this cable: it was asked about the opposite one)
+      if (hasNetworkNode(neighbor, side.getOpposite())) {
+        isOCNeighbor = true;
+        if (neighbor instanceof li.cil.oc.core.impl.common.blockentity.Cable neighborCable) {
+          neighborColor = neighborCable.color();
         }
       } else if (li.cil.oc.neoforge.common.MultipartHooks.hasOCPart(neighbor)) {
         isOCNeighbor = true;

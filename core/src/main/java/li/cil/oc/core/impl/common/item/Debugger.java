@@ -107,8 +107,8 @@ public class Debugger extends DelegateItem implements Environment {
     if (te instanceof SidedEnvironment sided) {
       reconnect(new Node[]{sided.sidedNode(side)});
       return InteractionResult.SUCCESS;
-    } else if (te instanceof Environment env) {
-      reconnect(new Node[]{env.node()});
+    } else if (li.cil.oc.core.impl.server.network.Network.isEnvironment(te)) {
+      reconnect(new Node[]{li.cil.oc.core.impl.server.network.Network.environmentNode(te)});
       return InteractionResult.SUCCESS;
     } else {
       n.remove();
