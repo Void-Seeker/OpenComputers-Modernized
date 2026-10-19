@@ -212,6 +212,10 @@ public class Rack extends HubBlockEntity implements PowerAcceptor, PowerBalancer
     super.initialize();
     if (isServer()) {
       EventHandlerDelegate.get().scheduleServer(this);
+      // as a case: what is powered is read once loaded (getInput gave 0 until a neighbour changed)
+      EventHandlerDelegate.get().scheduleServer(() -> {
+        if (!isRemoved()) checkRedstoneInputChanged();
+      });
     }
   }
 
@@ -617,7 +621,8 @@ public class Rack extends HubBlockEntity implements PowerAcceptor, PowerBalancer
         var newValue = li.cil.oc.core.impl.integration.util.BundledRedstone.computeInput(position(), side);
         if (oldValue != newValue) {
           _rsInput[side.ordinal()] = newValue;
-          onRedstoneInputChanged(side.ordinal(), oldValue, newValue);
+          // -1 is "not read yet", not a change (racks saved it: each stopped server with a redstone card woke up by itself)
+          if (oldValue >= 0) onRedstoneInputChanged(side.ordinal(), oldValue, newValue);
         }
         setBundledInput(side, li.cil.oc.core.impl.integration.util.BundledRedstone.computeBundledInput(position(), side));
       }

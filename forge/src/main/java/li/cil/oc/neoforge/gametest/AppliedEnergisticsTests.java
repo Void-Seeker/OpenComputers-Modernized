@@ -34,6 +34,9 @@ public final class AppliedEnergisticsTests {
     helper.assertTrue(item instanceof appeng.api.parts.IPartItem<?>, "AE2's interface part is not here: " + item);
     final var part = appeng.api.parts.PartHelper.setPart(helper.getLevel(), helper.absolutePos(cable), Direction.WEST, null, (appeng.api.parts.IPartItem<?>) item);
     helper.assertTrue(part != null, "the interface part could not be placed");
+    // a second interface on the far face: the one facing the adapter is the one to use
+    final var far = appeng.api.parts.PartHelper.setPart(helper.getLevel(), helper.absolutePos(cable), Direction.EAST, null, (appeng.api.parts.IPartItem<?>) item);
+    helper.assertTrue(far != null, "the second interface part could not be placed");
     helper.setBlock(adapterPos, Blocks.ADAPTER.get());
     helper.runAfterDelay(5, () -> {
       final var adapter = (li.cil.oc.core.impl.common.blockentity.Adapter) helper.getBlockEntity(adapterPos);
@@ -48,7 +51,7 @@ public final class AppliedEnergisticsTests {
         if (node.host() instanceof li.cil.oc.neoforge.integration.appeng.DriverPartInterface.Environment e) found = e;
       }
       helper.assertTrue(found != null, "the adapter made no me_interface for the cable");
-      helper.assertTrue(found.tile() != null, "the me_interface finds no interface part on the cable");
+      helper.assertTrue(found.tile() == part, "the me_interface uses " + found.tile() + ", not the interface facing the adapter " + part);
       helper.succeed();
     });
   }

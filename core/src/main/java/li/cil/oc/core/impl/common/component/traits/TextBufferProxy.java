@@ -137,11 +137,11 @@ public interface TextBufferProxy extends li.cil.oc.api.internal.TextBuffer {
   @SuppressWarnings("SuspiciousNameCombination")
   default void set(int col, int row, String s, boolean vertical) {
     int sLength = ExtendedUnicodeHelper.length(s);
-    if (col < data().width && (col >= 0 || -col < sLength)) {
+    if (col < data().width && (col >= 0 || col > -sLength)) { // (-col overflows for the smallest int)
       int x, y;
       String truncated;
       if (vertical) {
-        if (row < 0 && -row >= sLength) return; // entirely above the screen (the offset ran past the string)
+        if (row <= -sLength) return; // entirely above the screen (the offset ran past the string)
         if (row < 0) {
           x = col;
           y = 0;

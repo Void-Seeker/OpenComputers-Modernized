@@ -690,7 +690,8 @@ public class Case extends BlockEntity implements PowerAcceptor, Computer, Colore
     var newValue = li.cil.oc.core.impl.integration.util.BundledRedstone.computeInput(position(), side);
     if (oldValue != newValue) {
       _input[side.ordinal()] = newValue;
-      onRedstoneInputChanged(side.ordinal(), oldValue, newValue);
+      // -1 is "not read yet", not a change (as for racks)
+      if (oldValue >= 0) onRedstoneInputChanged(side.ordinal(), oldValue, newValue);
     }
     setBundledInput(side, li.cil.oc.core.impl.integration.util.BundledRedstone.computeBundledInput(position(), side));
   }

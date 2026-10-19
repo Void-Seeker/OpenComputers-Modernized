@@ -240,4 +240,20 @@ public final class ScreenTests {
       helper.succeed();
     });
   }
+
+  /** A bitblt of a huge size draws what fits (the size wrapped around in the bounds and it threw). */
+  @GameTest(template = EMPTY, timeoutTicks = 400)
+  public static void bitbltOfAHugeSizeDrawsWhatFits(final GameTestHelper helper) {
+    runCase(helper, "local gpu = component.proxy(component.list('gpu')())\n"
+      + "while not component.list('screen')() do computer.pullSignal(0.1) end\n"
+      + "gpu.bind(component.list('screen')())\n"
+      + "local w, h = gpu.getResolution()\n"
+      + "local page = gpu.allocateBuffer(4, 2)\n"
+      + "local ok, r, why = pcall(gpu.bitblt, 0, w + 2, 1, math.huge, 1, page, 1, 1)\n"
+      + "error('done:' .. tostring(ok) .. ' ' .. tostring(r) .. ' ' .. tostring(why))\n", computer -> {
+      // a Java exception with a message comes back as nil and the message
+      helper.assertTrue(String.valueOf(computer.machine().lastError()).contains("done:true true"), "a huge bitblt: " + computer.machine().lastError());
+      helper.succeed();
+    });
+  }
 }

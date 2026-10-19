@@ -409,6 +409,10 @@ public abstract class RobotBase extends BlockEntity implements li.cil.oc.core.im
       isOutputEnabled = value;
       if (!value) {
         java.util.Arrays.fill(output, 0);
+        for (var colors : bundledOutput) java.util.Arrays.fill(colors, 0); // bundled cables too (they kept their colours)
+        if (getLevel() != null && !getLevel().isClientSide) {
+          for (var side : Direction.values()) onRedstoneOutputChanged(side); // and the blocks it powers through
+        }
       }
       onRedstoneOutputEnabledChanged();
     }
@@ -582,7 +586,9 @@ public abstract class RobotBase extends BlockEntity implements li.cil.oc.core.im
       }
       boolean running = machine.isRunning();
       boolean errored = machine.lastError() != null;
-      if (isRunning != running || hasErrored != errored || !outputStateChecked) {
+      // a loaded robot's machine is loaded in initialize, after its first tick: not running until then (its outputs
+      // were switched off and stayed off)
+      if (!machinePending() && (isRunning != running || hasErrored != errored || !outputStateChecked)) {
         outputStateChecked = true;
         isRunning = running;
         hasErrored = errored;
@@ -612,7 +618,7 @@ public abstract class RobotBase extends BlockEntity implements li.cil.oc.core.im
           player().getAttributes().addTransientAttributeModifiers(tool.getAttributeModifiers(EquipmentSlot.MAINHAND));
         }
       }
-      if (shouldUpdateInput) {
+      if (shouldUpdateInput && !machinePending()) {
         shouldUpdateInput = false;
         try {
           for (net.minecraft.core.Direction side : net.minecraft.core.Direction.values()) {
@@ -866,6 +872,11 @@ public abstract class RobotBase extends BlockEntity implements li.cil.oc.core.im
 
   @SuppressWarnings("unused")
   public abstract boolean hasRedstoneCard();
+
+  /** Whether the machine saved with this robot is still to be loaded. */
+  protected boolean machinePending() {
+    return false;
+  }
 
   @SuppressWarnings("unused")
   public abstract java.util.List<li.cil.oc.api.network.Environment> agentComponents();

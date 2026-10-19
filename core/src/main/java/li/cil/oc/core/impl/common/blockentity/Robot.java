@@ -751,6 +751,11 @@ public abstract class Robot extends RobotBase implements Computer, PowerInformat
     }
   }
 
+  @Override
+  protected boolean machinePending() {
+    return pendingMachineNbt != null;
+  }
+
   public void onBlockEntityLoad() {
     syncFromBlockState(getBlockState());
     if (isServer()) {

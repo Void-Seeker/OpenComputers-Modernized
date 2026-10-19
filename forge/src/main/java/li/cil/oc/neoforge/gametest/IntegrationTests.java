@@ -223,7 +223,10 @@ public final class IntegrationTests {
     });
   }
 
-  /** A block whose drivers changed keeps its component address (it got a new one: programs lost it). */
+  /**
+   * The address alone can be taken over (the adapter does for the same block made up of other drivers now); the data
+   * of another set of drivers is not loaded, as in OC.
+   */
   @GameTest(template = EMPTY)
   public static void compoundBlockKeepsItsAddressWhenItsDriversChange(final GameTestHelper helper) {
     final java.util.function.Supplier<li.cil.oc.api.network.ManagedEnvironment> env = () -> new li.cil.oc.api.prefab.AbstractManagedEnvironment() {
@@ -236,9 +239,53 @@ public final class IntegrationTests {
     final var tag = new net.minecraft.nbt.CompoundTag();
     before.save(tag, helper.getLevel().registryAccess());
     before.node().remove();
+    final var other = new li.cil.oc.core.impl.server.driver.CompoundBlockEnvironment("test", new String[]{"one"}, new li.cil.oc.api.network.ManagedEnvironment[]{env.get()});
+    other.load(tag, helper.getLevel().registryAccess());
+    helper.assertTrue(!address.equals(other.node().address()), "another set of drivers took over the address");
     final var after = new li.cil.oc.core.impl.server.driver.CompoundBlockEnvironment("test", new String[]{"one"}, new li.cil.oc.api.network.ManagedEnvironment[]{env.get()});
-    after.load(tag, helper.getLevel().registryAccess());
+    after.loadAddress(tag, helper.getLevel().registryAccess());
     helper.assertTrue(address != null && address.equals(after.node().address()), "the address " + address + " became " + after.node().address());
     helper.succeed();
+  }
+
+  private static String blockAddress(final li.cil.oc.core.impl.common.blockentity.Adapter adapter) {
+    for (final var node : adapter.node().reachableNodes()) {
+      if (node.host() instanceof li.cil.oc.core.impl.server.driver.CompoundBlockEnvironment) return node.address();
+    }
+    return null;
+  }
+
+  /** A block placed where another was keeps no address of the old one; the same block placed again gets its own back. */
+  @GameTest(template = EMPTY, timeoutTicks = 100)
+  public static void adapterGivesAReplacedBlockItsOwnAddress(final GameTestHelper helper) {
+    final var storage = new net.minecraftforge.energy.EnergyStorage(1000);
+    final LazyOptional<net.minecraftforge.energy.IEnergyStorage> energy = LazyOptional.of(() -> storage);
+    final ICapabilityProvider provider = new ICapabilityProvider() {
+      @Override
+      public <T> @NotNull LazyOptional<T> getCapability(@NotNull Capability<T> cap, @Nullable Direction side) {
+        return cap == ForgeCapabilities.ENERGY ? energy.cast() : LazyOptional.empty();
+      }
+    };
+    final BlockPos device = AT.east();
+    placeWithCapability(helper, device, provider, "test_energy_any");
+    helper.setBlock(AT, Blocks.ADAPTER.get());
+    helper.runAfterDelay(10, () -> {
+      final var adapter = (li.cil.oc.core.impl.common.blockentity.Adapter) helper.getBlockEntity(AT);
+      adapter.neighborChanged(Direction.EAST);
+      final String first = blockAddress(adapter);
+      helper.setBlock(device, net.minecraft.world.level.block.Blocks.AIR);
+      adapter.neighborChanged(Direction.EAST);
+      placeWithCapability(helper, device, provider, "test_energy_any");
+      adapter.neighborChanged(Direction.EAST);
+      final String again = blockAddress(adapter);
+      helper.setBlock(device, net.minecraft.world.level.block.Blocks.AIR);
+      adapter.neighborChanged(Direction.EAST);
+      helper.setBlock(device, net.minecraft.world.level.block.Blocks.FURNACE);
+      adapter.neighborChanged(Direction.EAST);
+      final String furnace = blockAddress(adapter);
+      helper.assertTrue(first != null && first.equals(again), "the same block placed again got " + again + " instead of " + first);
+      helper.assertTrue(furnace != null && !furnace.equals(first), "a furnace placed where the block was got its address " + furnace);
+      helper.succeed();
+    });
   }
 }

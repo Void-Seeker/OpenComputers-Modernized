@@ -260,4 +260,139 @@ public final class ComputerRedstoneTests {
     helper.assertTrue(rack.getOutput(Direction.UP) == 0, "a rack switched off still outputs " + rack.getOutput(Direction.UP));
     helper.succeed();
   }
+
+  private static int total(final int[] values) {
+    int n = 0;
+    for (final int v : values) n += v;
+    return n;
+  }
+
+  /**
+   * A running robot reloaded with its chunk still drives its outputs (its first tick comes before its machine is loaded,
+   * in initialize: it was not running yet, and the outputs were switched off for good).
+   */
+  @GameTest(template = EMPTY, timeoutTicks = 400)
+  public static void reloadedRobotKeepsItsOutputs(final GameTestHelper helper) {
+    TestMachines.runRobot(helper, AT, List.of(Constants.ItemName.RedstoneCardTier1),
+      "component.proxy(component.list('redstone')()).setOutput(3, 15)\nwhile true do computer.pullSignal(1) end\n",
+      40, (robot, result) -> {
+        helper.assertTrue(robot.isOutputEnabled() && total(robot.output()) == 15, "the running robot outputs " + java.util.Arrays.toString(robot.output()));
+        final BlockPos abs = helper.absolutePos(AT);
+        final var proxy = (li.cil.oc.core.impl.common.blockentity.RobotProxy) helper.getLevel().getBlockEntity(abs);
+        proxy.markUnloading();
+        final var saved = proxy.saveWithFullMetadata();
+        helper.getLevel().removeBlockEntity(abs);
+        final var loaded = (li.cil.oc.core.impl.common.blockentity.RobotProxy) net.minecraft.world.level.block.entity.BlockEntity.loadStatic(abs, helper.getLevel().getBlockState(abs), saved);
+        helper.getLevel().getChunkAt(abs).addAndRegisterBlockEntity(loaded);
+        loaded.updateEntity(); // a loaded chunk's block entities tick in the same tick, before what initialize schedules
+        helper.runAfterDelay(40, () -> {
+          final var again = loaded.robot;
+          helper.assertTrue(again.machine().isRunning(), "the reloaded robot stopped: " + again.machine().lastError());
+          helper.assertTrue(again.isOutputEnabled() && total(again.output()) == 15, "the reloaded robot outputs " + java.util.Arrays.toString(again.output()) + ", enabled " + again.isOutputEnabled());
+          helper.succeed();
+        });
+      });
+  }
+
+  /** A stopped robot lets go of what it powers through a block, and of its bundled outputs (a lamp behind stayed lit; cables kept their colours). */
+  @GameTest(template = EMPTY, timeoutTicks = 300)
+  public static void stoppedRobotLetsGoOfWhatItPowers(final GameTestHelper helper) {
+    // the robot faces south: its front (3) is south
+    final BlockPos lamp = AT.south().south();
+    helper.setBlock(AT.south(), net.minecraft.world.level.block.Blocks.STONE);
+    helper.setBlock(lamp, net.minecraft.world.level.block.Blocks.REDSTONE_LAMP);
+    TestMachines.runRobot(helper, AT, List.of(Constants.ItemName.RedstoneCardTier1),
+      "component.proxy(component.list('redstone')()).setOutput(3, 15)\nwhile true do computer.pullSignal(1) end\n",
+      40, (robot, result) -> {
+        helper.assertTrue(helper.getBlockState(lamp).getValue(RedstoneLampBlock.LIT), "the lamp behind the block the robot powers is off: " + java.util.Arrays.toString(robot.output()));
+        robot.bundledOutput()[Direction.SOUTH.ordinal()][0] = 15; // as a bundled card sets it
+        robot.machine().stop();
+        helper.runAfterDelay(20, () -> {
+          helper.assertTrue(!robot.isOutputEnabled(), "the stopped robot's outputs are still enabled");
+          helper.assertTrue(!helper.getBlockState(lamp).getValue(RedstoneLampBlock.LIT), "the stopped robot's lamp behind the block is still lit");
+          helper.assertTrue(robot.bundledOutput()[Direction.SOUTH.ordinal()][0] == 0, "the stopped robot keeps its bundled output");
+          helper.succeed();
+        });
+      });
+  }
+
+  /** A rack's first reading of a side is no change: a stopped server with a redstone card stays off (it started by itself). */
+  @GameTest(template = EMPTY, timeoutTicks = 200)
+  public static void rackServerIsNotWokenByTheFirstReading(final GameTestHelper helper) {
+    helper.setBlock(AT, Blocks.RACK.get());
+    helper.runAfterDelay(5, () -> {
+      final var rack = (li.cil.oc.core.impl.common.blockentity.Rack) helper.getBlockEntity(AT);
+      rack.setItem(0, li.cil.oc.api.Items.get(Constants.ItemName.ServerTier1).createItemStack(1));
+      final var server = (li.cil.oc.core.impl.server.component.ServerBase) rack.getMountable(0);
+      helper.assertTrue(server != null, "the rack made no server mountable");
+      for (final ItemStack part : List.of(li.cil.oc.api.Items.get(Constants.ItemName.CPUTier1).createItemStack(1),
+        li.cil.oc.api.Items.get(Constants.ItemName.RAMTier2).createItemStack(1), li.cil.oc.api.Items.get(Constants.ItemName.RedstoneCardTier1).createItemStack(1),
+        li.cil.oc.api.Items.registerEEPROM("rack test", "while true do computer.pullSignal(1) end\n".getBytes(java.nio.charset.StandardCharsets.UTF_8), null, false))) {
+        int slot = -1;
+        for (int i = 0; i < server.getContainerSize() && slot < 0; i++) {
+          if (server.getItem(i).isEmpty() && server.canPlaceItem(i, part)) slot = i;
+        }
+        helper.assertTrue(slot >= 0, "no server slot takes " + part);
+        server.setItem(slot, part);
+      }
+      helper.runAfterDelay(5, () -> {
+        ((li.cil.oc.api.network.Connector) server.machine().node()).changeBuffer(1000);
+        java.util.Arrays.fill(rack.input(), -1); // as racks were saved
+        helper.setBlock(AT.east(), net.minecraft.world.level.block.Blocks.REDSTONE_BLOCK);
+        rack.checkRedstoneInputChanged();
+        helper.runAfterDelay(20, () -> {
+          helper.assertTrue(!server.machine().isRunning(), "the stopped server started by itself");
+          helper.succeed();
+        });
+      });
+    });
+  }
+
+  /** A placed rack reads what is powered (its inputs read 0 until a neighbour changed). */
+  @GameTest(template = EMPTY)
+  public static void placedRackReadsWhatIsPowered(final GameTestHelper helper) {
+    helper.setBlock(AT.east(), net.minecraft.world.level.block.Blocks.REDSTONE_BLOCK);
+    helper.setBlock(AT, Blocks.RACK.get());
+    helper.runAfterDelay(3, () -> {
+      final var rack = (li.cil.oc.core.impl.common.blockentity.Rack) helper.getBlockEntity(AT);
+      helper.assertTrue(rack.getInput(Direction.EAST) == 15, "a rack placed by a redstone block reads " + rack.getInput(Direction.EAST));
+      helper.succeed();
+    });
+  }
+
+  /** A running case reloaded with its chunk still drives its outputs (its machine is loaded in initialize too, as a robot's). */
+  @GameTest(template = EMPTY, timeoutTicks = 400)
+  public static void reloadedCaseKeepsItsOutputs(final GameTestHelper helper) {
+    helper.setBlock(AT, Blocks.CASE_CREATIVE.get());
+    final var computer = (Case) helper.getBlockEntity(AT);
+    for (final ItemStack part : List.of(li.cil.oc.api.Items.get(Constants.ItemName.CPUTier1).createItemStack(1),
+      li.cil.oc.api.Items.get(Constants.ItemName.RAMTier2).createItemStack(1), li.cil.oc.api.Items.get(Constants.ItemName.RedstoneCardTier1).createItemStack(1),
+      li.cil.oc.api.Items.registerEEPROM("case test", "component.proxy(component.list('redstone')()).setOutput(3, 15)\nwhile true do computer.pullSignal(1) end\n"
+        .getBytes(java.nio.charset.StandardCharsets.UTF_8), null, false))) {
+      int slot = -1;
+      for (int i = 0; i < computer.getContainerSize() && slot < 0; i++) {
+        if (computer.getItem(i).isEmpty() && computer.canPlaceItem(i, part)) slot = i;
+      }
+      helper.assertTrue(slot >= 0, "no case slot takes " + part);
+      computer.setItem(slot, part);
+    }
+    helper.runAfterDelay(5, () -> {
+      helper.assertTrue(computer.machine().start(), "the case did not start: " + computer.machine().lastError());
+      helper.runAfterDelay(60, () -> {
+        helper.assertTrue(computer.isOutputEnabled() && total(computer.output()) == 15, "the running case outputs " + java.util.Arrays.toString(computer.output()));
+        final BlockPos abs = helper.absolutePos(AT);
+        computer.markUnloading();
+        final var saved = computer.saveWithFullMetadata();
+        helper.getLevel().removeBlockEntity(abs);
+        final var loaded = (Case) net.minecraft.world.level.block.entity.BlockEntity.loadStatic(abs, helper.getLevel().getBlockState(abs), saved);
+        helper.getLevel().getChunkAt(abs).addAndRegisterBlockEntity(loaded);
+        loaded.updateEntity(); // a loaded chunk's block entities tick in the same tick, before what initialize schedules
+        helper.runAfterDelay(40, () -> {
+          helper.assertTrue(loaded.machine().isRunning(), "the reloaded case stopped: " + loaded.machine().lastError());
+          helper.assertTrue(loaded.isOutputEnabled() && total(loaded.output()) == 15, "the reloaded case outputs " + java.util.Arrays.toString(loaded.output()) + ", enabled " + loaded.isOutputEnabled());
+          helper.succeed();
+        });
+      });
+    });
+  }
 }

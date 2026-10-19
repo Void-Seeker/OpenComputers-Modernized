@@ -148,16 +148,24 @@ public abstract class MachineBase extends AbstractManagedEnvironment implements 
    * for one busy in a call: in single player the next world runs in the same game, and their Lua states leaked.
    */
   public static void closeAll() {
-    for (var machine : snapshot()) {
-      try {
-        for (int attempt = 0; attempt < 100 && !machine.close(); attempt++) {
-          Thread.sleep(10);
+    var open = snapshot();
+    // two seconds for all of them together (each busy one waited two seconds in turn, holding up the stop)
+    long deadline = System.nanoTime() + 2_000_000_000L;
+    while (true) {
+      open.removeIf(machine -> {
+        try {
+          return machine.close();
+        } catch (Throwable t) {
+          LOGGER.warn("Could not close a computer at server stop.", t);
+          return true;
         }
+      });
+      if (open.isEmpty() || System.nanoTime() > deadline) return;
+      try {
+        Thread.sleep(10);
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
         return;
-      } catch (Throwable t) {
-        LOGGER.warn("Could not close a computer at server stop.", t);
       }
     }
   }

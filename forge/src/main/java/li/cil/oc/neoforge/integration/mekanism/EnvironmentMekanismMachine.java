@@ -37,28 +37,25 @@ public class EnvironmentMekanismMachine extends ManagedBlockEntityEnvironment<IC
   }
 
   private void rebind() {
-    if (BlockEntity.isComputerCapabilityPersistent()) return;
+    if (!isMultiblock() || BlockEntity.isComputerCapabilityPersistent()) return;
     final long now = gameTime();
     if (now == boundAt) return;
     boundAt = now;
     final Holder fresh = new Holder();
     BlockEntity.getComputerMethods(fresh);
-    final boolean methodsChanged = !java.util.Arrays.equals(holder.methodNames(), fresh.methodNames());
     holder = fresh;
-    final var self = node();
-    if (methodsChanged && self != null && self.network() != null) {
-      // other methods (the multiblock formed or broke up): seen again by the computers, as a component added anew,
-      // so a primary proxy made with the old list is replaced
-      final List<li.cil.oc.api.network.Node> neighbors = new java.util.ArrayList<>();
-      for (final var n : self.neighbors()) neighbors.add(n);
-      for (final var n : neighbors) self.disconnect(n);
-      for (final var n : neighbors) n.connect(self);
-    }
+  }
+
+  // Only multiblocks bind to something that changes (without ComputerCraft or OC2 every Mekanism tile says it is not
+  // persistent: all of them rebinding every tick was a waste). A program that made a proxy before the multiblock
+  // formed calls the new methods with component.invoke or a proxy made again.
+  private boolean isMultiblock() {
+    return BlockEntity instanceof mekanism.common.tile.prefab.TileEntityMultiblock<?>;
   }
 
   @Override
   public boolean canUpdate() {
-    return !BlockEntity.isComputerCapabilityPersistent();
+    return isMultiblock() && !BlockEntity.isComputerCapabilityPersistent();
   }
 
   @Override
