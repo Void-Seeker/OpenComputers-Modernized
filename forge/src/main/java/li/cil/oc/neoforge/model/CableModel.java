@@ -102,11 +102,12 @@ public class CableModel implements IDynamicBakedModel {
           boolean isCableNeighbor = cableNeighbors != null && cableNeighbors.contains(dir);
           if (!isCableNeighbor) {
             double[] plug = plugBox(dir);
-            emitBox(quads, getCapSprite(), plug[0], plug[1], plug[2], plug[3], plug[4], plug[5], 0);
+            // plugs and caps untinted, as OC 1.12 (and the item here): only the cable takes its colour
+            emitBox(quads, getCapSprite(), plug[0], plug[1], plug[2], plug[3], plug[4], plug[5], -1);
           }
         } else if (isUnconnectedCap(mask, dir)) {
           double[] cap = capBox(dir);
-          emitBox(quads, getCapSprite(), cap[0], cap[1], cap[2], cap[3], cap[4], cap[5], 0);
+          emitBox(quads, getCapSprite(), cap[0], cap[1], cap[2], cap[3], cap[4], cap[5], -1);
         }
       }
     } else {

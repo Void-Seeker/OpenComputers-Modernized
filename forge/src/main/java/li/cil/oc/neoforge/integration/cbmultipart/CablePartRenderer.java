@@ -83,7 +83,8 @@ public class CablePartRenderer implements PartRenderer<CablePart> {
     var poseStack = new PoseStack();
 
     renderBody(poseStack, bodyBuilder, mask, r, g, b, packedLight);
-    renderCaps(poseStack, capBuilder, mask, pos, level, r, g, b, packedLight);
+    // plugs and caps untinted, as OC 1.12 and block cables: only the cable takes its colour
+    renderCaps(poseStack, capBuilder, mask, pos, level, 1f, 1f, 1f, packedLight);
 
     bodyBuilder.sprite(bodySprite);
     var result = new ArrayList<BakedQuad>();

@@ -260,7 +260,8 @@ public class PrintModel implements IDynamicBakedModel {
 
     @Override
     public @NotNull List<RenderType> getRenderTypes(@NotNull ItemStack itemStack, boolean fabulous) {
-      return List.of(RenderType.cutout());
+      // shaded as items are (a chunk render type lit every face alike, as it had the drone and robot items)
+      return List.of(net.minecraftforge.client.RenderTypeHelper.getEntityRenderType(RenderType.cutout(), fabulous));
     }
 
     @Override
