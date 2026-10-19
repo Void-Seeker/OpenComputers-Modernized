@@ -654,7 +654,9 @@ public class Network implements li.cil.oc.api.detail.NetworkAPI, Distributor {
     if (!BlockEntity.isRemoved() && level != null && !level.isClientSide) {
       for (Direction side : Direction.values()) {
         BlockPos pos = BlockEntity.getBlockPos().relative(side);
-        if (level.hasChunk(pos.getX() >> 4, pos.getZ() >> 4)) {
+        // ready, not only on its way (the join waited for a neighbour chunk still loading); the neighbour joins this one
+        // once its own chunk is in
+        if (li.cil.oc.core.impl.util.LoadedChunks.isReady(level, pos)) {
           Node localNode = getNetworkNode(BlockEntity, side);
           BlockEntity neighborBlockEntity = level.getBlockEntity(pos);
           Node neighborNode = getNetworkNode(neighborBlockEntity, side.getOpposite());

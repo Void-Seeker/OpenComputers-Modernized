@@ -564,10 +564,12 @@ public final class ScreenTests {
     level.getChunkSource().addRegionTicket(type, chunk, 0, chunk); // loaded, at the border: no ticking
     final Runnable cleanup = () -> {
       for (int dx = -2; dx <= 7; dx++) { // (all in its chunk)
-        for (int dy = -1; dy <= 1; dy++) {
-          final BlockPos pos = far.offset(dx, dy, 0);
+        for (int dy = -1; dy <= 2; dy++) {
+          for (int dz = -1; dz <= 3; dz++) {
+          final BlockPos pos = far.offset(dx, dy, dz);
           level.removeBlockEntity(pos);
-          level.setBlock(pos, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 2);
+          level.setBlock(pos, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 2 | 16); // (no updates into the next chunk)
+          }
         }
       }
       level.getChunkSource().removeRegionTicket(type, chunk, 0, chunk);
@@ -675,6 +677,49 @@ public final class ScreenTests {
           level.setBlock(edge.east(), net.minecraft.world.level.block.Blocks.STONE.defaultBlockState(), 2 | 16);
           ((li.cil.oc.core.impl.common.blockentity.Screen) level.getBlockEntity(edge)).checkRedstoneInputChanged();
           helper.assertTrue(level.getChunkSource().getChunkNow(next.x, next.z) == null, "reading the screen's inputs loaded the next chunk");
+        } finally {
+          cleanup.run();
+        }
+        helper.succeed();
+      });
+    });
+  }
+
+  /**
+   * Reading through stone to powered dust at a chunk's edge loads no chunk beyond (dust's signal is read from what is
+   * around it, in the next chunk), and a redstone block on a screen at the edge is read (it needs nothing beyond).
+   */
+  @GameTest(template = EMPTY, timeoutTicks = 200)
+  public static void screenReadsAtTheChunkEdgeWithoutLoadingMore(final GameTestHelper helper) {
+    final var level = helper.getLevel();
+    inAChunkThatDoesNotTick(helper, 3, (far, cleanup) -> {
+      final BlockPos screenPos = far.offset(5, 0, 0); // x 13: stone at 14, powered dust at 15, the next chunk at 16
+      final BlockPos dust = screenPos.east(2);
+      final BlockPos edgeScreen = far.offset(7, 0, 3); // x 15: on the edge column
+      final var next = new net.minecraft.world.level.ChunkPos(dust.east());
+      try {
+        level.setBlock(screenPos, Blocks.SCREEN_TIER_1.get().defaultBlockState(), 3);
+        level.setBlock(edgeScreen, Blocks.SCREEN_TIER_1.get().defaultBlockState(), 2 | 16);
+        level.setBlock(screenPos.east(), net.minecraft.world.level.block.Blocks.STONE.defaultBlockState(), 2 | 16);
+        level.setBlock(dust.below(), net.minecraft.world.level.block.Blocks.STONE.defaultBlockState(), 2 | 16);
+        level.setBlock(dust.north(), net.minecraft.world.level.block.Blocks.REDSTONE_BLOCK.defaultBlockState(), 2 | 16);
+        // its placement reads what is around it (the next chunk comes in for a tick): powered by the block beside it
+        level.setBlock(dust, net.minecraft.world.level.block.Blocks.REDSTONE_WIRE.defaultBlockState(), 2 | 16);
+      } catch (RuntimeException e) {
+        cleanup.run();
+        throw e;
+      }
+      TestMachines.when(helper, () -> level.getChunkSource().getChunkNow(next.x, next.z) == null, 60, () -> {
+        try {
+          helper.assertTrue(level.getBlockState(dust).getValue(net.minecraft.world.level.block.RedStoneWireBlock.POWER) > 0, "the dust is not powered");
+          helper.assertTrue(level.getChunkSource().getChunkNow(next.x, next.z) == null, "the next chunk stays loaded");
+          ((li.cil.oc.core.impl.common.blockentity.Screen) level.getBlockEntity(screenPos)).checkRedstoneInputChanged();
+          helper.assertTrue(level.getChunkSource().getChunkNow(next.x, next.z) == null, "reading through stone to dust loaded the next chunk");
+          // set now that the next chunk is gone again (read while it was in, it proved nothing)
+          level.setBlock(edgeScreen.above(), net.minecraft.world.level.block.Blocks.REDSTONE_BLOCK.defaultBlockState(), 2 | 16);
+          final var edge = (li.cil.oc.core.impl.common.blockentity.Screen) level.getBlockEntity(edgeScreen);
+          edge.checkRedstoneInputChanged();
+          helper.assertTrue(edge.maxInput() == 15, "a screen on the chunk's edge does not read the redstone block on it: " + edge.maxInput());
         } finally {
           cleanup.run();
         }

@@ -28,10 +28,25 @@ public final class BundledRedstone {
     var level = pos.level();
     var beyond = pos.offset(side).toBlockPos();
     if (!li.cil.oc.core.impl.util.LoadedChunks.isReady(level, beyond)) return false;
-    // and what is around it: a solid block's signal is read from its own neighbours (one in a chunk not loaded yet was
-    // loaded there and then, the server thread waiting, beyond the loaded area)
+    // And what its signal is read from: a solid block's comes from its neighbours, powered dust's from what is around
+    // it. One in a chunk not loaded yet was loaded there and then, the server thread waiting, beyond the loaded area.
+    // Other blocks (levers, torches, redstone blocks) give their own: no more chunks for them.
+    var state = level.getBlockState(beyond);
+    if (state.isRedstoneConductor(level, beyond)) {
+      for (Direction around : Direction.Plane.HORIZONTAL) {
+        var next = beyond.relative(around);
+        if (!li.cil.oc.core.impl.util.LoadedChunks.isReady(level, next)) return false;
+        if (level.getBlockState(next).is(net.minecraft.world.level.block.Blocks.REDSTONE_WIRE) && !aroundReady(level, next)) return false;
+      }
+    } else if (state.is(net.minecraft.world.level.block.Blocks.REDSTONE_WIRE)) {
+      return aroundReady(level, beyond);
+    }
+    return true;
+  }
+
+  private static boolean aroundReady(net.minecraft.world.level.Level level, net.minecraft.core.BlockPos pos) {
     for (Direction around : Direction.Plane.HORIZONTAL) {
-      if (!li.cil.oc.core.impl.util.LoadedChunks.isReady(level, beyond.relative(around))) return false;
+      if (!li.cil.oc.core.impl.util.LoadedChunks.isReady(level, pos.relative(around))) return false;
     }
     return true;
   }
