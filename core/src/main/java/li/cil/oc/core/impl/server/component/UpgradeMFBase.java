@@ -37,8 +37,9 @@ public abstract class UpgradeMFBase extends AbstractManagedEnvironment implement
   protected Environment otherEnv = null;
   protected li.cil.oc.api.network.ManagedEnvironment otherDrvEnv = null;
   protected DriverBlock otherDrvDriver = null;
-  // the block entity the bound block's environment was made for
+  // the block entity the bound block's environment was made for, and the one last seen at the bound place
   private BlockEntity boundBlockEntity = null;
+  private BlockEntity seenBlockEntity = null;
   protected BlockData blockData = null;
 
   public UpgradeMFBase(EnvironmentHost host, BlockPosition coord, Direction dir) {
@@ -69,6 +70,7 @@ public abstract class UpgradeMFBase extends AbstractManagedEnvironment implement
     if (node.network() != null && coord.level() != null && coord.level().dimension().location().hashCode() == host.level().dimension().location().hashCode() && coord.toVec3().distanceTo(new Vec3(host.xPosition(), host.yPosition(), host.zPosition())) <= OCSettings.get().mfuRange) {
       BlockPos blockPos = new BlockPos(coord.x(), coord.y(), coord.z());
       BlockEntity te = host.level().getBlockEntity(blockPos);
+      seenBlockEntity = te;
       if (otherEnv != null && otherEnv instanceof BlockEntity) {
         connectToTileNode((BlockEntity) otherEnv, node::disconnect);
         otherEnv = null;
@@ -88,8 +90,8 @@ public abstract class UpgradeMFBase extends AbstractManagedEnvironment implement
           if (otherDrvEnv != null) {
             boolean driversChanged = !java.util.Objects.equals(otherDrvDriver, newDriver);
             if (driversChanged || te != boundBlockEntity) {
+              if (driversChanged) blockData = null; // (first: what letting go sets off may bind the block anew)
               letGoOfBlock(!driversChanged);
-              if (driversChanged) blockData = null;
             }
           }
           if (otherDrvEnv == null) {
@@ -148,6 +150,10 @@ public abstract class UpgradeMFBase extends AbstractManagedEnvironment implement
       if (!consumeEnergy(OCSettings.get().mfuCost * OCSettings.get().tickFrequency *
         coord.toVec3().distanceTo(new Vec3(host.xPosition(), host.yPosition(), host.zPosition())))) {
         disconnect();
+      } else if (seenBlockEntity != null && seenBlockEntity.isRemoved()
+        && host.level().isLoaded(new BlockPos(coord.x(), coord.y(), coord.z()))) {
+        // the bound block's chunk came back with new block entities, and no block update (it kept the removed one)
+        updateBoundState();
       }
     }
   }
@@ -175,6 +181,9 @@ public abstract class UpgradeMFBase extends AbstractManagedEnvironment implement
     }
     if (node == this.node) {
       unregisterBlockChangeListener();
+      // the block's node goes too (it was left orphaned, and the MFU, back in a network, thought it still bound)
+      letGoOfBlock(true);
+      otherEnv = null;
     }
   }
 

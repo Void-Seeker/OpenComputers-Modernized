@@ -138,6 +138,14 @@ public class Adapter extends BlockEntity implements li.cil.oc.api.network.Enviro
     if (node == this.node) {
       connectComponents();
       neighborChanged();
+      // back in a network: what updates ticks again (the disconnect cleared the list, and nothing put back the parts
+      // and blocks it already had: an MFU stopped drawing energy, a Mekanism port stopped following its multiblock)
+      for (var component : componentEnvironments()) {
+        if (component != null && component.canUpdate() && !updatingBlocks.contains(component)) updatingBlocks.add(component);
+      }
+      for (var block : blocks) {
+        if (block instanceof ManagedEnvironment managed && managed.canUpdate() && !updatingBlocks.contains(managed)) updatingBlocks.add(managed);
+      }
     }
   }
 

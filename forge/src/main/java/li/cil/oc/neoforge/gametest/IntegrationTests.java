@@ -984,7 +984,7 @@ public final class IntegrationTests {
   }
 
   /** An MFU out of energy lets go of its block (it threw) and takes it back with its address once powered. */
-  @GameTest(template = EMPTY, timeoutTicks = 150)
+  @GameTest(template = EMPTY, timeoutTicks = 200)
   public static void mfuLetsGoWithoutEnergyAndTakesItBack(final GameTestHelper helper) {
     mfuBoundToAFurnace(helper, false, adapter -> {
       final var first = blockNode(adapter);
@@ -998,7 +998,11 @@ public final class IntegrationTests {
           helper.setBlock(MFU_FURNACE, helper.getBlockState(MFU_FURNACE).setValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.LIT, true));
           final var again = blockNode(adapter);
           helper.assertTrue(again != null && first.address().equals(again.address()), "the powered MFU gave the furnace " + (again == null ? null : again.address()) + " instead of " + first.address());
-          helper.succeed();
+          helper.runAfterDelay(25, () -> { // powered now: it keeps the block past its energy beats
+            final var still = blockNode(adapter);
+            helper.assertTrue(still != null && first.address().equals(still.address()), "the powered MFU let go of its furnace again");
+            helper.succeed();
+          });
         });
       });
     });
@@ -1027,6 +1031,62 @@ public final class IntegrationTests {
       }
       helper.assertTrue(held == fresh, "the MFU's furnace environment holds " + held + ", not the furnace's block entity now");
       helper.assertTrue(first.address().equals(then.address()), "the furnace got " + then.address() + " instead of " + first.address());
+      helper.succeed();
+    }));
+  }
+
+  private static Object heldBlockEntity(final li.cil.oc.api.network.Node node) {
+    try {
+      final var field = li.cil.oc.core.impl.integration.ManagedBlockEntityEnvironment.class.getDeclaredField("BlockEntity");
+      field.setAccessible(true);
+      for (final var env : ((li.cil.oc.core.impl.server.driver.CompoundBlockEnvironment) node.host()).environments()) {
+        if (env instanceof li.cil.oc.core.impl.integration.ManagedBlockEntityEnvironment<?>) return field.get(env);
+      }
+      return null;
+    } catch (ReflectiveOperationException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  /**
+   * An MFU follows the new block entity its block's chunk comes back with, keeping the address, though nothing updates
+   * the block (it kept the removed one until the block next changed).
+   */
+  @GameTest(template = EMPTY, timeoutTicks = 100)
+  public static void mfuFollowsABlockEntityReloadedWithItsChunk(final GameTestHelper helper) {
+    mfuBoundToAFurnace(helper, true, adapter -> helper.runAfterDelay(5, () -> {
+      final var first = blockNode(adapter);
+      final BlockPos abs = helper.absolutePos(MFU_FURNACE);
+      helper.getLevel().removeBlockEntity(abs); // what a chunk unload and load does, without a block update
+      final var fresh = new net.minecraft.world.level.block.entity.FurnaceBlockEntity(abs, helper.getLevel().getBlockState(abs));
+      helper.getLevel().setBlockEntity(fresh);
+      TestMachines.when(helper, () -> blockNode(adapter) != null && heldBlockEntity(blockNode(adapter)) == fresh, 40, () -> {
+        final var then = blockNode(adapter);
+        helper.assertTrue(then != null && heldBlockEntity(then) == fresh, "the MFU's furnace environment holds the removed block entity");
+        helper.assertTrue(first.address().equals(then.address()), "the furnace got " + then.address() + " instead of " + first.address());
+        helper.succeed();
+      });
+    }));
+  }
+
+  /**
+   * An adapter whose node leaves its network and joins again gets its MFU's block back with its address, and ticks its
+   * parts again (the block's node was orphaned and the MFU thought it still bound; the MFU no longer ticked).
+   */
+  @GameTest(template = EMPTY, timeoutTicks = 100)
+  public static void mfuTakesItsBlockBackWhenTheAdapterRejoins(final GameTestHelper helper) {
+    mfuBoundToAFurnace(helper, true, adapter -> helper.runAfterDelay(5, () -> {
+      final var first = blockNode(adapter);
+      helper.assertTrue(first != null, "the MFU bound nothing");
+      adapter.node().remove();
+      li.cil.oc.api.Network.joinOrCreateNetwork(adapter);
+      final var again = blockNode(adapter);
+      helper.assertTrue(again != null && first.address().equals(again.address()), "after the rejoin the furnace is " + (again == null ? null : again.address()) + " instead of " + first.address());
+      boolean ticking = false;
+      for (final var component : adapter.componentEnvironments()) {
+        if (component instanceof li.cil.oc.core.impl.server.component.UpgradeMFBase && adapter.updatingComponents().contains(component)) ticking = true;
+      }
+      helper.assertTrue(ticking, "the adapter no longer ticks its MFU after the rejoin");
       helper.succeed();
     }));
   }
