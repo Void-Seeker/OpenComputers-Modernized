@@ -56,7 +56,9 @@ public class CablePartRenderer implements PartRenderer<CablePart> {
     final PoseStack.Pose pose = new PoseStack().last();
     final float[] brightness = {1f, 1f, 1f, 1f};
     for (final BakedQuad quad : buildQuads(part)) {
-      final int[] lights = {LightTexture.FULL_BRIGHT, LightTexture.FULL_BRIGHT, LightTexture.FULL_BRIGHT, LightTexture.FULL_BRIGHT};
+      // the light baked into the quads (the level's at the part) counts: Forge takes the greater of the two, and full
+      // light lit the cable in the dark
+      final int[] lights = {0, 0, 0, 0};
       consumer.putBulkData(pose, quad, brightness, 1f, 1f, 1f, lights, OverlayTexture.NO_OVERLAY, true);
     }
   }

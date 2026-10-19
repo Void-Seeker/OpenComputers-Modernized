@@ -273,7 +273,8 @@ public class Proxy extends li.cil.oc.neoforge.common.Proxy {
       Blocks.SCREEN_TIER_1.get().asItem(), Blocks.SCREEN_TIER_2.get().asItem(), Blocks.SCREEN_TIER_3.get().asItem());
     event.register((stack, tintIndex) -> {
       if (ItemColorizer.hasColor(stack)) return 0xFF000000 | ItemColorizer.getColor(stack);
-      return 0xFFFFFFFF;
+      // light gray, as a placed cable and OC 1.12's item (white showed it lighter in the inventory than placed)
+      return 0xFF000000 | li.cil.oc.core.impl.util.Color.LightGray;
     }, Blocks.CABLE.get().asItem());
     event.register((stack, tintIndex) -> {
       var dye = li.cil.oc.core.impl.common.block.ChameliumBlock.readDyeColor(stack);
