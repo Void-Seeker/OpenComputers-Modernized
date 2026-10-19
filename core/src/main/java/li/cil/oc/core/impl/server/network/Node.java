@@ -68,6 +68,7 @@ public interface Node extends li.cil.oc.api.network.Node {
   }
 
   default void onConnect(li.cil.oc.api.network.Node node) {
+    if (host() == null) return; // (a simple component's node has none: every join logged a stack trace)
     try {
       host().onConnect(node);
     } catch (Throwable e) {
@@ -76,6 +77,7 @@ public interface Node extends li.cil.oc.api.network.Node {
   }
 
   default void onDisconnect(li.cil.oc.api.network.Node node) {
+    if (host() == null) return;
     try {
       host().onDisconnect(node);
     } catch (Throwable e) {

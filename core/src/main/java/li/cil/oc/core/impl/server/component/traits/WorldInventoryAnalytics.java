@@ -138,7 +138,7 @@ public interface WorldInventoryAnalytics extends WorldAware, SideRestricted, Net
         if (is instanceof InventoryUtils.BlockInventorySource) {
           BlockPosition pos = ((InventoryUtils.BlockInventorySource) is).position();
           var blockPos = new BlockPos(pos.x(), pos.y(), pos.z());
-          if (pos.level() != null && pos.level().hasChunk(blockPos.getX() >> 4, blockPos.getZ() >> 4)) {
+          if (pos.level() != null && li.cil.oc.core.impl.util.LoadedChunks.isReady(pos.level(), blockPos)) {
             Block block = pos.level().getBlockState(blockPos).getBlock();
             return result(net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(block).toString());
           }

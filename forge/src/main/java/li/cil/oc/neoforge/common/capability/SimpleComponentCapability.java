@@ -16,6 +16,11 @@ import org.jetbrains.annotations.NotNull;
 public class SimpleComponentCapability implements SimpleComponentProvider, INBTSerializable<CompoundTag> {
   private static final Set<BlockEntity> scheduled = new HashSet<>();
 
+  /** At server stop (it held the block entities, and their level, into the next world). */
+  public static void onServerStopped() {
+    scheduled.clear();
+  }
+
   private final BlockEntity blockEntity;
   private final SimpleComponent simpleComponent;
 

@@ -47,7 +47,7 @@ public final class EventHandlerVanilla {
           int z = blockPos.z() + rz;
           int index = (rx - e.minX) + ((rz - e.minZ) + (ry - e.minY) * d) * w;
           BlockPos pos = new BlockPos(x, y, z);
-          if (world.hasChunk(pos.getX() >> 4, pos.getZ() >> 4) && !world.isEmptyBlock(pos)) {
+          if (li.cil.oc.core.impl.util.LoadedChunks.isReady(world, pos) && !world.isEmptyBlock(pos)) { // (not one still loading)
             Block block = world.getBlockState(pos).getBlock();
             if (includeReplaceable || isFluid(block) || !block.defaultBlockState().canBeReplaced()) {
               double dx = blockPos.x() - x;

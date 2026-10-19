@@ -412,6 +412,7 @@ public final class OpenComputers {
   public void serverStop(final ServerStoppedEvent ignoredE) {
     ThreadPoolFactory.safePools.forEach(SafeThreadPool::waitForCompletion);
     StaticSimpleEnvironment.onServerStopped();
+    li.cil.oc.neoforge.common.capability.SimpleComponentCapability.onServerStopped();
     synchronized (li.cil.oc.neoforge.common.asm.SimpleComponentTickHandler.pending) {
       li.cil.oc.neoforge.common.asm.SimpleComponentTickHandler.pending.clear(); // (they held the old level into the next world)
     }
