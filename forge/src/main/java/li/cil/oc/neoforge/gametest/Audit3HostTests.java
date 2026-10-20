@@ -450,6 +450,56 @@ public final class Audit3HostTests {
     });
   }
 
+  /**
+   * A status restored after a restart whose job no craftable came back with (the craftable was not kept, or the job was
+   * the old machine's) says cancelled, as AE2 cancels a job with no requester: it said "no link" for good, and a program
+   * waiting for done or cancelled hung. Within a session it still waits, and a craftable back with the job is followed.
+   */
+  @GameTest(template = EMPTY)
+  public static void aStatusWhoseJobDidNotComeBackFromARestartSaysCancelled(final GameTestHelper helper) {
+    try {
+      final var provider = helper.getLevel().registryAccess();
+      final var args = new ArgumentsImpl(new Object[0]);
+      final UUID session = (UUID) linkCache("session").invoke(null);
+      final java.util.function.BiFunction<UUID, String, li.cil.oc.neoforge.integration.appeng.NetworkControl.CraftingStatus> restored = (id, savedIn) -> {
+        final CompoundTag nbt = new CompoundTag();
+        nbt.putBoolean("computing", false);
+        nbt.putString("link", id.toString());
+        nbt.putBoolean("failed", false);
+        nbt.putString("reason", "no link");
+        if (savedIn != null) nbt.putString("session", savedIn);
+        final var status = new li.cil.oc.neoforge.integration.appeng.NetworkControl.CraftingStatus();
+        status.load(nbt, provider);
+        return status;
+      };
+
+      final var lost = restored.apply(UUID.randomUUID(), UUID.randomUUID().toString()); // (saved by the last server)
+      helper.assertTrue(java.util.Arrays.equals(lost.isCanceled(null, args), new Object[]{true}), "a job lost in a restart is not cancelled: " + java.util.Arrays.toString(lost.isCanceled(null, args)));
+      helper.assertTrue(java.util.Arrays.equals(lost.isDone(null, args), new Object[]{false}), "a job lost in a restart is done: " + java.util.Arrays.toString(lost.isDone(null, args)));
+      final CompoundTag again = new CompoundTag();
+      lost.save(again, provider);
+      final var lostAgain = new li.cil.oc.neoforge.integration.appeng.NetworkControl.CraftingStatus();
+      lostAgain.load(again, provider); // (saved under this server: it is not restored)
+      helper.assertTrue(java.util.Arrays.equals(lostAgain.isCanceled(null, args), new Object[]{true}), "a job lost in a restart is not cancelled when loaded again: " + java.util.Arrays.toString(lostAgain.isCanceled(null, args)));
+
+      final var older = restored.apply(UUID.randomUUID(), null); // (an older OC saved no session)
+      helper.assertTrue(java.util.Arrays.equals(older.isCanceled(null, args), new Object[]{true}), "a job lost in an update is not cancelled: " + java.util.Arrays.toString(older.isCanceled(null, args)));
+
+      final var waiting = restored.apply(UUID.randomUUID(), session.toString()); // (its craftable lives on, not kept)
+      helper.assertTrue(java.util.Arrays.equals(waiting.isCanceled(null, args), new Object[]{false, "no link"}), "a job in this session is cancelled: " + java.util.Arrays.toString(waiting.isCanceled(null, args)));
+
+      final UUID kept = UUID.randomUUID();
+      final var link = testLink(kept, false);
+      linkCache("load", appeng.api.networking.crafting.ICraftingLink.class).invoke(null, link); // (a craftable back with it)
+      final var following = restored.apply(kept, UUID.randomUUID().toString());
+      helper.assertTrue(java.util.Arrays.equals(following.isCanceled(null, args), new Object[]{false}), "a job back from a restart is not followed: " + java.util.Arrays.toString(following.isCanceled(null, args)));
+      helper.assertTrue(linkCache("current", UUID.class).invoke(null, kept) == link, "the link was not shared");
+    } catch (ReflectiveOperationException e) {
+      throw new IllegalStateException(e);
+    }
+    helper.succeed();
+  }
+
   private static List<WeakReference<?>> storedUnmatched(final GameTestHelper helper, final CompoundTag saved) {
     try {
       final var status = new li.cil.oc.neoforge.integration.appeng.NetworkControl.CraftingStatus();
@@ -503,6 +553,9 @@ public final class Audit3HostTests {
         else if (value instanceof java.util.Collection<?> collection) running.put(field, new java.util.ArrayList<>(collection));
       }
       helper.assertTrue(running.size() >= 5, "LinkCache keeps " + running.size() + " collections");
+      final var sessionField = cache.getDeclaredField("session");
+      sessionField.setAccessible(true);
+      final Object session = sessionField.get(null);
       try {
         final UUID id = UUID.randomUUID();
         final var link = testLink(id, false);
@@ -530,7 +583,9 @@ public final class Audit3HostTests {
           final int left = value instanceof Map<?, ?> map ? map.size() : ((java.util.Collection<?>) value).size();
           helper.assertTrue(left == 0, "after the server stopped LinkCache." + field.getName() + " still holds " + left);
         }
+        helper.assertTrue(!session.equals(sessionField.get(null)), "the next server's statuses are saved under the stopped one's session");
       } finally {
+        sessionField.set(null, session); // (the other tests' statuses are this server's)
         for (final var entry : running.entrySet()) {
           final Object value = entry.getKey().get(null);
           if (value instanceof Map<?, ?> map) {

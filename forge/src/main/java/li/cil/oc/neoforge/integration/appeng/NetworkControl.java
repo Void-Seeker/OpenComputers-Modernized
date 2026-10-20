@@ -791,6 +791,7 @@ public interface NetworkControl<AETile extends IActionHost> extends Persistable,
     private java.util.UUID request;
     private volatile boolean saved, reloaded;
     private CraftingStatus origin;
+    private boolean restored; // (saved before this server started)
 
     public void setLink(ICraftingLink value) {
       link = value;
@@ -807,12 +808,15 @@ public interface NetworkControl<AETile extends IActionHost> extends Persistable,
     // How its job ended (LinkCache: a restored status first asked after its link was gone said "no link" for good), else
     // the link the job's craftables share now, else the last one it had. Restored statuses were handed the link of the
     // next craftable loaded: of copies loaded together, maybe the one AE2 no longer told (the status went stale), and a
-    // second copy of the status got none ("no link", saved without its job).
+    // second copy of the status got none ("no link", saved without its job). A job no craftable came back with after a
+    // restart (its craftable was not kept, or it was the old machine's) is cancelled by AE2, which has no requester for
+    // it: its status said "no link" for good (OC 1.12 too), and a program waiting for it to be done or cancelled hung.
     private ICraftingLink link() {
       if (id == null) return link;
       ICraftingLink current = LinkCache.howEnded(id);
       if (current == null) current = LinkCache.current(id);
       if (current != null) link = current;
+      else if (link == null && restored) link = new Ended(id, false, true);
       return link;
     }
 
@@ -864,6 +868,7 @@ public interface NetworkControl<AETile extends IActionHost> extends Persistable,
     private static final String CANCELED_KEY = "canceled";
     private static final String FAILED_KEY = "failed";
     private static final String REASON_KEY = "reason";
+    private static final String SESSION_KEY = "session";
 
     @Override
     public void save(CompoundTag nbt, HolderLookup.Provider provider) {
@@ -887,6 +892,7 @@ public interface NetworkControl<AETile extends IActionHost> extends Persistable,
       }
       nbt.putBoolean(FAILED_KEY, failed);
       nbt.putString(REASON_KEY, reason);
+      nbt.putString(SESSION_KEY, LinkCache.session().toString());
     }
 
     @Override
@@ -912,6 +918,7 @@ public interface NetworkControl<AETile extends IActionHost> extends Persistable,
       if (nbt.contains(REASON_KEY)) {
         reason = nbt.getString(REASON_KEY);
       }
+      restored = !LinkCache.session().toString().equals(nbt.getString(SESSION_KEY)); // (an older OC saved none)
       if (isComputing) {
         java.util.UUID token = null;
         try {
@@ -1059,8 +1066,16 @@ public interface NetworkControl<AETile extends IActionHost> extends Persistable,
       return computed.get(token);
     }
 
+    // The server's, saved with statuses: one saved under another was saved before a restart.
+    private static volatile java.util.UUID session = java.util.UUID.randomUUID();
+
+    static java.util.UUID session() {
+      return session;
+    }
+
     // (ticks count from 0 again on the next server: a link of the last one would pass for a copy)
     static void onServerStopped() {
+      session = java.util.UUID.randomUUID();
       shared.clear();
       persisted.clear();
       ended.clear();
