@@ -239,10 +239,10 @@ public final class SimpleComponentTests {
       computer.setItem(slot, part);
     }
     // placed next to the computer once that is in its network
-    helper.runAfterDelay(5, () -> {
+    TestMachines.later(helper, 5, () -> {
       final SimpleFurnace furnace = placeFurnace(helper, AT.east(), null);
       final PeripheralFurnace peripheral = placeFurnace(helper, AT.west(), null, PeripheralFurnace::new);
-      helper.runAfterDelay(5, () -> {
+      TestMachines.later(helper, 5, () -> {
         helper.assertTrue(computer.machine().start(), "the case did not start: " + computer.machine().lastError());
         TestMachines.when(helper, () -> !computer.machine().isRunning(), 2000, () -> {
           final Node node = node(furnace);
@@ -271,7 +271,7 @@ public final class SimpleComponentTests {
   public static void simpleComponentsKeepTheirAddressAndLeaveWithTheirBlock(final GameTestHelper helper) {
     helper.setBlock(AT, Blocks.CAPACITOR.get());
     final SimpleFurnace furnace = placeFurnace(helper, AT.east(), null);
-    helper.runAfterDelay(5, () -> {
+    TestMachines.later(helper, 5, () -> {
       final Node network = capacitor(helper, AT);
       final Node node = node(furnace);
       helper.assertTrue(node != null && node.network() != null && node.network() == network.network(), "the simple furnace is not in the capacitor's network: " + node);
@@ -292,7 +292,7 @@ public final class SimpleComponentTests {
       loaded.load(saved);
       helper.getLevel().getChunkAt(abs).addAndRegisterBlockEntity(loaded);
       loaded.changed = 0;
-      helper.runAfterDelay(5, () -> {
+      TestMachines.later(helper, 5, () -> {
         final Node again = node(loaded);
         helper.assertTrue(again != null && again.network() == network.network(), "the loaded simple furnace is not in the capacitor's network: " + again);
         helper.assertTrue(address.equals(again.address()), "the loaded simple furnace has the address " + again.address() + " instead of " + address);
@@ -312,7 +312,7 @@ public final class SimpleComponentTests {
     helper.setBlock(AT, Blocks.CAPACITOR.get());
     final PeripheralFurnace inheriting = placeFurnace(helper, AT.east(), null, PeripheralFurnace::new);
     final HiddenFurnace hidden = placeFurnace(helper, AT.west(), null, HiddenFurnace::new);
-    helper.runAfterDelay(5, () -> {
+    TestMachines.later(helper, 5, () -> {
       helper.assertTrue(!inheriting.connected.isEmpty(), "the inherited onConnect was not called");
       helper.assertTrue(hidden.hiddenConnects > 0, "the onConnect of a class other code cannot reach was not called");
       helper.succeed();
@@ -324,7 +324,7 @@ public final class SimpleComponentTests {
   public static void simpleComponentsWithoutANameLeaveTheNetwork(final GameTestHelper helper) {
     helper.setBlock(AT, Blocks.CAPACITOR.get());
     final SimpleFurnace furnace = placeFurnace(helper, AT.east(), null);
-    helper.runAfterDelay(5, () -> {
+    TestMachines.later(helper, 5, () -> {
       final Node network = capacitor(helper, AT);
       final Node node = node(furnace);
       helper.assertTrue(node != null && node.network() == network.network(), "the simple furnace is not in the capacitor's network: " + node);
@@ -350,12 +350,12 @@ public final class SimpleComponentTests {
     helper.setBlock(AT, Blocks.CAPACITOR.get());
     final SimpleFurnace furnace = placeFurnace(helper, AT.east(), null);
     furnace.name = "";
-    helper.runAfterDelay(5, () -> {
+    TestMachines.later(helper, 5, () -> {
       helper.assertTrue(node(furnace) == null, "the simple furnace without a name has a node");
       furnace.name = "simple_furnace";
       furnace.changed = 0;
       final Node node = node(furnace);
-      helper.runAfterDelay(3, () -> {
+      TestMachines.later(helper, 3, () -> {
         helper.assertTrue(node != null && node.network() == capacitor(helper, AT).network(), "the simple furnace named later did not join: " + node);
         helper.assertTrue(furnace.changed == 1, "the simple furnace's new address marked it changed " + furnace.changed + " times instead of once");
         helper.succeed();
@@ -373,11 +373,11 @@ public final class SimpleComponentTests {
     helper.setBlock(AT.east(), net.minecraft.world.level.block.Blocks.FURNACE);
     final BlockPos abs = helper.absolutePos(AT.east());
     final SimpleFurnace furnace = new SimpleFurnace(abs, helper.getLevel().getBlockState(abs));
-    helper.runAfterDelay(150, () -> {
+    TestMachines.later(helper, 150, () -> {
       final var chunk = helper.getLevel().getChunkAt(abs);
       chunk.addAndRegisterBlockEntity(furnace);
       MinecraftForge.EVENT_BUS.post(new ChunkEvent.Load(chunk, false));
-      helper.runAfterDelay(3, () -> {
+      TestMachines.later(helper, 3, () -> {
         final Node node = node(furnace);
         helper.assertTrue(node != null && node.network() == capacitor(helper, AT).network(), "the simple furnace did not join when its chunk loaded: " + node);
         helper.succeed();
@@ -392,9 +392,9 @@ public final class SimpleComponentTests {
     helper.setBlock(AT.east(), net.minecraft.world.level.block.Blocks.FURNACE);
     final BlockPos abs = helper.absolutePos(AT.east());
     final SimpleFurnace furnace = new SimpleFurnace(abs, helper.getLevel().getBlockState(abs));
-    helper.runAfterDelay(5, () -> {
+    TestMachines.later(helper, 5, () -> {
       helper.getLevel().setBlockEntity(furnace);
-      helper.runAfterDelay(3, () -> {
+      TestMachines.later(helper, 3, () -> {
         final Node node = node(furnace);
         helper.assertTrue(node != null && node.network() == capacitor(helper, AT).network(), "the simple furnace put in later did not join: " + node);
         helper.succeed();
@@ -411,11 +411,11 @@ public final class SimpleComponentTests {
     helper.setBlock(AT, Blocks.CAPACITOR.get());
     helper.setBlock(AT.east(), net.minecraft.world.level.block.Blocks.FURNACE);
     final BlockPos abs = helper.absolutePos(AT.east());
-    helper.runAfterDelay(5, () -> {
+    TestMachines.later(helper, 5, () -> {
       helper.assertTrue(capacitor(helper, AT).network() != null, "the capacitor is in no network");
       final SimpleFurnace furnace = new SimpleFurnace(abs, helper.getLevel().getBlockState(abs));
       furnace.setLevel(helper.getLevel());
-      helper.runAfterDelay(3, () -> {
+      TestMachines.later(helper, 3, () -> {
         final Node node = node(furnace);
         helper.assertTrue(node == null || node.network() != capacitor(helper, AT).network(), "a simple furnace not in the level joined the network next to its place");
         helper.succeed();
@@ -429,7 +429,7 @@ public final class SimpleComponentTests {
     helper.setBlock(AT, Blocks.CAPACITOR.get());
     final SimpleFurnace furnace = placeFurnace(helper, AT.east(), null);
     final BlockPos abs = helper.absolutePos(AT.east());
-    helper.runAfterDelay(5, () -> {
+    TestMachines.later(helper, 5, () -> {
       final Node node = node(furnace);
       helper.assertTrue(node != null && node.network() == capacitor(helper, AT).network(), "the simple furnace is not in the capacitor's network: " + node);
       final String address = node.address();
@@ -437,7 +437,7 @@ public final class SimpleComponentTests {
       furnace.reviveCaps();
       helper.getLevel().setBlockEntity(furnace);
       final Node looked = node(furnace); // (as a neighbour would)
-      helper.runAfterDelay(3, () -> {
+      TestMachines.later(helper, 3, () -> {
         final Node again = node(furnace);
         helper.assertTrue(again != null && again.network() == capacitor(helper, AT).network() && address.equals(again.address()),
           "the revived simple furnace came back as " + again + " (" + (again == null ? null : again.address()) + " instead of " + address + "), looked up as " + looked);
@@ -451,7 +451,7 @@ public final class SimpleComponentTests {
   public static void simpleComponentsConnectOnlyOnOpenSides(final GameTestHelper helper) {
     helper.setBlock(AT, Blocks.CAPACITOR.get());
     final SimpleFurnace furnace = placeFurnace(helper, AT.east(), Direction.WEST);
-    helper.runAfterDelay(5, () -> {
+    TestMachines.later(helper, 5, () -> {
       final Node network = capacitor(helper, AT);
       final Node node = node(furnace);
       helper.assertTrue(node == null || node.network() != network.network(), "the simple furnace connected on its closed side");
@@ -509,7 +509,7 @@ public final class SimpleComponentTests {
   public static void newSimpleComponentAddressesAreSaved(final GameTestHelper helper) {
     final SimpleFurnace furnace = placeFurnace(helper, AT, null);
     furnace.changed = 0;
-    helper.runAfterDelay(3, () -> {
+    TestMachines.later(helper, 3, () -> {
       final Node node = node(furnace);
       helper.assertTrue(node != null && node.address() != null, "the simple furnace has no address: " + node);
       helper.assertTrue(furnace.changed == 1, "the simple furnace's new address marked it changed " + furnace.changed + " times instead of once");
@@ -524,7 +524,7 @@ public final class SimpleComponentTests {
   @GameTest(template = EMPTY, timeoutTicks = 100)
   public static void readdressedSimpleComponentsAreSaved(final GameTestHelper helper) {
     final SimpleFurnace furnace = placeFurnace(helper, AT, null);
-    helper.runAfterDelay(3, () -> {
+    TestMachines.later(helper, 3, () -> {
       final Node node = node(furnace);
       helper.assertTrue(node != null && node.network() != null, "the simple furnace is in no network: " + node);
       final String address = node.address();
@@ -570,7 +570,7 @@ public final class SimpleComponentTests {
     helper.setBlock(AT, Blocks.CAPACITOR.get());
     final SimpleFurnace furnace = placeFurnace(helper, AT.east(), null);
     final BlockPos abs = helper.absolutePos(AT.east());
-    helper.runAfterDelay(5, () -> {
+    TestMachines.later(helper, 5, () -> {
       final var mfu = new li.cil.oc.neoforge.server.component.UpgradeMF((EnvironmentHost) helper.getBlockEntity(AT),
         BlockPosition.apply(abs.getX(), abs.getY(), abs.getZ(), helper.getLevel()), Direction.WEST);
       li.cil.oc.api.Network.joinNewNetwork(mfu.node());
@@ -602,7 +602,7 @@ public final class SimpleComponentTests {
     helper.setBlock(AT, Blocks.CAPACITOR.get());
     final SimpleFurnace furnace = placeFurnace(helper, AT.east(), null);
     final BlockPos abs = helper.absolutePos(AT.east());
-    helper.runAfterDelay(5, () -> {
+    TestMachines.later(helper, 5, () -> {
       final var card = new li.cil.oc.neoforge.server.component.DebugCard((EnvironmentHost) helper.getBlockEntity(AT));
       li.cil.oc.api.Network.joinNewNetwork(card.node());
       try {
@@ -624,7 +624,7 @@ public final class SimpleComponentTests {
   public static void debugCardsForgetRemoteBlocksWithoutANode(final GameTestHelper helper) {
     helper.setBlock(AT, Blocks.CAPACITOR.get());
     final BlockPos air = helper.absolutePos(AT.east());
-    helper.runAfterDelay(3, () -> {
+    TestMachines.later(helper, 3, () -> {
       final var card = new li.cil.oc.neoforge.server.component.DebugCard((EnvironmentHost) helper.getBlockEntity(AT));
       final String prefix = li.cil.oc.core.impl.OCSettings.namespace;
       final var nbt = new net.minecraft.nbt.CompoundTag();
@@ -649,7 +649,7 @@ public final class SimpleComponentTests {
   public static void debuggersConnectToSimpleComponents(final GameTestHelper helper) {
     final SimpleFurnace furnace = placeFurnace(helper, AT, null);
     final BlockPos abs = helper.absolutePos(AT);
-    helper.runAfterDelay(3, () -> {
+    TestMachines.later(helper, 3, () -> {
       final var debugger = (li.cil.oc.core.impl.common.item.Debugger) li.cil.oc.neoforge.common.init.Items.DEBUGGER.get();
       final FakePlayer player = new FakePlayer(helper.getLevel(), new GameProfile(UUID.randomUUID(), "oc-debugger"));
       try {

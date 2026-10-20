@@ -133,7 +133,7 @@ public final class Audit3HostTests {
     for (final ItemStack part : List.of(item(Constants.ItemName.CPUTier1), item(Constants.ItemName.RAMTier2), eeprom(BUSY))) {
       insert(helper, computer, part);
     }
-    helper.runAfterDelay(5, () -> {
+    TestMachines.later(helper, 5, () -> {
       helper.assertTrue(computer.machine().start(), "the case did not start: " + computer.machine().lastError());
       within(helper, 10, () -> computer.machine().architecture() != null && computer.machine().architecture().isInitialized(), () -> {
         helper.assertTrue(computer.machine().isRunning(), "the case stopped: " + computer.machine().lastError());
@@ -155,7 +155,7 @@ public final class Audit3HostTests {
     final ItemStack hdd = item(Constants.ItemName.HDDTier1);
     li.cil.oc.core.impl.common.item.data.DriveData.setUnmanaged(hdd, true);
     insert(helper, computer, hdd);
-    helper.runAfterDelay(5, () -> {
+    TestMachines.later(helper, 5, () -> {
       final var drive = component(computer.installedComponents(), li.cil.oc.core.impl.server.component.Drive.class);
       helper.assertTrue(drive.node().address() != null, "the drive has no address");
       final File file;
@@ -236,7 +236,7 @@ public final class Audit3HostTests {
     for (final ItemStack part : List.of(item(Constants.ItemName.CPUTier1), item(Constants.ItemName.RAMTier2), eeprom(BUSY))) {
       insert(helper, server, part);
     }
-    helper.runAfterDelay(5, () -> {
+    TestMachines.later(helper, 5, () -> {
       ((li.cil.oc.api.network.Connector) server.machine().node()).changeBuffer(1000);
       helper.assertTrue(server.machine().start(), "the server did not start: " + server.machine().lastError());
       within(helper, 10, () -> server.machine().architecture() != null && server.machine().architecture().isInitialized(), () -> {
@@ -274,7 +274,7 @@ public final class Audit3HostTests {
       "local t = computer.totalMemory()\nwhile true do computer.pullSignal() if computer.totalMemory() ~= t then error('done:' .. t .. '>' .. computer.totalMemory()) end end\n"))) {
       insert(helper, computer, part);
     }
-    helper.runAfterDelay(5, () -> {
+    TestMachines.later(helper, 5, () -> {
       final var machine = (MachineBase) computer.machine();
       helper.assertTrue(machine.start(), "the case did not start: " + machine.lastError());
       within(helper, 20, () -> machine.architecture() != null && machine.architecture().isInitialized() && !machine.isExecuting()
@@ -476,7 +476,7 @@ public final class Audit3HostTests {
   @GameTest(template = EMPTY, timeoutTicks = 100)
   public static void paletteColourSurvivesDepthDrop(final GameTestHelper helper) {
     helper.setBlock(AT, Blocks.SCREEN_TIER_3.get());
-    helper.runAfterDelay(5, () -> {
+    TestMachines.later(helper, 5, () -> {
       final var screen = (li.cil.oc.core.impl.common.blockentity.Screen) helper.getBlockEntity(AT);
       screen.buffer.setColorDepth(li.cil.oc.api.internal.TextBuffer.ColorDepth.FourBit); // (as a GPU bound to it)
       screen.buffer.setForegroundColor(3, true);
@@ -562,7 +562,7 @@ public final class Audit3HostTests {
     helper.setBlock(AT, Blocks.CASE_CREATIVE.get());
     final var computer = (Case) helper.getBlockEntity(AT);
     insert(helper, computer, item(Constants.ItemName.GraphicsCardTier3));
-    helper.runAfterDelay(5, () -> {
+    TestMachines.later(helper, 5, () -> {
       final var gpu = component(computer.installedComponents(), li.cil.oc.core.impl.server.component.GraphicsCardBase.class);
       final Object[] wide = gpu.allocateBuffer(context(), new ArgumentsImpl(new Object[]{320.0, 50.0}));
       final Object[] fits = gpu.allocateBuffer(context(), new ArgumentsImpl(new Object[]{160.0, 50.0}));

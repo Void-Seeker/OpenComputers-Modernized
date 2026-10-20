@@ -47,7 +47,7 @@ public final class RobotToolTests {
     tag.putString("LodestoneDimension", helper.getLevel().dimension().location().toString());
     tag.put("LodestonePos", NbtUtils.writeBlockPos(helper.absolutePos(new BlockPos(0, 1, 0))));
     robot.equipmentInventory().setItem(0, compass);
-    helper.runAfterDelay(5, () -> {
+    TestMachines.later(helper, 5, () -> {
       final ItemStack tool = robot.equipmentInventory().getItem(0);
       helper.assertTrue(tool.is(Items.COMPASS) && tool.getTag() != null && !tool.getTag().contains("LodestonePos"),
         "the compass in the robot's hand did not tick: " + tool.getTag());

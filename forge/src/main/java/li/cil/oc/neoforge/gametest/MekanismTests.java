@@ -50,7 +50,7 @@ public final class MekanismTests {
     final BlockPos adapterPos = valvePos.west();
     helper.setBlock(valvePos, valve);
     helper.setBlock(adapterPos, Blocks.ADAPTER.get());
-    helper.runAfterDelay(5, () -> {
+    TestMachines.later(helper, 5, () -> {
       final var adapter = (li.cil.oc.core.impl.common.blockentity.Adapter) helper.getBlockEntity(adapterPos);
       adapter.neighborChanged(Direction.EAST);
       final List<BlockPos> shell = new ArrayList<>();
@@ -64,7 +64,7 @@ public final class MekanismTests {
         }
       }
       for (final BlockPos pos : shell) helper.setBlock(pos, casing);
-      helper.runAfterDelay(60, () -> {
+      TestMachines.later(helper, 60, () -> {
         final String[] methods = methodsOf(adapter);
         helper.assertTrue(methods != null, "the adapter has no Mekanism environment for the valve");
         helper.assertTrue(java.util.Arrays.asList(methods).contains("getTankCapacity"), "the formed tank's valve offers " + java.util.Arrays.toString(methods));

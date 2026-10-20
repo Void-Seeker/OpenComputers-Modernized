@@ -51,7 +51,7 @@ public final class ComputerRedstoneTests {
       mc -> TestMachines.when(helper, () -> mc.output()[3] == 15, 100, () -> {
         helper.assertTrue(mc.isOutputEnabled() && mc.output()[3] == 15, "the running microcontroller does not output 15 at its front: " + java.util.Arrays.toString(mc.output()));
         mc.machine().stop();
-        helper.runAfterDelay(20, () -> {
+        TestMachines.later(helper, 20, () -> {
           helper.assertTrue(mc.output()[3] == 0, "the stopped microcontroller still outputs " + java.util.Arrays.toString(mc.output()));
           helper.succeed();
         });
@@ -64,7 +64,7 @@ public final class ComputerRedstoneTests {
     helper.setBlock(AT.east(), net.minecraft.world.level.block.Blocks.REDSTONE_BLOCK);
     helper.setBlock(AT, Blocks.REDSTONE.get());
     final var io = (li.cil.oc.core.impl.common.blockentity.Redstone) helper.getBlockEntity(AT);
-    helper.runAfterDelay(5, () -> {
+    TestMachines.later(helper, 5, () -> {
       helper.assertTrue(io.getInput(Direction.EAST) == 15, "a Redstone I/O block next to a redstone block reads " + io.getInput(Direction.EAST));
       helper.succeed();
     });
@@ -87,9 +87,9 @@ public final class ComputerRedstoneTests {
     Blocks.MICROCONTROLLER.get().setPlacedBy(helper.getLevel(), abs, helper.getLevel().getBlockState(abs), FakePlayerFactory.getMinecraft(helper.getLevel()), data.createItemStack());
     final var mc = (li.cil.oc.core.impl.common.blockentity.Microcontroller) helper.getBlockEntity(AT);
     ((li.cil.oc.api.network.Connector) mc.snooperNode).changeBuffer(1000);
-    helper.runAfterDelay(5, () -> {
+    TestMachines.later(helper, 5, () -> {
       helper.setBlock(AT.above(), net.minecraft.world.level.block.Blocks.STONE);
-      helper.runAfterDelay(20, () -> {
+      TestMachines.later(helper, 20, () -> {
         helper.assertTrue(!mc.machine().isRunning(), "placing a block next to a stopped microcontroller by a redstone block started it");
         helper.assertTrue(mc.getInput(Direction.WEST) == 15, "the microcontroller reads " + mc.getInput(Direction.WEST) + " from the redstone block");
         helper.succeed();
@@ -148,7 +148,7 @@ public final class ComputerRedstoneTests {
         if ("computer.signal".equals(message.name()) && message.data().length > 0) signals.add(message.data()[0]);
       }
     }, li.cil.oc.api.network.Visibility.Network).create();
-    helper.runAfterDelay(5, () -> {
+    TestMachines.later(helper, 5, () -> {
       io.node.connect(listener);
       try {
         io.setBundledInput(Direction.EAST, 1, 200); // the block read its inputs when placed: this is a change
@@ -175,7 +175,7 @@ public final class ComputerRedstoneTests {
   public static void inputTablesAreByTheDevicesSides(final GameTestHelper helper) {
     final Case computer = caseFacing(helper, Direction.NORTH);
     helper.setBlock(AT.north(), net.minecraft.world.level.block.Blocks.REDSTONE_BLOCK);
-    helper.runAfterDelay(3, () -> {
+    TestMachines.later(helper, 3, () -> {
       computer.checkRedstoneInputChanged();
       final var card = new li.cil.oc.core.impl.server.component.Redstone.Vanilla(computer);
       final var table = (Map<?, ?>) card.getInput(context(), new ArgumentsImpl(new Object[0]))[0];
@@ -193,7 +193,7 @@ public final class ComputerRedstoneTests {
     final var saved = mc.saveWithoutMetadata();
     edit.accept(saved);
     helper.getLevel().removeBlockEntity(abs);
-    helper.runAfterDelay(3, () -> {
+    TestMachines.later(helper, 3, () -> {
       final var reloaded = (li.cil.oc.core.impl.common.blockentity.Microcontroller) helper.getLevel().getBlockEntity(abs);
       reloaded.load(saved);
       then.accept(reloaded);
@@ -206,7 +206,7 @@ public final class ComputerRedstoneTests {
     TestMachines.runMicrocontroller(helper, AT, List.of(Constants.ItemName.CPUTier1, Constants.ItemName.RAMTier2, Constants.ItemName.RedstoneCardTier1),
       "component.proxy(component.list('redstone')()).setOutput(3, 15)\nwhile true do computer.pullSignal(1) end\n",
       mc -> reload(helper, mc, tag -> {
-      }, reloaded -> helper.runAfterDelay(40, () -> {
+      }, reloaded -> TestMachines.later(helper, 40, () -> {
         helper.assertTrue(reloaded.machine().isRunning(), "the reloaded microcontroller stopped: " + reloaded.machine().lastError());
         helper.assertTrue(reloaded.isOutputEnabled() && reloaded.output()[3] == 15, "the reloaded microcontroller outputs " + java.util.Arrays.toString(reloaded.output()) + ", enabled " + reloaded.isOutputEnabled());
         helper.succeed();
@@ -220,10 +220,10 @@ public final class ComputerRedstoneTests {
       "while true do computer.pullSignal(1) end\n",
       mc -> {
         mc.machine().stop();
-        helper.runAfterDelay(10, () -> {
+        TestMachines.later(helper, 10, () -> {
           mc.output()[3] = 15; // as an older version left it
           reload(helper, mc, tag -> {
-          }, reloaded -> helper.runAfterDelay(20, () -> {
+          }, reloaded -> TestMachines.later(helper, 20, () -> {
             helper.assertTrue(!reloaded.machine().isRunning() && reloaded.output()[3] == 0, "the stopped microcontroller loaded with " + java.util.Arrays.toString(reloaded.output()));
             helper.succeed();
           }));
@@ -240,7 +240,7 @@ public final class ComputerRedstoneTests {
       40, (robot, result) -> {
         // the robot faces south: its left (5) is east
         helper.assertTrue(result != null && result.matches("15(\\.0)? 15(\\.0)?"), "the robot read and set " + result);
-        helper.runAfterDelay(5, () -> {
+        TestMachines.later(helper, 5, () -> {
           int total = 0;
           for (final int v : robot.output()) total += v;
           helper.assertTrue(!robot.isOutputEnabled() && total == 0, "the stopped robot outputs " + java.util.Arrays.toString(robot.output()));
@@ -285,7 +285,7 @@ public final class ComputerRedstoneTests {
         final var loaded = (li.cil.oc.core.impl.common.blockentity.RobotProxy) net.minecraft.world.level.block.entity.BlockEntity.loadStatic(abs, helper.getLevel().getBlockState(abs), saved);
         helper.getLevel().getChunkAt(abs).addAndRegisterBlockEntity(loaded);
         loaded.updateEntity(); // a loaded chunk's block entities tick in the same tick, before what initialize schedules
-        helper.runAfterDelay(40, () -> {
+        TestMachines.later(helper, 40, () -> {
           final var again = loaded.robot;
           helper.assertTrue(again.machine().isRunning(), "the reloaded robot stopped: " + again.machine().lastError());
           helper.assertTrue(again.isOutputEnabled() && total(again.output()) == 15, "the reloaded robot outputs " + java.util.Arrays.toString(again.output()) + ", enabled " + again.isOutputEnabled());
@@ -307,7 +307,7 @@ public final class ComputerRedstoneTests {
         helper.assertTrue(helper.getBlockState(lamp).getValue(RedstoneLampBlock.LIT), "the lamp behind the block the robot powers is off: " + java.util.Arrays.toString(robot.output()));
         robot.bundledOutput()[Direction.SOUTH.ordinal()][0] = 15; // as a bundled card sets it
         robot.machine().stop();
-        helper.runAfterDelay(20, () -> {
+        TestMachines.later(helper, 20, () -> {
           helper.assertTrue(!robot.isOutputEnabled(), "the stopped robot's outputs are still enabled");
           helper.assertTrue(!helper.getBlockState(lamp).getValue(RedstoneLampBlock.LIT), "the stopped robot's lamp behind the block is still lit");
           helper.assertTrue(robot.bundledOutput()[Direction.SOUTH.ordinal()][0] == 0, "the stopped robot keeps its bundled output");
@@ -320,7 +320,7 @@ public final class ComputerRedstoneTests {
   @GameTest(template = EMPTY, timeoutTicks = 200)
   public static void rackServerIsNotWokenByTheFirstReading(final GameTestHelper helper) {
     helper.setBlock(AT, Blocks.RACK.get());
-    helper.runAfterDelay(5, () -> {
+    TestMachines.later(helper, 5, () -> {
       final var rack = (li.cil.oc.core.impl.common.blockentity.Rack) helper.getBlockEntity(AT);
       rack.setItem(0, li.cil.oc.api.Items.get(Constants.ItemName.ServerTier1).createItemStack(1));
       final var server = (li.cil.oc.core.impl.server.component.ServerBase) rack.getMountable(0);
@@ -335,12 +335,12 @@ public final class ComputerRedstoneTests {
         helper.assertTrue(slot >= 0, "no server slot takes " + part);
         server.setItem(slot, part);
       }
-      helper.runAfterDelay(5, () -> {
+      TestMachines.later(helper, 5, () -> {
         ((li.cil.oc.api.network.Connector) server.machine().node()).changeBuffer(1000);
         java.util.Arrays.fill(rack.input(), -1); // as racks were saved
         helper.setBlock(AT.east(), net.minecraft.world.level.block.Blocks.REDSTONE_BLOCK);
         rack.checkRedstoneInputChanged();
-        helper.runAfterDelay(20, () -> {
+        TestMachines.later(helper, 20, () -> {
           helper.assertTrue(!server.machine().isRunning(), "the stopped server started by itself");
           helper.succeed();
         });
@@ -353,7 +353,7 @@ public final class ComputerRedstoneTests {
   public static void placedRackReadsWhatIsPowered(final GameTestHelper helper) {
     helper.setBlock(AT.east(), net.minecraft.world.level.block.Blocks.REDSTONE_BLOCK);
     helper.setBlock(AT, Blocks.RACK.get());
-    helper.runAfterDelay(3, () -> {
+    TestMachines.later(helper, 3, () -> {
       final var rack = (li.cil.oc.core.impl.common.blockentity.Rack) helper.getBlockEntity(AT);
       helper.assertTrue(rack.getInput(Direction.EAST) == 15, "a rack placed by a redstone block reads " + rack.getInput(Direction.EAST));
       helper.succeed();
@@ -376,9 +376,9 @@ public final class ComputerRedstoneTests {
       helper.assertTrue(slot >= 0, "no case slot takes " + part);
       computer.setItem(slot, part);
     }
-    helper.runAfterDelay(5, () -> {
+    TestMachines.later(helper, 5, () -> {
       helper.assertTrue(computer.machine().start(), "the case did not start: " + computer.machine().lastError());
-      helper.runAfterDelay(60, () -> TestMachines.when(helper, () -> computer.isOutputEnabled() && total(computer.output()) == 15, 100, () -> {
+      TestMachines.later(helper, 60, () -> TestMachines.when(helper, () -> computer.isOutputEnabled() && total(computer.output()) == 15, 100, () -> {
         helper.assertTrue(computer.isOutputEnabled() && total(computer.output()) == 15, "the running case outputs " + java.util.Arrays.toString(computer.output()));
         final BlockPos abs = helper.absolutePos(AT);
         computer.markUnloading();
@@ -387,7 +387,7 @@ public final class ComputerRedstoneTests {
         final var loaded = (Case) net.minecraft.world.level.block.entity.BlockEntity.loadStatic(abs, helper.getLevel().getBlockState(abs), saved);
         helper.getLevel().getChunkAt(abs).addAndRegisterBlockEntity(loaded);
         loaded.updateEntity(); // a loaded chunk's block entities tick in the same tick, before what initialize schedules
-        helper.runAfterDelay(40, () -> {
+        TestMachines.later(helper, 40, () -> {
           helper.assertTrue(loaded.machine().isRunning(), "the reloaded case stopped: " + loaded.machine().lastError());
           helper.assertTrue(loaded.isOutputEnabled() && total(loaded.output()) == 15, "the reloaded case outputs " + java.util.Arrays.toString(loaded.output()) + ", enabled " + loaded.isOutputEnabled());
           helper.succeed();
@@ -422,7 +422,7 @@ public final class ComputerRedstoneTests {
         first.markUnloading();
         final var savedEarly = first.saveWithFullMetadata(); // an autosave before its initialize ran
         final var again = reloadRobot(helper, savedEarly);
-        helper.runAfterDelay(40, () -> {
+        TestMachines.later(helper, 40, () -> {
           helper.assertTrue(again.robot.machine().isRunning(), "a robot saved before its machine was loaded came back stopped: " + again.robot.machine().lastError());
           helper.succeed();
         });
@@ -460,9 +460,9 @@ public final class ComputerRedstoneTests {
         helper.assertTrue(robot.isOutputEnabled() && total(robot.output()) == 15, "the running robot outputs " + java.util.Arrays.toString(robot.output()));
         final var proxy = (li.cil.oc.core.impl.common.blockentity.RobotProxy) helper.getLevel().getBlockEntity(helper.absolutePos(AT));
         proxy.load(proxy.saveWithFullMetadata());
-        helper.runAfterDelay(10, () -> {
+        TestMachines.later(helper, 10, () -> {
           proxy.robot.machine().stop();
-          helper.runAfterDelay(20, () -> {
+          TestMachines.later(helper, 20, () -> {
             helper.assertTrue(!proxy.robot.isOutputEnabled() && total(proxy.robot.output()) == 0,
               "the stopped robot outputs " + java.util.Arrays.toString(proxy.robot.output()) + ", enabled " + proxy.robot.isOutputEnabled());
             helper.succeed();
@@ -488,7 +488,7 @@ public final class ComputerRedstoneTests {
       40, (robot, result) -> TestMachines.when(helper, () -> helper.getBlockState(lamp).getValue(RedstoneLampBlock.LIT), 100, () -> {
         helper.assertTrue(helper.getBlockState(lamp).getValue(RedstoneLampBlock.LIT), "the lamp behind the block the robot powers is off");
         helper.assertTrue(robot.move(Direction.UP), "the robot did not move up");
-        helper.runAfterDelay(10, () -> {
+        TestMachines.later(helper, 10, () -> {
           helper.assertTrue(!helper.getBlockState(lamp).getValue(RedstoneLampBlock.LIT), "the lamp behind the block the robot powered is still lit after it moved");
           helper.assertTrue(helper.getBlockState(newLamp).getValue(RedstoneLampBlock.LIT), "the lamp behind the block the robot powers at its new place is off");
           helper.succeed();
@@ -507,7 +507,7 @@ public final class ComputerRedstoneTests {
     computer.setOutput(Direction.EAST, 15);
     helper.assertTrue(helper.getBlockState(lamp).getValue(RedstoneLampBlock.LIT), "a lamp behind the block the case powers is off");
     helper.setBlock(AT, net.minecraft.world.level.block.Blocks.AIR);
-    helper.runAfterDelay(10, () -> {
+    TestMachines.later(helper, 10, () -> {
       helper.assertTrue(!helper.getBlockState(lamp).getValue(RedstoneLampBlock.LIT), "the lamp behind the block the broken case powered is still lit");
       helper.succeed();
     });
@@ -544,9 +544,9 @@ public final class ComputerRedstoneTests {
       }
       computer.setItem(slot, part);
     }
-    helper.runAfterDelay(5, () -> {
+    TestMachines.later(helper, 5, () -> {
       helper.assertTrue(computer.machine().start(), "the case did not start: " + computer.machine().lastError());
-      helper.runAfterDelay(40, () -> {
+      TestMachines.later(helper, 40, () -> {
         helper.assertTrue(computer.machine().isRunning(), "the case does not run: " + computer.machine().lastError());
         final BlockPos abs = helper.absolutePos(AT);
         computer.markUnloading();
@@ -559,7 +559,7 @@ public final class ComputerRedstoneTests {
         helper.getLevel().removeBlockEntity(abs);
         final var again = (Case) net.minecraft.world.level.block.entity.BlockEntity.loadStatic(abs, helper.getLevel().getBlockState(abs), savedEarly);
         helper.getLevel().getChunkAt(abs).addAndRegisterBlockEntity(again);
-        helper.runAfterDelay(40, () -> {
+        TestMachines.later(helper, 40, () -> {
           helper.assertTrue(again.machine().isRunning(), "a case saved before its machine was loaded came back stopped: " + again.machine().lastError());
           helper.succeed();
         });
@@ -586,7 +586,7 @@ public final class ComputerRedstoneTests {
         final String address = ghost.robot.computerAddress();
         helper.assertTrue(address == null || li.cil.oc.core.impl.server.ServerRobotRegistry.INSTANCE.get(helper.getLevel(), address) != ghost,
           "a removed proxy put itself in the robot registry");
-        helper.runAfterDelay(40, () -> {
+        TestMachines.later(helper, 40, () -> {
           helper.assertTrue(ghost.robot.isRemoved() && !ghost.robot.machine().isRunning(), "the robot of a removed proxy runs: " + ghost.robot.machine().isRunning() + ", removed " + ghost.robot.isRemoved());
           helper.succeed();
         });
@@ -610,7 +610,7 @@ public final class ComputerRedstoneTests {
         helper.getLevel().removeBlockEntity(abs);
         final var again = (li.cil.oc.core.impl.common.blockentity.Microcontroller) net.minecraft.world.level.block.entity.BlockEntity.loadStatic(abs, helper.getLevel().getBlockState(abs), savedEarly);
         helper.getLevel().getChunkAt(abs).addAndRegisterBlockEntity(again);
-        helper.runAfterDelay(40, () -> {
+        TestMachines.later(helper, 40, () -> {
           helper.assertTrue(again.machine().isRunning(), "a microcontroller saved before its machine was loaded came back stopped: " + again.machine().lastError());
           helper.succeed();
         });

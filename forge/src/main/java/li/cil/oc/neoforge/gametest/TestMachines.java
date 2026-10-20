@@ -3,6 +3,7 @@ package li.cil.oc.neoforge.gametest;
 import com.mojang.logging.LogUtils;
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -14,7 +15,10 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.gametest.framework.GameTestInfo;
 import net.minecraft.gametest.framework.GameTestListener;
 import net.minecraft.world.item.ItemStack;
+import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.common.util.FakePlayerFactory;
+import net.minecraftforge.event.TickEvent;
+import net.minecraftforge.eventbus.api.EventPriority;
 
 /**
  * Runs Lua on a microcontroller in a game test.
@@ -44,7 +48,7 @@ final class TestMachines {
     helper.setBlock(pos, Blocks.MICROCONTROLLER.get());
     final BlockPos abs = helper.absolutePos(pos);
     Blocks.MICROCONTROLLER.get().setPlacedBy(helper.getLevel(), abs, helper.getLevel().getBlockState(abs), FakePlayerFactory.getMinecraft(helper.getLevel()), data.createItemStack());
-    helper.runAfterDelay(5, () -> {
+    later(helper, 5, () -> {
       final var mc = (Microcontroller) helper.getLevel().getBlockEntity(abs);
       mc.changeEEPROM(li.cil.oc.api.Items.registerEEPROM("test", program.apply(mc).getBytes(StandardCharsets.UTF_8), null, false));
       ((li.cil.oc.api.network.Connector) mc.snooperNode).changeBuffer(1000);
@@ -60,10 +64,33 @@ final class TestMachines {
     });
   }
 
-  // stopped (reported), or waiting for a signal with none queued
+  // stopped (reported), or waiting for a signal with none queued (Sleeping until its next update with one queued)
   private static boolean settled(final li.cil.oc.api.machine.Machine machine) {
     return !machine.isRunning() || machine instanceof li.cil.oc.core.impl.server.machine.MachineBase m && !m.isExecuting()
-      && m.state().peek() == li.cil.oc.core.impl.server.machine.MachineBase.State.Sleeping;
+      && m.state().peek() == li.cil.oc.core.impl.server.machine.MachineBase.State.Sleeping && noSignals(m);
+  }
+
+  private static boolean noSignals(final li.cil.oc.core.impl.server.machine.MachineBase machine) {
+    try {
+      final var signals = (java.util.Queue<?>) SIGNALS.get(machine);
+      synchronized (signals) {
+        return signals.isEmpty();
+      }
+    } catch (ReflectiveOperationException e) {
+      throw new IllegalStateException(e);
+    }
+  }
+
+  private static final Field SIGNALS = signalsField();
+
+  private static Field signalsField() {
+    try {
+      final Field field = li.cil.oc.core.impl.server.machine.MachineBase.class.getDeclaredField("signals");
+      field.setAccessible(true);
+      return field;
+    } catch (ReflectiveOperationException e) {
+      throw new IllegalStateException(e);
+    }
   }
 
   /**
@@ -110,10 +137,10 @@ final class TestMachines {
     Blocks.ROBOT.get().setPlacedBy(helper.getLevel(), abs, helper.getLevel().getBlockState(abs), placer, data.createItemStack());
     final var robot = ((li.cil.oc.core.impl.common.blockentity.RobotProxy) helper.getLevel().getBlockEntity(abs)).robot;
     setup.accept(robot);
-    helper.runAfterDelay(5, () -> {
+    later(helper, 5, () -> {
       ((li.cil.oc.api.network.Connector) robot.machine().node()).changeBuffer(20000);
       helper.assertTrue(robot.machine().start(), "the robot did not start: " + robot.machine().lastError());
-      helper.runAfterDelay(delay, () -> whenWithin(helper, () -> reported(program, robot.machine()), 100, 10, () -> {
+      later(helper, delay, () -> whenWithin(helper, () -> reported(program, robot.machine()), 100, 10, () -> {
         // (a check of what did not happen passed when the program had not got that far)
         helper.assertTrue(reported(program, robot.machine()), "the program did not report within " + (delay + 100) + " ticks and 10 seconds");
         final String error = robot.machine().lastError();
@@ -145,10 +172,10 @@ final class TestMachines {
     drone.initializeAfterPlacement(data.createItemStack(), null, helper.absoluteVec(net.minecraft.world.phys.Vec3.atCenterOf(pos)));
     level.addFreshEntity(drone);
     setup.accept(drone);
-    helper.runAfterDelay(5, () -> {
+    later(helper, 5, () -> {
       ((li.cil.oc.api.network.Connector) drone.machine().node()).changeBuffer(20000);
       helper.assertTrue(drone.start(), "the drone did not start: " + drone.machine().lastError());
-      helper.runAfterDelay(delay, () -> whenWithin(helper, () -> reported(program, drone.machine()), 100, 10, () -> {
+      later(helper, delay, () -> whenWithin(helper, () -> reported(program, drone.machine()), 100, 10, () -> {
         helper.assertTrue(reported(program, drone.machine()), "the program did not report within " + (delay + 100) + " ticks and 10 seconds");
         final String error = drone.machine().lastError();
         final int at = error == null ? -1 : error.indexOf("done:");
@@ -220,14 +247,20 @@ final class TestMachines {
   // the helper's test (found by type: the field is named differently outside the development environment)
   private static GameTestInfo testInfo(final GameTestHelper helper) {
     try {
-      for (final Field field : GameTestHelper.class.getDeclaredFields()) {
-        if (field.getType() == GameTestInfo.class) {
-          field.setAccessible(true);
-          return (GameTestInfo) field.get(helper);
-        }
-      }
+      return (GameTestInfo) TEST_INFO.get(helper);
     } catch (ReflectiveOperationException e) {
       throw new IllegalStateException(e);
+    }
+  }
+
+  private static final Field TEST_INFO = testInfoField();
+
+  private static Field testInfoField() {
+    for (final Field field : GameTestHelper.class.getDeclaredFields()) {
+      if (field.getType() == GameTestInfo.class) {
+        field.setAccessible(true);
+        return field;
+      }
     }
     throw new IllegalStateException("the test helper holds no test");
   }
@@ -238,7 +271,7 @@ final class TestMachines {
    */
   static void when(final GameTestHelper helper, final java.util.function.BooleanSupplier ready, final int max, final Runnable then) {
     if (max <= 0 || ready.getAsBoolean()) then.run();
-    else helper.runAfterDelay(1, () -> when(helper, ready, max - 1, then));
+    else later(helper, 1, () -> when(helper, ready, max - 1, then));
   }
 
   /**
@@ -255,5 +288,43 @@ final class TestMachines {
       clock[0] = now;
       return ready.getAsBoolean() || ++ticks[0] > max && clock[1] > seconds * 1e9;
     }, Integer.MAX_VALUE, then);
+  }
+
+  /**
+   * Runs the task after the ticks, as helper.runAfterDelay, which a step of a test must not call: GameTestInfo walks a
+   * fastutil hash map of the test's steps each tick, and a step put in while it walked - once that grew the map's table
+   * (past 24 steps: onEachTick books one a tick) - had the walk skip steps, run them twice or throw. The task goes in at
+   * the start of the next server tick, outside the walk, and runs in the test's tick as before (a waiting step checks
+   * its condition there: one seen at the start of the tick could change in the level's tick before the step ran).
+   */
+  static void later(final GameTestHelper helper, final int delay, final Runnable task) {
+    final long due = helper.getTick() + delay;
+    synchronized (deferred) {
+      if (!listening) { // (only once a test runs: the game tests ship in the jar)
+        listening = true;
+        MinecraftForge.EVENT_BUS.addListener(EventPriority.NORMAL, false, TickEvent.ServerTickEvent.class, TestMachines::putDeferred);
+      }
+      deferred.add(new Deferred(helper, testInfo(helper), due, task));
+    }
+  }
+
+  private record Deferred(GameTestHelper helper, GameTestInfo test, long due, Runnable task) {
+  }
+
+  private static final List<Deferred> deferred = new ArrayList<>();
+  private static boolean listening;
+
+  private static void putDeferred(final TickEvent.ServerTickEvent event) {
+    if (event.phase != TickEvent.Phase.START) return;
+    final List<Deferred> due;
+    synchronized (deferred) {
+      if (deferred.isEmpty()) return;
+      due = new ArrayList<>(deferred);
+      deferred.clear();
+    }
+    for (final Deferred step : due) {
+      // (a test over never runs its steps again)
+      if (!step.test().isDone()) step.helper().runAtTickTime(Math.max(step.due(), step.helper().getTick() + 1), step.task());
+    }
   }
 }

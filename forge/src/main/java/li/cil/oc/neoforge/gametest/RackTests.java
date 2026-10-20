@@ -70,10 +70,10 @@ public final class RackTests {
       helper.assertTrue(slot >= 0, "no server slot takes " + part);
       server.setItem(slot, part);
     }
-    helper.runAfterDelay(5, () -> {
+    TestMachines.later(helper, 5, () -> {
       ((li.cil.oc.api.network.Connector) server.machine().node()).changeBuffer(1000);
       helper.assertTrue(server.machine().start(), "the server did not start: " + server.machine().lastError());
-      helper.runAfterDelay(20, () -> {
+      TestMachines.later(helper, 20, () -> {
         helper.assertTrue(server.machine().isRunning(), "the server stopped: " + server.machine().lastError());
         then.accept(server);
       });
@@ -95,7 +95,7 @@ public final class RackTests {
     final BlockPos far = new BlockPos(24000 + helper.getLevel().random.nextInt(64) * 16, 100, 24000);
     final ChunkPos chunk = new ChunkPos(far);
     level.setChunkForced(chunk.x, chunk.z, true);
-    helper.runAfterDelay(5, () -> {
+    TestMachines.later(helper, 5, () -> {
       level.setBlock(far, Blocks.RACK.get().defaultBlockState(), 3);
       final Rack rack = (Rack) level.getBlockEntity(far);
       runServer(helper, rack, IDLE, server -> {
@@ -117,7 +117,7 @@ public final class RackTests {
   public static void mountableMenusCloseWhenTheyLeaveTheRack(final GameTestHelper helper) {
     final Rack rack = rack(helper);
     final FakePlayer player = playerAt(helper, helper.absolutePos(AT));
-    helper.runAfterDelay(2, () -> {
+    TestMachines.later(helper, 2, () -> {
       rack.setItem(0, item(Constants.ItemName.ServerTier1));
       rack.setItem(1, item(Constants.ItemName.DiskDriveMountable));
       final var server = (ServerBase) rack.getMountable(0);
@@ -137,7 +137,7 @@ public final class RackTests {
     final Rack rack = rack(helper);
     final BlockPos abs = helper.absolutePos(AT);
     rack.setItem(0, item(Constants.ItemName.ServerTier1));
-    helper.runAfterDelay(5, () -> {
+    TestMachines.later(helper, 5, () -> {
       final var server = (ServerBase) rack.getMountable(0);
       rack.connect(0, -1, Direction.EAST);
       final Direction before = rack.facing();
@@ -209,7 +209,7 @@ public final class RackTests {
         throw new RuntimeException(e);
       }
       rack.removeItem(0, 1);
-      helper.runAfterDelay(60, () -> {
+      TestMachines.later(helper, 60, () -> {
         helper.assertTrue(!lock.isLocked(), "the test still holds the lock");
         helper.assertTrue("Stopped".equals(String.valueOf(machine.state().peek())), "the server taken out while busy never closed: " + machine.state());
         helper.succeed();
@@ -236,7 +236,7 @@ public final class RackTests {
     helper.onEachTick(() -> {
       if (!disassembler.queue.isEmpty() && !disassembler.instantJob) notInstant[0] = true;
     });
-    helper.runAfterDelay(60, () -> {
+    TestMachines.later(helper, 60, () -> {
       helper.assertTrue(!notInstant[0], "the creative job was not instant while it ran");
       int dropped = 0;
       final var chest = (net.minecraft.world.level.block.entity.ChestBlockEntity) helper.getBlockEntity(AT.above());
@@ -290,7 +290,7 @@ public final class RackTests {
   public static void rackSimulatedEnergyChangesNothing(final GameTestHelper helper) {
     final Rack rack = rack(helper);
     rack.setItem(0, item(Constants.ItemName.ServerTier1));
-    helper.runAfterDelay(5, () -> {
+    TestMachines.later(helper, 5, () -> {
       rack.connect(0, -1, Direction.UP);
       final double before = rack.globalBuffer(Direction.UP);
       helper.assertTrue(rack.globalBufferSize(Direction.UP) > before + 10, "the rack's server has no room for energy: " + before + " of " + rack.globalBufferSize(Direction.UP));
@@ -306,7 +306,7 @@ public final class RackTests {
     final Rack rack = rack(helper);
     final BlockPos abs = helper.absolutePos(AT);
     rack.setItem(0, item(Constants.ItemName.TerminalServer));
-    helper.runAfterDelay(5, () -> {
+    TestMachines.later(helper, 5, () -> {
       final var terminalServer = (li.cil.oc.core.impl.common.component.TerminalServer) rack.getMountable(0);
       terminalServer.sidedKeys().add("test-key");
       final ItemStack terminal = item(Constants.ItemName.Terminal);

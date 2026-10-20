@@ -60,7 +60,7 @@ public final class SaveMarkTests {
     final BlockPos far = new BlockPos(-24000 - helper.getLevel().random.nextInt(64) * 16, 100, 24000);
     final ChunkPos chunk = new ChunkPos(far);
     level.setChunkForced(chunk.x, chunk.z, true);
-    helper.runAfterDelay(5, () -> {
+    TestMachines.later(helper, 5, () -> {
       try {
         level.setBlock(far, Blocks.CAPACITOR.get().defaultBlockState(), 3);
         final var levelChunk = level.getChunk(chunk.x, chunk.z);
@@ -80,7 +80,7 @@ public final class SaveMarkTests {
   @GameTest(template = EMPTY, timeoutTicks = 100)
   public static void redstoneIoSettingsAreSaved(final GameTestHelper helper) {
     helper.setBlock(AT, Blocks.REDSTONE.get());
-    helper.runAfterDelay(5, () -> {
+    TestMachines.later(helper, 5, () -> {
       final var io = (li.cil.oc.core.impl.common.blockentity.Redstone) helper.getBlockEntity(AT);
       marked(io, true);
       io.setOutput(Direction.EAST, 15);
@@ -97,7 +97,7 @@ public final class SaveMarkTests {
   @GameTest(template = EMPTY, timeoutTicks = 100)
   public static void screenPowerIsSaved(final GameTestHelper helper) {
     helper.setBlock(AT, Blocks.SCREEN_TIER_1.get());
-    helper.runAfterDelay(5, () -> {
+    TestMachines.later(helper, 5, () -> {
       final var screen = (li.cil.oc.core.impl.common.blockentity.Screen) helper.getBlockEntity(AT);
       marked(screen, true);
       screen.buffer.setPowerState(!screen.buffer.getPowerState());
@@ -110,7 +110,7 @@ public final class SaveMarkTests {
   @GameTest(template = EMPTY, timeoutTicks = 100)
   public static void printerJobIsSaved(final GameTestHelper helper) {
     helper.setBlock(AT, Blocks.PRINTER.get());
-    helper.runAfterDelay(5, () -> {
+    TestMachines.later(helper, 5, () -> {
       final var printer = (li.cil.oc.core.impl.common.blockentity.Printer) helper.getBlockEntity(AT);
       marked(printer, true);
       printer.setLabel(context(), new ArgumentsImpl(new Object[]{"a print"}));

@@ -67,11 +67,11 @@ public final class FileSystemTests {
     final BlockPos at = new BlockPos(28000 + level.random.nextInt(2000) * 16, 100, 28000 + level.random.nextInt(2000) * 16);
     final var chunkPos = new net.minecraft.world.level.ChunkPos(at);
     level.setChunkForced(chunkPos.x, chunkPos.z, true);
-    helper.runAfterDelay(3, () -> {
+    TestMachines.later(helper, 3, () -> {
       level.setBlock(at, Blocks.DISK_DRIVE.get().defaultBlockState(), 3);
       final var drive = (li.cil.oc.core.impl.common.blockentity.DiskDrive) level.getBlockEntity(at);
       drive.setItem(0, floppy);
-      helper.runAfterDelay(5, () -> {
+      TestMachines.later(helper, 5, () -> {
         li.cil.oc.api.network.ManagedEnvironment found = null;
         for (final var env : drive.componentEnvironments()) {
           if (env != null) found = env;
@@ -90,7 +90,7 @@ public final class FileSystemTests {
           cleanUp.run();
           throw t;
         }
-        helper.runAfterDelay(15, cleanUp);
+        TestMachines.later(helper, 15, cleanUp);
       });
     });
   }
@@ -227,7 +227,7 @@ public final class FileSystemTests {
       } finally {
         org.apache.commons.io.FileUtils.deleteQuietly(outsideBin);
       }
-      helper.runAfterDelay(20, helper::succeed);
+      TestMachines.later(helper, 20, helper::succeed);
     });
   }
 
@@ -252,7 +252,7 @@ public final class FileSystemTests {
     MinecraftForge.EVENT_BUS.post(new net.minecraftforge.event.RegisterCommandsEvent(new com.mojang.brigadier.CommandDispatcher<>(),
       net.minecraft.commands.Commands.CommandSelection.INTEGRATED,
       net.minecraft.commands.CommandBuildContext.configurable(server.registryAccess(), server.getWorldData().enabledFeatures())));
-    helper.runAfterDelay(30, () -> {
+    TestMachines.later(helper, 30, () -> {
       helper.assertTrue(ran.get(), "a save queued before the commands were registered again never ran");
       helper.succeed();
     });
@@ -278,9 +278,9 @@ public final class FileSystemTests {
       second.close();
     } finally {
       first.close();
-      helper.runAfterDelay(20, () -> org.apache.commons.io.FileUtils.deleteQuietly(new File(worldRoot(helper), OCSettings.savePath + root)));
+      TestMachines.later(helper, 20, () -> org.apache.commons.io.FileUtils.deleteQuietly(new File(worldRoot(helper), OCSettings.savePath + root)));
     }
-    helper.runAfterDelay(25, helper::succeed);
+    TestMachines.later(helper, 25, helper::succeed);
   }
 
   /** An unmanaged disk image that cannot be read is moved aside, not overwritten with an empty disk at the next save. */
@@ -308,7 +308,7 @@ public final class FileSystemTests {
         final File[] leftovers = folder.listFiles((dir, name) -> name.startsWith(address + ".bin"));
         if (leftovers != null) for (final File f : leftovers) f.delete();
       }
-      helper.runAfterDelay(20, helper::succeed);
+      TestMachines.later(helper, 20, helper::succeed);
     });
   }
 }

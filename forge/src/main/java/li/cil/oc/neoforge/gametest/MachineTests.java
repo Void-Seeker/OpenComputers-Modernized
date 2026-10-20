@@ -32,7 +32,7 @@ public final class MachineTests {
     mc.markUnloading();
     final var saved = mc.saveWithoutMetadata();
     helper.getLevel().removeBlockEntity(abs);
-    helper.runAfterDelay(3, () -> {
+    TestMachines.later(helper, 3, () -> {
       final var reloaded = (Microcontroller) helper.getLevel().getBlockEntity(abs);
       helper.assertTrue(reloaded != null && reloaded != mc, "no fresh block entity after the removal");
       reloaded.load(saved);
@@ -48,7 +48,7 @@ public final class MachineTests {
         + "elseif n == 'report' then error('done:') end end\n",
       // its network formed again, then asked to report: signals queued since the reload come first (a check after 60
       // ticks alone passed while the program had not got to them)
-      mc -> reload(helper, mc, reloaded -> helper.runAfterDelay(60, () -> {
+      mc -> reload(helper, mc, reloaded -> TestMachines.later(helper, 60, () -> {
         reloaded.machine().signal("report");
         TestMachines.whenWithin(helper, () -> reloaded.machine().lastError() != null, 60, 10, () -> {
           helper.assertTrue(String.valueOf(reloaded.machine().lastError()).contains("done:"), "the reloaded computer "
@@ -84,7 +84,7 @@ public final class MachineTests {
         final long day = ((level.getGameTime() + 12000) / 1000) * 1000; // an hour away from the game time's, at its start
         level.setDayTime(day);
         final long expected = ((day + 6000) / 1000) % 24;
-        helper.runAfterDelay(2, () -> {
+        TestMachines.later(helper, 2, () -> {
           mc.machine().signal("report");
           TestMachines.whenWithin(helper, () -> !mc.machine().isRunning(), 20, 10, () -> {
             helper.assertTrue(String.valueOf(mc.machine().lastError()).contains("done:" + expected), "at day time " + day + " os.date says " + mc.machine().lastError() + ", expected hour " + expected);
@@ -129,7 +129,7 @@ public final class MachineTests {
         computer.setItem(cpu, ItemStack.EMPTY);
       }
     });
-    helper.runAfterDelay(210, () -> {
+    TestMachines.later(helper, 210, () -> {
       helper.assertTrue(started[0], "the case never started: " + computer.machine().lastError());
       helper.assertTrue(running[0] != null, "the case never ran a Lua state: " + computer.machine().lastError());
       helper.assertTrue(!running[0].isInitialized(), "the Lua state of the CPU taken out was never closed");
@@ -149,7 +149,7 @@ public final class MachineTests {
       machine.update(); // its own update closes it first
       helper.assertTrue(!machine.isRunning(), "the stopped machine runs");
       helper.assertTrue(machine.start(), "the machine did not start again: " + machine.lastError());
-      helper.runAfterDelay(3, () -> {
+      TestMachines.later(helper, 3, () -> {
         helper.assertTrue(machine.isRunning(), "the machine started again was closed at the tick's end: " + machine.lastError());
         helper.succeed();
       });

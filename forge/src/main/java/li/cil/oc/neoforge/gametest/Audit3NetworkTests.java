@@ -105,7 +105,7 @@ public final class Audit3NetworkTests {
     final String addressA = UUID.randomUUID().toString(), addressB = UUID.randomUUID().toString();
     relay.setItem(HDD_SLOT, drive(addressA));
     relay.setItem(CARD_SLOT, linkedCard(tunnelA));
-    helper.runAfterDelay(3, () -> { // its plugs connected
+    TestMachines.later(helper, 3, () -> { // its plugs connected
       final ItemStack cardA = relay.removeItem(CARD_SLOT, 1);
       final ItemStack driveA = relay.removeItem(HDD_SLOT, 1);
       relay.setItem(CARD_SLOT, linkedCard(tunnelB));
@@ -141,7 +141,7 @@ public final class Audit3NetworkTests {
     helper.setBlock(AT.east(), Blocks.CAPACITOR.get());
     final var west = (Capacitor) helper.getBlockEntity(AT.west());
     final var east = (Capacitor) helper.getBlockEntity(AT.east());
-    helper.runAfterDelay(3, () -> { // joined
+    TestMachines.later(helper, 3, () -> { // joined
       helper.assertTrue(west.node().network() != null && east.node().network() != null && west.node().network() != east.node().network(),
         "the capacitors at the rack's sides are not in networks of their own");
       connector(west).changeBuffer(1000);
@@ -163,7 +163,7 @@ public final class Audit3NetworkTests {
     helper.setBlock(AT.east(), Blocks.CAPACITOR.get());
     final var west = (Capacitor) helper.getBlockEntity(AT.west());
     final var east = (Capacitor) helper.getBlockEntity(AT.east());
-    helper.runAfterDelay(3, () -> {
+    TestMachines.later(helper, 3, () -> {
       connector(west).changeBuffer(1000);
       when(helper, () -> connector(east).globalBuffer() > 0, 100, () -> {
         final double westRatio = connector(west).globalBuffer() / connector(west).globalBufferSize();
@@ -182,7 +182,7 @@ public final class Audit3NetworkTests {
   public static void chargersFollowRedstone(final GameTestHelper helper) {
     helper.setBlock(AT, Blocks.CHARGER.get());
     final var charger = (Charger) helper.getBlockEntity(AT);
-    helper.runAfterDelay(3, () -> {
+    TestMachines.later(helper, 3, () -> {
       helper.assertTrue(charger.chargeSpeed == 0, "an unpowered charger charges at " + charger.chargeSpeed);
       helper.setBlock(AT.east(), net.minecraft.world.level.block.Blocks.REDSTONE_BLOCK);
       helper.assertTrue(charger.chargeSpeed == 1, "a charger next to a redstone block charges at " + charger.chargeSpeed);
@@ -249,7 +249,7 @@ public final class Audit3NetworkTests {
     helper.setBlock(AT.east(), Blocks.CAPACITOR.get());
     final var charger = (Charger) helper.getBlockEntity(AT);
     final var capacitor = (Capacitor) helper.getBlockEntity(AT.east());
-    helper.runAfterDelay(3, () -> { // joined
+    TestMachines.later(helper, 3, () -> { // joined
       helper.assertTrue(charger.node().network() != null && charger.node().network() == capacitor.node().network(), "the charger and the capacitor are not connected");
       connector(charger).changeBuffer(500); // into the charger's own buffer
       helper.assertTrue(connector(charger).localBuffer() == 500 && connector(capacitor).localBuffer() == 0,
@@ -303,7 +303,7 @@ public final class Audit3NetworkTests {
         cleanup.run();
         throw e;
       }
-      helper.runAfterDelay(5, () -> { // set up, b not asked for yet
+      TestMachines.later(helper, 5, () -> { // set up, b not asked for yet
         try {
           helper.assertTrue(capacitor.node().network() != null, "the capacitor did not join");
           // (a chunk that was loaded once is in memory, and loaded at once when asked for)
@@ -445,7 +445,7 @@ public final class Audit3NetworkTests {
     helper.setBlock(AT, Blocks.CHARGER.get());
     final var charger = (Charger) helper.getBlockEntity(AT);
     helper.setBlock(AT, net.minecraft.world.level.block.Blocks.AIR); // before its scheduled set-up
-    helper.runAfterDelay(5, () -> {
+    TestMachines.later(helper, 5, () -> {
       final Object node = charger.getGridNode(Direction.UP);
       final boolean kept = nodes.containsKey(charger);
       try {

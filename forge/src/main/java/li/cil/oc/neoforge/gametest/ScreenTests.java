@@ -42,7 +42,7 @@ public final class ScreenTests {
   /** A tier 3 screen once it is in a network (its buffer sends to clients under its node's address). */
   private static void withTier3(final GameTestHelper helper, final java.util.function.Consumer<Screen> then) {
     final Screen screen = tier3(helper);
-    helper.runAfterDelay(3, () -> {
+    TestMachines.later(helper, 3, () -> {
       screen.buffer.setColorDepth(li.cil.oc.api.internal.TextBuffer.ColorDepth.EightBit);
       then.accept(screen);
     });
@@ -73,11 +73,11 @@ public final class ScreenTests {
       }
     }, li.cil.oc.api.network.Visibility.Network).create();
     final var player = FakePlayerFactory.get(helper.getLevel(), new GameProfile(UUID.randomUUID(), "oc-walker"));
-    helper.runAfterDelay(3, () -> {
+    TestMachines.later(helper, 3, () -> {
       screen.origin.node.connect(listener);
       screen.walk(player);
       screen.walk(player); // the next movement tick on the same spot: the same step
-      helper.runAfterDelay(20, () -> {
+      TestMachines.later(helper, 20, () -> {
         screen.walk(player);
         try {
           helper.assertTrue(walks.size() == 2, "two steps onto the screen made " + walks.size() + " walk signals");
@@ -173,7 +173,7 @@ public final class ScreenTests {
       if (connector.globalBuffer() < 40) connector.changeBuffer(40 - connector.globalBuffer());
       started[0] = computer.machine().start();
     });
-    helper.runAfterDelay(300, () -> {
+    TestMachines.later(helper, 300, () -> {
       helper.assertTrue(started[0], "the case never started: " + computer.machine().lastError());
       helper.assertTrue(String.valueOf(computer.machine().lastError()).contains("done:true"), "after bitblts of negative size: " + computer.machine().lastError());
       helper.succeed();
@@ -218,7 +218,7 @@ public final class ScreenTests {
       if (connector.globalBuffer() < 200) connector.changeBuffer(200 - connector.globalBuffer());
       started[0] = computer.machine().start();
     });
-    helper.runAfterDelay(250, () -> {
+    TestMachines.later(helper, 250, () -> {
       helper.assertTrue(started[0], "the case never started: " + computer.machine().lastError());
       then.accept(computer);
     });
@@ -398,13 +398,13 @@ public final class ScreenTests {
   public static void screenPlacedAgainstPowerStaysOn(final GameTestHelper helper) {
     helper.setBlock(AT.east(), net.minecraft.world.level.block.Blocks.REDSTONE_BLOCK);
     helper.setBlock(AT, Blocks.SCREEN_TIER_1.get());
-    helper.runAfterDelay(5, () -> {
+    TestMachines.later(helper, 5, () -> {
       final var screen = (li.cil.oc.core.impl.common.blockentity.Screen) helper.getBlockEntity(AT);
       final boolean placed = screen.buffer.getPowerState();
       helper.setBlock(AT.east(), net.minecraft.world.level.block.Blocks.AIR);
-      helper.runAfterDelay(2, () -> {
+      TestMachines.later(helper, 2, () -> {
         helper.setBlock(AT.east(), net.minecraft.world.level.block.Blocks.REDSTONE_BLOCK);
-        helper.runAfterDelay(2, () -> {
+        TestMachines.later(helper, 2, () -> {
           helper.assertTrue(placed, "a screen placed against a powered block turned itself off");
           helper.assertTrue(!screen.buffer.getPowerState(), "power coming again did not toggle the screen");
           helper.succeed();
@@ -418,10 +418,10 @@ public final class ScreenTests {
   public static void screenPoweredOnASecondSideStaysOn(final GameTestHelper helper) {
     helper.setBlock(AT.east(), net.minecraft.world.level.block.Blocks.REDSTONE_BLOCK);
     helper.setBlock(AT, Blocks.SCREEN_TIER_1.get());
-    helper.runAfterDelay(5, () -> {
+    TestMachines.later(helper, 5, () -> {
       final var screen = (li.cil.oc.core.impl.common.blockentity.Screen) helper.getBlockEntity(AT);
       helper.setBlock(AT.west(), net.minecraft.world.level.block.Blocks.REDSTONE_BLOCK);
-      helper.runAfterDelay(2, () -> {
+      TestMachines.later(helper, 2, () -> {
         helper.assertTrue(screen.buffer.getPowerState(), "power on a second side turned the screen off");
         helper.succeed();
       });
@@ -436,15 +436,15 @@ public final class ScreenTests {
   public static void multiBlockScreenPoweredBehindBothScreensTogglesOnce(final GameTestHelper helper) {
     helper.setBlock(AT, Blocks.SCREEN_TIER_1.get());
     helper.setBlock(AT.east(), Blocks.SCREEN_TIER_1.get());
-    helper.runAfterDelay(10, () -> {
+    TestMachines.later(helper, 10, () -> {
       final var a = (li.cil.oc.core.impl.common.blockentity.Screen) helper.getBlockEntity(AT);
       helper.assertTrue(a.screens.size() == 2, "the two screens did not merge: " + a.screens.size());
       final boolean before = a.origin.buffer.getPowerState();
       helper.setBlock(AT.below(), net.minecraft.world.level.block.Blocks.REDSTONE_BLOCK);
-      helper.runAfterDelay(2, () -> {
+      TestMachines.later(helper, 2, () -> {
         final boolean once = a.origin.buffer.getPowerState();
         helper.setBlock(AT.east().below(), net.minecraft.world.level.block.Blocks.REDSTONE_BLOCK);
-        helper.runAfterDelay(2, () -> {
+        TestMachines.later(helper, 2, () -> {
           helper.assertTrue(once != before, "power behind one screen did not toggle the display");
           helper.assertTrue(a.origin.buffer.getPowerState() == once, "power behind the second screen toggled the display again");
           helper.succeed();
@@ -459,7 +459,7 @@ public final class ScreenTests {
     helper.setBlock(AT, Blocks.SCREEN_TIER_1.get());
     helper.setBlock(AT.east(), Blocks.SCREEN_TIER_1.get());
     helper.setBlock(AT.east().below(), net.minecraft.world.level.block.Blocks.REDSTONE_BLOCK);
-    helper.runAfterDelay(10, () -> {
+    TestMachines.later(helper, 10, () -> {
       final var a = (li.cil.oc.core.impl.common.blockentity.Screen) helper.getBlockEntity(AT);
       helper.assertTrue(a.screens.size() == 2 && a.origin.hadRedstoneInput, "the powered display did not form");
       final boolean wasOrigin = a.origin == a;
@@ -488,7 +488,7 @@ public final class ScreenTests {
   public static void displayReloadedWithNewPowerToggles(final GameTestHelper helper) {
     helper.setBlock(AT, Blocks.SCREEN_TIER_1.get());
     helper.setBlock(AT.east(), Blocks.SCREEN_TIER_1.get());
-    helper.runAfterDelay(10, () -> {
+    TestMachines.later(helper, 10, () -> {
       final var a = (li.cil.oc.core.impl.common.blockentity.Screen) helper.getBlockEntity(AT);
       final var b = (li.cil.oc.core.impl.common.blockentity.Screen) helper.getBlockEntity(AT.east());
       helper.assertTrue(a.screens.size() == 2, "the two screens did not merge");
@@ -508,7 +508,7 @@ public final class ScreenTests {
       final var lb = (li.cil.oc.core.impl.common.blockentity.Screen) net.minecraft.world.level.block.entity.BlockEntity.loadStatic(absB, level.getBlockState(absB), savedB);
       level.getChunkAt(absA).addAndRegisterBlockEntity(la);
       level.getChunkAt(absB).addAndRegisterBlockEntity(lb);
-      helper.runAfterDelay(10, () -> {
+      TestMachines.later(helper, 10, () -> {
         helper.assertTrue(la.screens.size() == 2, "the display did not form again");
         helper.assertTrue(la.origin.buffer.getPowerState() != before, "power that came while the display was away did not toggle it");
         helper.succeed();
@@ -524,7 +524,7 @@ public final class ScreenTests {
   public static void displayReloadedWithNewPowerTogglesThoughUpdatedEarly(final GameTestHelper helper) {
     helper.setBlock(AT, Blocks.SCREEN_TIER_1.get());
     helper.setBlock(AT.east(), Blocks.SCREEN_TIER_1.get());
-    helper.runAfterDelay(10, () -> {
+    TestMachines.later(helper, 10, () -> {
       final var a = (li.cil.oc.core.impl.common.blockentity.Screen) helper.getBlockEntity(AT);
       final var b = (li.cil.oc.core.impl.common.blockentity.Screen) helper.getBlockEntity(AT.east());
       helper.assertTrue(a.screens.size() == 2, "the two screens did not merge");
@@ -545,7 +545,7 @@ public final class ScreenTests {
       level.getChunkAt(absA).addAndRegisterBlockEntity(la);
       level.getChunkAt(absB).addAndRegisterBlockEntity(lb);
       lb.checkRedstoneInputChanged(); // a neighbour update before the display formed again
-      helper.runAfterDelay(10, () -> {
+      TestMachines.later(helper, 10, () -> {
         helper.assertTrue(la.screens.size() == 2, "the display did not form again");
         helper.assertTrue(la.origin.buffer.getPowerState() != before, "power that came while the display was away did not toggle it");
         helper.succeed();
@@ -604,7 +604,7 @@ public final class ScreenTests {
     inAChunkThatDoesNotTick(helper, 0, (far, cleanup) -> {
       level.setBlock(far, Blocks.SCREEN_TIER_1.get().defaultBlockState(), 3);
       final var screen = (li.cil.oc.core.impl.common.blockentity.Screen) level.getBlockEntity(far);
-      helper.runAfterDelay(5, () -> { // initialize and the network join come from the scheduler, ticking or not
+      TestMachines.later(helper, 5, () -> { // initialize and the network join come from the scheduler, ticking or not
         try {
           level.setBlock(far.east(), net.minecraft.world.level.block.Blocks.STONE.defaultBlockState(), 3);
           final boolean before = screen.buffer.getPowerState();
@@ -629,7 +629,7 @@ public final class ScreenTests {
       final BlockPos posB = far.east();
       level.setBlock(far, Blocks.SCREEN_TIER_1.get().defaultBlockState(), 3);
       level.setBlock(posB, Blocks.SCREEN_TIER_1.get().defaultBlockState(), 3);
-      helper.runAfterDelay(10, () -> {
+      TestMachines.later(helper, 10, () -> {
         try {
           final var a = (li.cil.oc.core.impl.common.blockentity.Screen) level.getBlockEntity(far);
           final var b = (li.cil.oc.core.impl.common.blockentity.Screen) level.getBlockEntity(posB);
@@ -674,7 +674,7 @@ public final class ScreenTests {
       final BlockPos edge = far.offset(6, 0, 0); // the screen at x 14 of its chunk, stone at 15: its east side is the next chunk
       final var next = new net.minecraft.world.level.ChunkPos(edge.east().east());
       level.setBlock(edge, Blocks.SCREEN_TIER_1.get().defaultBlockState(), 3);
-      helper.runAfterDelay(5, () -> { // joined, its first read done
+      TestMachines.later(helper, 5, () -> { // joined, its first read done
         try {
           helper.assertTrue(level.getChunkSource().getChunkNow(next.x, next.z) == null, "the next chunk is loaded already");
           // the stone set without updates (they would reach into the next chunk and load it themselves), then the

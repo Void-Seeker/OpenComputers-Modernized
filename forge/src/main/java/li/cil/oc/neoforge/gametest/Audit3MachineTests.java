@@ -104,7 +104,7 @@ public final class Audit3MachineTests {
     for (final ItemStack part : List.of(item(Constants.ItemName.CPUTier1), item(Constants.ItemName.RAMTier2), eeprom(program))) {
       insert(helper, computer, part);
     }
-    helper.runAfterDelay(5, () -> {
+    TestMachines.later(helper, 5, () -> {
       final var machine = (MachineBase) computer.machine();
       helper.assertTrue(machine.start(), "the case did not start: " + machine.lastError());
       within(helper, 30, () -> asleep(machine), () -> {
@@ -226,7 +226,7 @@ public final class Audit3MachineTests {
         probe.remove();
         throw e;
       }
-      helper.runAfterDelay(10, () -> { // (the case updates it each tick too)
+      TestMachines.later(helper, 10, () -> { // (the case updates it each tick too)
         try {
           helper.assertTrue(stopped.isEmpty(), "within the slice the computer was stopped " + stopped.size() + " times (computer.stopped)");
           helper.assertTrue(machine.state().peek() == State.Restarting, "within the slice the computer went " + machine.state());
@@ -409,7 +409,7 @@ public final class Audit3MachineTests {
     insert(helper, computer, eeprom("local tp = component.proxy(component.list('transposer')())\n"
       + "computer.pullSignal(0.1)\n"
       + "error('done:' .. tostring(tp.swap(4, 5, " + (cpuSlot + 1) + ", 1)))\n"));
-    helper.runAfterDelay(5, () -> {
+    TestMachines.later(helper, 5, () -> {
       final var machine = (MachineBase) computer.machine();
       helper.assertTrue(machine.start(), "the case did not start: " + machine.lastError());
       final var architecture = machine.architecture();
@@ -459,7 +459,7 @@ public final class Audit3MachineTests {
       """))) {
       insert(helper, computer, part);
     }
-    helper.runAfterDelay(5, () -> {
+    TestMachines.later(helper, 5, () -> {
       final var machine = computer.machine();
       helper.assertTrue(machine.start(), "the case did not start: " + machine.lastError());
       within(helper, 30, () -> !machine.isRunning(), () -> {
@@ -620,7 +620,7 @@ public final class Audit3MachineTests {
     final var level = helper.getLevel();
     final BlockPos abs = helper.absolutePos(AT);
     Blocks.MICROCONTROLLER.get().setPlacedBy(level, abs, level.getBlockState(abs), net.minecraftforge.common.util.FakePlayerFactory.getMinecraft(level), data.createItemStack());
-    helper.runAfterDelay(5, () -> {
+    TestMachines.later(helper, 5, () -> {
       final var mc = (li.cil.oc.core.impl.common.blockentity.Microcontroller) level.getBlockEntity(abs);
       mc.changeEEPROM(eeprom("""
         local t = {n = 1}

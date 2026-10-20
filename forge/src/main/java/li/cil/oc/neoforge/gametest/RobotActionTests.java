@@ -484,7 +484,7 @@ public final class RobotActionTests {
     TestMachines.runRobot(helper, AT, List.of(), "while true do computer.pullSignal(1) end", 20, (robot, ignored) -> {
       final double uptime = robot.machine().upTime();
       final long time = helper.getLevel().getGameTime();
-      helper.runAfterDelay(40, () -> {
+      TestMachines.later(helper, 40, () -> {
         final double ran = robot.machine().upTime() - uptime;
         final double passed = (helper.getLevel().getGameTime() - time) / 20.0;
         helper.assertTrue(Math.abs(ran - passed) < 0.11, "the robot's uptime went " + ran + " s in " + passed + " s of game time");

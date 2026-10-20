@@ -216,7 +216,7 @@ public final class IntegrationTests {
       }
     }, "test_energy_west");
     helper.setBlock(AT, Blocks.ADAPTER.get());
-    helper.runAfterDelay(10, () -> {
+    TestMachines.later(helper, 10, () -> {
       final var adapter = (li.cil.oc.core.impl.common.blockentity.Adapter) helper.getBlockEntity(AT);
       adapter.neighborChanged(Direction.EAST);
       boolean found = false;
@@ -383,7 +383,7 @@ public final class IntegrationTests {
     final BlockPos deviceAbs = helper.absolutePos(device);
     placeWithCapability(helper, device, provider, "test_energy_any");
     helper.setBlock(AT, Blocks.ADAPTER.get());
-    helper.runAfterDelay(10, () -> {
+    TestMachines.later(helper, 10, () -> {
       final var adapter = (li.cil.oc.core.impl.common.blockentity.Adapter) helper.getBlockEntity(AT);
       final Runnable replace = () -> {
         helper.setBlock(device, net.minecraft.world.level.block.Blocks.AIR);
@@ -436,7 +436,7 @@ public final class IntegrationTests {
     final BlockPos deviceAbs = helper.absolutePos(device);
     placeWithCapability(helper, device, energyProvider(), "test_energy_toggle");
     helper.setBlock(AT, Blocks.ADAPTER.get());
-    helper.runAfterDelay(10, () -> {
+    TestMachines.later(helper, 10, () -> {
       final var adapter = (li.cil.oc.core.impl.common.blockentity.Adapter) helper.getBlockEntity(AT);
       adapter.neighborChanged(Direction.EAST);
       final String before = blockAddress(adapter);
@@ -469,7 +469,7 @@ public final class IntegrationTests {
     final BlockPos deviceAbs = helper.absolutePos(device);
     placeWithCapability(helper, device, energyProvider(), "test_energy_old");
     helper.setBlock(AT, Blocks.ADAPTER.get());
-    helper.runAfterDelay(10, () -> {
+    TestMachines.later(helper, 10, () -> {
       final var adapter = (li.cil.oc.core.impl.common.blockentity.Adapter) helper.getBlockEntity(AT);
       adapter.neighborChanged(Direction.EAST);
       final String before = blockAddress(adapter);
@@ -484,7 +484,7 @@ public final class IntegrationTests {
       SECOND_DRIVER_AT.add(deviceAbs); // other drivers now
       final var loaded = (li.cil.oc.core.impl.common.blockentity.Adapter) BlockEntity.loadStatic(abs, helper.getLevel().getBlockState(abs), tag);
       helper.getLevel().getChunkAt(abs).addAndRegisterBlockEntity(loaded);
-      helper.runAfterDelay(10, () -> {
+      TestMachines.later(helper, 10, () -> {
         final String after;
         final int drivers;
         try {
@@ -508,7 +508,7 @@ public final class IntegrationTests {
     final ICapabilityProvider provider = energyProvider();
     placeWithCapability(helper, device, provider, "test_energy_over");
     helper.setBlock(AT, Blocks.ADAPTER.get());
-    helper.runAfterDelay(10, () -> {
+    TestMachines.later(helper, 10, () -> {
       final var adapter = (li.cil.oc.core.impl.common.blockentity.Adapter) helper.getBlockEntity(AT);
       adapter.neighborChanged(Direction.EAST);
       final String table = blockAddress(adapter);
@@ -531,7 +531,7 @@ public final class IntegrationTests {
     final BlockPos deviceAbs = helper.absolutePos(device);
     placeWithCapability(helper, device, energyProvider(), "test_energy_devices");
     helper.setBlock(AT, Blocks.ADAPTER.get());
-    helper.runAfterDelay(10, () -> {
+    TestMachines.later(helper, 10, () -> {
       final var adapter = (li.cil.oc.core.impl.common.blockentity.Adapter) helper.getBlockEntity(AT);
       final String one;
       final String other;
@@ -571,7 +571,7 @@ public final class IntegrationTests {
       }
     }, "test_energy_generic");
     helper.setBlock(AT, Blocks.ADAPTER.get());
-    helper.runAfterDelay(10, () -> {
+    TestMachines.later(helper, 10, () -> {
       final var adapter = (li.cil.oc.core.impl.common.blockentity.Adapter) helper.getBlockEntity(AT);
       adapter.neighborChanged(Direction.EAST);
       final String withEnergy = blockAddress(adapter);
@@ -603,7 +603,7 @@ public final class IntegrationTests {
     final BlockPos deviceAbs = helper.absolutePos(device);
     placeWithCapability(helper, device, energyProvider(), "test_energy_named");
     helper.setBlock(AT, Blocks.ADAPTER.get());
-    helper.runAfterDelay(10, () -> {
+    TestMachines.later(helper, 10, () -> {
       final var adapter = (li.cil.oc.core.impl.common.blockentity.Adapter) helper.getBlockEntity(AT);
       adapter.neighborChanged(Direction.EAST);
       final String before = blockAddress(adapter);
@@ -640,7 +640,7 @@ public final class IntegrationTests {
     final ICapabilityProvider provider = energyProvider();
     placeWithCapability(helper, device, provider, "test_energy_unrecorded");
     helper.setBlock(AT, Blocks.ADAPTER.get());
-    helper.runAfterDelay(10, () -> {
+    TestMachines.later(helper, 10, () -> {
       final var adapter = (li.cil.oc.core.impl.common.blockentity.Adapter) helper.getBlockEntity(AT);
       adapter.neighborChanged(Direction.EAST);
       final String table = blockAddress(adapter);
@@ -656,7 +656,7 @@ public final class IntegrationTests {
       helper.getLevel().removeBlockEntity(abs);
       final var loaded = (li.cil.oc.core.impl.common.blockentity.Adapter) BlockEntity.loadStatic(abs, helper.getLevel().getBlockState(abs), tag);
       helper.getLevel().getChunkAt(abs).addAndRegisterBlockEntity(loaded);
-      helper.runAfterDelay(10, () -> {
+      TestMachines.later(helper, 10, () -> {
         helper.setBlock(device, net.minecraft.world.level.block.Blocks.FURNACE);
         loaded.neighborChanged(Direction.EAST);
         final String furnace = blockAddress(loaded);
@@ -671,7 +671,7 @@ public final class IntegrationTests {
                                        final java.util.function.BiConsumer<String, li.cil.oc.core.impl.common.blockentity.Adapter> then) {
     placeWithCapability(helper, device, energyProvider(), "test_energy_unrecorded_" + left.getBlock().getDescriptionId());
     helper.setBlock(AT, Blocks.ADAPTER.get());
-    helper.runAfterDelay(10, () -> {
+    TestMachines.later(helper, 10, () -> {
       final var adapter = (li.cil.oc.core.impl.common.blockentity.Adapter) helper.getBlockEntity(AT);
       adapter.neighborChanged(Direction.EAST);
       final String table = blockAddress(adapter);
@@ -689,7 +689,7 @@ public final class IntegrationTests {
       helper.getLevel().removeBlockEntity(abs);
       final var loaded = (li.cil.oc.core.impl.common.blockentity.Adapter) BlockEntity.loadStatic(abs, helper.getLevel().getBlockState(abs), tag);
       helper.getLevel().getChunkAt(abs).addAndRegisterBlockEntity(loaded);
-      helper.runAfterDelay(10, () -> then.accept(table, loaded));
+      TestMachines.later(helper, 10, () -> then.accept(table, loaded));
     });
   }
 
@@ -727,7 +727,7 @@ public final class IntegrationTests {
       helper.getLevel().removeBlockEntity(abs);
       final var again = (li.cil.oc.core.impl.common.blockentity.Adapter) BlockEntity.loadStatic(abs, helper.getLevel().getBlockState(abs), tag);
       helper.getLevel().getChunkAt(abs).addAndRegisterBlockEntity(again);
-      helper.runAfterDelay(10, () -> {
+      TestMachines.later(helper, 10, () -> {
         again.setSideOpen(Direction.EAST, true);
         final String furnace = blockAddress(again);
         helper.assertTrue(table != null && furnace != null && !furnace.equals(table), "a furnace placed while the side was closed got the old table's address " + furnace);
@@ -755,7 +755,7 @@ public final class IntegrationTests {
   public static void adapterMarksItselfToBeSavedWhenItsSidesChange(final GameTestHelper helper) {
     final BlockPos device = AT.east();
     helper.setBlock(AT, Blocks.ADAPTER.get());
-    helper.runAfterDelay(10, () -> {
+    TestMachines.later(helper, 10, () -> {
       final var adapter = (li.cil.oc.core.impl.common.blockentity.Adapter) helper.getBlockEntity(AT);
       adapter.neighborChanged(Direction.EAST);
       saveMarked(adapter, true);
@@ -798,7 +798,7 @@ public final class IntegrationTests {
     final BlockPos device = AT.east();
     placeWithCapability(helper, device, energyProvider(), "test_energy_closed");
     helper.setBlock(AT, Blocks.ADAPTER.get());
-    helper.runAfterDelay(10, () -> {
+    TestMachines.later(helper, 10, () -> {
       final var adapter = (li.cil.oc.core.impl.common.blockentity.Adapter) helper.getBlockEntity(AT);
       adapter.neighborChanged(Direction.EAST);
       final String table = blockAddress(adapter);
@@ -814,13 +814,13 @@ public final class IntegrationTests {
       helper.getLevel().removeBlockEntity(abs);
       final var loaded = (li.cil.oc.core.impl.common.blockentity.Adapter) BlockEntity.loadStatic(abs, helper.getLevel().getBlockState(abs), tag);
       helper.getLevel().getChunkAt(abs).addAndRegisterBlockEntity(loaded);
-      helper.runAfterDelay(10, () -> {
+      TestMachines.later(helper, 10, () -> {
         loaded.neighborChanged(Direction.EAST); // closed: it only looks
         final var again = loaded.saveWithFullMetadata();
         helper.getLevel().removeBlockEntity(abs);
         final var reloaded = (li.cil.oc.core.impl.common.blockentity.Adapter) BlockEntity.loadStatic(abs, helper.getLevel().getBlockState(abs), again);
         helper.getLevel().getChunkAt(abs).addAndRegisterBlockEntity(reloaded);
-        helper.runAfterDelay(10, () -> {
+        TestMachines.later(helper, 10, () -> {
           reloaded.setSideOpen(Direction.EAST, true);
           final String after = blockAddress(reloaded);
           helper.assertTrue(table != null && table.equals(after), "the table that stayed got " + after + " instead of " + table);
@@ -836,7 +836,7 @@ public final class IntegrationTests {
     final BlockPos device = AT.east();
     placeWithCapability(helper, device, energyProvider(), "test_energy_closed_mark");
     helper.setBlock(AT, Blocks.ADAPTER.get());
-    helper.runAfterDelay(10, () -> {
+    TestMachines.later(helper, 10, () -> {
       final var adapter = (li.cil.oc.core.impl.common.blockentity.Adapter) helper.getBlockEntity(AT);
       adapter.neighborChanged(Direction.EAST);
       adapter.setSideOpen(Direction.EAST, false);
@@ -852,10 +852,10 @@ public final class IntegrationTests {
   @GameTest(template = EMPTY, timeoutTicks = 100)
   public static void adapterDatabaseWritesAreSaved(final GameTestHelper helper) {
     helper.setBlock(AT, Blocks.ADAPTER.get());
-    helper.runAfterDelay(10, () -> {
+    TestMachines.later(helper, 10, () -> {
       final var adapter = (li.cil.oc.core.impl.common.blockentity.Adapter) helper.getBlockEntity(AT);
       adapter.setItem(0, li.cil.oc.api.Items.get(li.cil.oc.core.Constants.ItemName.DatabaseUpgradeTier1).createItemStack(1));
-      helper.runAfterDelay(5, () -> {
+      TestMachines.later(helper, 5, () -> {
         li.cil.oc.core.impl.server.component.UpgradeDatabase database = null;
         for (final var env : adapter.componentEnvironments()) {
           if (env instanceof li.cil.oc.core.impl.server.component.UpgradeDatabase db) database = db;
@@ -880,7 +880,7 @@ public final class IntegrationTests {
     helper.setBlock(furnacePos, net.minecraft.world.level.block.Blocks.FURNACE);
     helper.setBlock(adapterPos, Blocks.ADAPTER.get());
     helper.setBlock(adapterPos.below(), Blocks.CAPACITOR.get()); // the MFU draws energy
-    helper.runAfterDelay(10, () -> {
+    TestMachines.later(helper, 10, () -> {
       final var capacitor = (li.cil.oc.api.network.Environment) helper.getBlockEntity(adapterPos.below());
       ((li.cil.oc.api.network.Connector) capacitor.node()).changeBuffer(100000);
       final var adapter = (li.cil.oc.core.impl.common.blockentity.Adapter) helper.getBlockEntity(adapterPos);
@@ -891,11 +891,11 @@ public final class IntegrationTests {
         new int[]{abs.getX(), abs.getY(), abs.getZ(), helper.getLevel().dimension().location().hashCode(), Direction.UP.ordinal()});
       li.cil.oc.compat.CustomData.set(mfu, li.cil.oc.compat.CustomData.of(tag));
       adapter.setItem(0, mfu);
-      helper.runAfterDelay(5, () -> {
+      TestMachines.later(helper, 5, () -> {
         final String first = blockAddress(adapter);
         final var furnace = helper.getBlockState(furnacePos);
         helper.setBlock(furnacePos, furnace.setValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.LIT, true));
-        helper.runAfterDelay(2, () -> {
+        TestMachines.later(helper, 2, () -> {
           final String lit = blockAddress(adapter);
           final var saved = adapter.saveWithFullMetadata();
           final BlockPos at = helper.absolutePos(adapterPos);
@@ -922,7 +922,7 @@ public final class IntegrationTests {
     helper.setBlock(MFU_FURNACE, net.minecraft.world.level.block.Blocks.FURNACE);
     helper.setBlock(MFU_ADAPTER, Blocks.ADAPTER.get());
     if (powered) helper.setBlock(MFU_ADAPTER.below(), Blocks.CAPACITOR.get());
-    helper.runAfterDelay(10, () -> {
+    TestMachines.later(helper, 10, () -> {
       if (powered) {
         final var capacitor = (li.cil.oc.api.network.Environment) helper.getBlockEntity(MFU_ADAPTER.below());
         ((li.cil.oc.api.network.Connector) capacitor.node()).changeBuffer(100000);
@@ -949,7 +949,7 @@ public final class IntegrationTests {
   /** An MFU lets go of its removed block (it threw: the field it used was cleared by the disconnect) and takes it back with its address. */
   @GameTest(template = EMPTY, timeoutTicks = 100)
   public static void mfuLetsGoOfARemovedBlockAndTakesItBack(final GameTestHelper helper) {
-    mfuBoundToAFurnace(helper, true, adapter -> helper.runAfterDelay(5, () -> {
+    mfuBoundToAFurnace(helper, true, adapter -> TestMachines.later(helper, 5, () -> {
       final var first = blockNode(adapter);
       helper.assertTrue(first != null, "the MFU bound nothing");
       saveMarked(adapter, true);
@@ -967,7 +967,7 @@ public final class IntegrationTests {
   @GameTest(template = EMPTY, timeoutTicks = 100)
   public static void mfuSurvivesItsBlocksDriversChanging(final GameTestHelper helper) {
     registerSecondDriver();
-    mfuBoundToAFurnace(helper, true, adapter -> helper.runAfterDelay(5, () -> {
+    mfuBoundToAFurnace(helper, true, adapter -> TestMachines.later(helper, 5, () -> {
       final var first = blockNode(adapter);
       final BlockPos abs = helper.absolutePos(MFU_FURNACE);
       SECOND_DRIVER_AT.add(abs);
@@ -989,16 +989,16 @@ public final class IntegrationTests {
     mfuBoundToAFurnace(helper, false, adapter -> {
       final var first = blockNode(adapter);
       helper.assertTrue(first != null, "the MFU bound nothing");
-      helper.runAfterDelay(30, () -> {
+      TestMachines.later(helper, 30, () -> {
         helper.assertTrue(blockNode(adapter) == null && first.network() == null, "the MFU kept its block without energy");
         helper.setBlock(MFU_ADAPTER.below(), Blocks.CAPACITOR.get());
-        helper.runAfterDelay(5, () -> {
+        TestMachines.later(helper, 5, () -> {
           final var capacitor = (li.cil.oc.api.network.Environment) helper.getBlockEntity(MFU_ADAPTER.below());
           ((li.cil.oc.api.network.Connector) capacitor.node()).changeBuffer(100000);
           helper.setBlock(MFU_FURNACE, helper.getBlockState(MFU_FURNACE).setValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.LIT, true));
           final var again = blockNode(adapter);
           helper.assertTrue(again != null && first.address().equals(again.address()), "the powered MFU gave the furnace " + (again == null ? null : again.address()) + " instead of " + first.address());
-          helper.runAfterDelay(25, () -> { // powered now: it keeps the block past its energy beats
+          TestMachines.later(helper, 25, () -> { // powered now: it keeps the block past its energy beats
             final var still = blockNode(adapter);
             helper.assertTrue(still != null && first.address().equals(still.address()), "the powered MFU let go of its furnace again");
             helper.succeed();
@@ -1011,7 +1011,7 @@ public final class IntegrationTests {
   /** An MFU follows its block's new block entity, keeping the address (it held on to the removed one). */
   @GameTest(template = EMPTY, timeoutTicks = 100)
   public static void mfuFollowsAReplacedBlockEntity(final GameTestHelper helper) {
-    mfuBoundToAFurnace(helper, true, adapter -> helper.runAfterDelay(5, () -> {
+    mfuBoundToAFurnace(helper, true, adapter -> TestMachines.later(helper, 5, () -> {
       final var first = blockNode(adapter);
       final BlockPos abs = helper.absolutePos(MFU_FURNACE);
       helper.getLevel().removeBlockEntity(abs);
@@ -1054,7 +1054,7 @@ public final class IntegrationTests {
    */
   @GameTest(template = EMPTY, timeoutTicks = 100)
   public static void mfuFollowsABlockEntityReloadedWithItsChunk(final GameTestHelper helper) {
-    mfuBoundToAFurnace(helper, true, adapter -> helper.runAfterDelay(5, () -> {
+    mfuBoundToAFurnace(helper, true, adapter -> TestMachines.later(helper, 5, () -> {
       final var first = blockNode(adapter);
       final BlockPos abs = helper.absolutePos(MFU_FURNACE);
       helper.getLevel().removeBlockEntity(abs); // what a chunk unload and load does, without a block update
@@ -1075,7 +1075,7 @@ public final class IntegrationTests {
    */
   @GameTest(template = EMPTY, timeoutTicks = 100)
   public static void mfuTakesItsBlockBackWhenTheAdapterRejoins(final GameTestHelper helper) {
-    mfuBoundToAFurnace(helper, true, adapter -> helper.runAfterDelay(5, () -> {
+    mfuBoundToAFurnace(helper, true, adapter -> TestMachines.later(helper, 5, () -> {
       final var first = blockNode(adapter);
       helper.assertTrue(first != null, "the MFU bound nothing");
       adapter.node().remove();
@@ -1099,7 +1099,7 @@ public final class IntegrationTests {
   public static void adapterFollowsANeighbourReloadedWithItsChunk(final GameTestHelper helper) {
     helper.setBlock(AT.east(), net.minecraft.world.level.block.Blocks.FURNACE);
     helper.setBlock(AT, Blocks.ADAPTER.get());
-    helper.runAfterDelay(10, () -> {
+    TestMachines.later(helper, 10, () -> {
       final var adapter = (li.cil.oc.core.impl.common.blockentity.Adapter) helper.getBlockEntity(AT);
       adapter.neighborChanged(Direction.EAST);
       final var first = blockNode(adapter);
@@ -1122,7 +1122,7 @@ public final class IntegrationTests {
   public static void adapterTakesItsBlocksBackWhenItRejoins(final GameTestHelper helper) {
     helper.setBlock(AT.east(), net.minecraft.world.level.block.Blocks.FURNACE);
     helper.setBlock(AT, Blocks.ADAPTER.get());
-    helper.runAfterDelay(10, () -> {
+    TestMachines.later(helper, 10, () -> {
       final var adapter = (li.cil.oc.core.impl.common.blockentity.Adapter) helper.getBlockEntity(AT);
       adapter.neighborChanged(Direction.EAST);
       final var first = blockNode(adapter);

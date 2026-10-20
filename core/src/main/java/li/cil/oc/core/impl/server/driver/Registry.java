@@ -35,7 +35,8 @@ public final class Registry implements li.cil.oc.api.detail.DriverAPI {
 
   private final List<DriverBlock> blocks = new ArrayList<>();
   private final List<DriverItem> items = new ArrayList<>();
-  private final List<Converter> converters = new ArrayList<>();
+  // (copied on write: tests add one at runtime while computer threads convert)
+  private final List<Converter> converters = new java.util.concurrent.CopyOnWriteArrayList<>();
   private final List<EnvironmentProvider> environmentProviders = new ArrayList<>();
   private final List<InventoryProvider> inventoryProviders = new ArrayList<>();
   private final List<Map.Entry<ItemStack, Set<Class<?>>>> blacklist = new ArrayList<>();

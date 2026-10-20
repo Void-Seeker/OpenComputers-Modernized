@@ -574,7 +574,7 @@ public final class Audit3RobotTests {
           // (once the gone loader's are let go, the robot's would have been too, had it not taken them back)
           final java.util.function.BooleanSupplier back = () -> again.machine().isRunning() && loader(again) != null && loader(again).active()
             && forced(level, far) == 9 && tickets(level).getOrDefault(owner, new LongOpenHashSet()).size() == 9;
-          TestMachines.whenWithin(helper, () -> !tickets(level).containsKey(gone), 1000, 10, () -> helper.runAfterDelay(ChunkloaderUpgradeHandler.RECLAIM_TICKS + 20, () -> TestMachines.whenWithin(helper, back, 100, 5, () -> {
+          TestMachines.whenWithin(helper, () -> !tickets(level).containsKey(gone), 1000, 10, () -> TestMachines.later(helper, ChunkloaderUpgradeHandler.RECLAIM_TICKS + 20, () -> TestMachines.whenWithin(helper, back, 100, 5, () -> {
             try {
               helper.assertTrue(!tickets(level).containsKey(gone), "the gone loader's tickets were kept: " + tickets(level).get(gone));
               final var cl = loader(again);

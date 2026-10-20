@@ -38,7 +38,7 @@ public final class AppliedEnergisticsTests {
     final var far = appeng.api.parts.PartHelper.setPart(helper.getLevel(), helper.absolutePos(cable), Direction.EAST, null, (appeng.api.parts.IPartItem<?>) item);
     helper.assertTrue(far != null, "the second interface part could not be placed");
     helper.setBlock(adapterPos, Blocks.ADAPTER.get());
-    helper.runAfterDelay(5, () -> {
+    TestMachines.later(helper, 5, () -> {
       final var adapter = (li.cil.oc.core.impl.common.blockentity.Adapter) helper.getBlockEntity(adapterPos);
       adapter.neighborChanged(Direction.EAST);
       li.cil.oc.neoforge.integration.appeng.DriverPartInterface.Environment found = null;
@@ -88,7 +88,7 @@ public final class AppliedEnergisticsTests {
     helper.assertTrue(export instanceof appeng.api.parts.IPartItem<?>, "AE2's export bus is not here: " + export);
     helper.assertTrue(appeng.api.parts.PartHelper.setPart(helper.getLevel(), abs, Direction.WEST, null, iface) != null, "the interface part could not be placed");
     helper.setBlock(adapterPos, Blocks.ADAPTER.get());
-    helper.runAfterDelay(5, () -> {
+    TestMachines.later(helper, 5, () -> {
       final var adapter = (li.cil.oc.core.impl.common.blockentity.Adapter) helper.getBlockEntity(adapterPos);
       adapter.neighborChanged(Direction.EAST);
       final String first = compoundAddress(adapter);
@@ -122,7 +122,7 @@ public final class AppliedEnergisticsTests {
     helper.assertTrue(importBus instanceof appeng.api.parts.IPartItem<?>, "AE2's import bus is not here: " + importBus);
     helper.assertTrue(appeng.api.parts.PartHelper.setPart(helper.getLevel(), abs, Direction.WEST, null, iface) != null, "the interface part could not be placed");
     helper.setBlock(adapterPos, Blocks.ADAPTER.get());
-    helper.runAfterDelay(5, () -> {
+    TestMachines.later(helper, 5, () -> {
       final var adapter = (li.cil.oc.core.impl.common.blockentity.Adapter) helper.getBlockEntity(adapterPos);
       adapter.neighborChanged(Direction.EAST);
       final String first = compoundAddress(adapter);
@@ -154,7 +154,7 @@ public final class AppliedEnergisticsTests {
     helper.assertTrue(acceptor instanceof appeng.api.parts.IPartItem<?>, "AE2's energy acceptor part is not here: " + acceptor);
     helper.assertTrue(appeng.api.parts.PartHelper.setPart(helper.getLevel(), abs, Direction.WEST, null, iface) != null, "the interface part could not be placed");
     helper.setBlock(adapterPos, Blocks.ADAPTER.get());
-    helper.runAfterDelay(5, () -> {
+    TestMachines.later(helper, 5, () -> {
       final var adapter = (li.cil.oc.core.impl.common.blockentity.Adapter) helper.getBlockEntity(adapterPos);
       adapter.neighborChanged(Direction.EAST);
       final String first = compoundAddress(adapter);
@@ -208,7 +208,7 @@ public final class AppliedEnergisticsTests {
     helper.assertTrue(appeng.api.parts.PartHelper.setPart(helper.getLevel(), abs, Direction.WEST, null, acceptor) != null, "the energy acceptor could not be placed");
     helper.assertTrue(appeng.api.parts.PartHelper.setPart(helper.getLevel(), abs, Direction.NORTH, null, iface) != null, "the interface could not be placed");
     helper.setBlock(adapterPos, Blocks.ADAPTER.get());
-    helper.runAfterDelay(5, () -> {
+    TestMachines.later(helper, 5, () -> {
       final var adapter = (li.cil.oc.core.impl.common.blockentity.Adapter) helper.getBlockEntity(adapterPos);
       adapter.neighborChanged(Direction.EAST);
       final String first = compoundAddress(adapter);

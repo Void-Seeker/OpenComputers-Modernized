@@ -66,7 +66,7 @@ public final class NetworkTests {
   public static void relayWithAWirelessCardTransmits(final GameTestHelper helper) {
     helper.setBlock(AT, Blocks.RELAY.get());
     final var relay = (li.cil.oc.core.impl.common.blockentity.Relay) helper.getBlockEntity(AT);
-    helper.runAfterDelay(2, () -> {
+    TestMachines.later(helper, 2, () -> {
       int slot = -1;
       final ItemStack card = item(Constants.ItemName.WirelessNetworkCardTier2);
       for (int i = 0; i < relay.getContainerSize() && slot < 0; i++) {
@@ -88,7 +88,7 @@ public final class NetworkTests {
     helper.assertTrue(relay.relayDelay > 1, "the relay delay is " + relay.relayDelay + ": nothing to wait");
     final java.util.function.Supplier<li.cil.oc.api.network.Packet> packet = () -> li.cil.oc.api.Network.newPacket("test", null, 1, new Object[]{"ping"});
     relay.tryEnqueuePacket(null, packet.get());
-    helper.runAfterDelay(relay.relayDelay + 5, () -> {
+    TestMachines.later(helper, relay.relayDelay + 5, () -> {
       helper.assertTrue(relay.packetQueue.isEmpty(), "the first packet was not relayed");
       relay.tryEnqueuePacket(null, packet.get());
       helper.assertTrue(relay.relayCooldown > 0, "a packet at an idle relay waits " + relay.relayCooldown + " ticks");
@@ -111,7 +111,7 @@ public final class NetworkTests {
         reason[0] = String.valueOf(e.getCause() != null ? e.getCause().getMessage() : e.getMessage());
       }
     });
-    helper.runAfterDelay(160, () -> {
+    TestMachines.later(helper, 160, () -> {
       helper.assertTrue(reason[0] != null && reason[0].contains("not allowed"), "a refused connection says " + reason[0]);
       helper.succeed();
     });
@@ -122,7 +122,7 @@ public final class NetworkTests {
   public static void oldRelayWithAWirelessCardGetsItsRange(final GameTestHelper helper) {
     helper.setBlock(AT, Blocks.RELAY.get());
     final var relay = (li.cil.oc.core.impl.common.blockentity.Relay) helper.getBlockEntity(AT);
-    helper.runAfterDelay(2, () -> {
+    TestMachines.later(helper, 2, () -> {
       int slot = -1;
       final ItemStack card = item(Constants.ItemName.WirelessNetworkCardTier2);
       for (int i = 0; i < relay.getContainerSize() && slot < 0; i++) {

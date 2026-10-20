@@ -134,7 +134,7 @@ public final class Audit3TabletTests {
 
   /** Runs the step every tick while it says to go on (onEachTick books every tick up to the timeout at once). */
   private static void everyTick(final GameTestHelper helper, final BooleanSupplier step) {
-    if (step.getAsBoolean()) helper.runAfterDelay(1, () -> everyTick(helper, step));
+    if (step.getAsBoolean()) TestMachines.later(helper, 1, () -> everyTick(helper, step));
   }
 
   private static double buffer(final TabletHostBase host) {
@@ -205,9 +205,9 @@ public final class Audit3TabletTests {
       helper.assertTrue(!new File(root, "deleted").exists(), "a folder the tablet deleted came back after a charger");
     } finally {
       TabletCache.get().invalidate(stack);
-      helper.runAfterDelay(20, () -> org.apache.commons.io.FileUtils.deleteQuietly(root));
+      TestMachines.later(helper, 20, () -> org.apache.commons.io.FileUtils.deleteQuietly(root));
     }
-    helper.runAfterDelay(25, helper::succeed);
+    TestMachines.later(helper, 25, helper::succeed);
   }
 
   /** A tablet runs on through a dimension change, as in OC (it was switched off every time). */
@@ -275,7 +275,7 @@ public final class Audit3TabletTests {
             });
           };
           if (!busy) moved.run();
-          else helper.runAfterDelay(3, () -> { // ticks of the slice held: the tablet stays
+          else TestMachines.later(helper, 3, () -> { // ticks of the slice held: the tablet stays
             helper.assertTrue(li.cil.oc.core.impl.common.item.Tablet.get(stack, player) == before, "the busy tablet moved mid-slice");
             moved.run();
           });

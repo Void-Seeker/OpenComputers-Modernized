@@ -42,7 +42,7 @@ public final class AuditTests {
     final List<Block> blocks = List.of(Blocks.ASSEMBLER.get(), Blocks.DISK_DRIVE.get(), Blocks.NET_SPLITTER.get(), Blocks.WAYPOINT.get(),
       Blocks.CHARGER.get(), Blocks.DISASSEMBLER.get(), Blocks.POWER_CONVERTER.get());
     for (int i = 0; i < blocks.size(); i++) helper.setBlock(new BlockPos(i % 4, 1 + 2 * (i / 4), 1), blocks.get(i));
-    helper.runAfterDelay(10, () -> {
+    TestMachines.later(helper, 10, () -> {
       for (int i = 0; i < blocks.size(); i++) {
         final BlockEntity be = helper.getBlockEntity(new BlockPos(i % 4, 1 + 2 * (i / 4), 1));
         final var node = ((li.cil.oc.api.network.Environment) be).node();
@@ -61,14 +61,14 @@ public final class AuditTests {
   public static void diskDriveEjectUnmountsTheFloppy(final GameTestHelper helper) {
     final BlockPos pos = new BlockPos(2, 2, 2);
     helper.setBlock(pos, Blocks.DISK_DRIVE.get());
-    helper.runAfterDelay(5, () -> {
+    TestMachines.later(helper, 5, () -> {
       final DiskDrive drive = (DiskDrive) helper.getBlockEntity(pos);
       drive.setItem(0, item(Constants.ItemName.Floppy));
-      helper.runAfterDelay(5, () -> {
+      TestMachines.later(helper, 5, () -> {
         helper.assertTrue(drive.componentEnvironments()[0] != null, "the inserted floppy got no filesystem component");
         final Object[] result = drive.eject(null, new ArgumentsImpl(new Object[]{0.0}));
         helper.assertTrue(Boolean.TRUE.equals(result[0]), "eject reported " + result[0]);
-        helper.runAfterDelay(2, () -> {
+        TestMachines.later(helper, 2, () -> {
           helper.assertTrue(drive.getItem(0).isEmpty(), "the floppy is still in the drive: " + drive.getItem(0));
           helper.assertTrue(drive.componentEnvironments()[0] == null, "the ejected floppy's filesystem is still mounted");
           final var dropped = helper.getLevel().getEntitiesOfClass(ItemEntity.class, new AABB(helper.absolutePos(pos)).inflate(2));
@@ -84,13 +84,13 @@ public final class AuditTests {
   public static void brokenPrinterDropsWholeStacks(final GameTestHelper helper) {
     final BlockPos pos = new BlockPos(2, 2, 2);
     helper.setBlock(pos, Blocks.PRINTER.get());
-    helper.runAfterDelay(5, () -> {
+    TestMachines.later(helper, 5, () -> {
       final Printer printer = (Printer) helper.getBlockEntity(pos);
       final ItemStack chamelium = item(Constants.ItemName.Chamelium);
       chamelium.setCount(10);
       printer.setItem(0, chamelium);
       helper.getLevel().destroyBlock(helper.absolutePos(pos), false);
-      helper.runAfterDelay(2, () -> {
+      TestMachines.later(helper, 2, () -> {
         int count = 0;
         for (final ItemEntity entity : helper.getLevel().getEntitiesOfClass(ItemEntity.class, new AABB(helper.absolutePos(pos)).inflate(3))) {
           final var info = li.cil.oc.api.Items.get(entity.getItem());
@@ -123,7 +123,7 @@ public final class AuditTests {
     helper.setBlock(pos.below(), net.minecraft.world.level.block.Blocks.HOPPER.defaultBlockState().setValue(HopperBlock.FACING, net.minecraft.core.Direction.DOWN));
     TestMachines.runMicrocontroller(helper, pos, List.of(Constants.ItemName.CPUTier1, Constants.ItemName.RAMTier2, Constants.ItemName.RedstoneCardTier1),
       "while true do computer.pullSignal(1) end\n",
-      mc -> helper.runAfterDelay(40, () -> { // (the hopper tries every 8 ticks)
+      mc -> TestMachines.later(helper, 40, () -> { // (the hopper tries every 8 ticks)
         final Container hopper = (Container) helper.getBlockEntity(pos.below());
         for (int i = 0; i < hopper.getContainerSize(); i++) {
           helper.assertTrue(hopper.getItem(i).isEmpty(), "the hopper pulled " + hopper.getItem(i) + " out of the microcontroller");
@@ -176,7 +176,7 @@ public final class AuditTests {
         connector.changeBuffer(connector.localBufferSize());
         final double before = connector.localBuffer();
         ((li.cil.oc.api.network.Connector) mc.snooperNode).changeBuffer(-((li.cil.oc.api.network.Connector) mc.snooperNode).localBuffer() / 2);
-        helper.runAfterDelay(60, () -> {
+        TestMachines.later(helper, 60, () -> {
           helper.assertTrue(connector.localBuffer() < before, "the microcontroller drew no power from the capacitor (" + connector.localBuffer() + " of " + before + ")");
           helper.succeed();
         });
@@ -197,7 +197,7 @@ public final class AuditTests {
     final var proxy = (li.cil.oc.core.impl.common.blockentity.RobotProxy) helper.getLevel().getBlockEntity(abs);
     proxy.robot.mainInventory().setItem(0, new ItemStack(net.minecraft.world.item.Items.DIAMOND, 5));
     helper.getLevel().destroyBlock(abs, false); // no player involved
-    helper.runAfterDelay(2, () -> {
+    TestMachines.later(helper, 2, () -> {
       int robots = 0, diamonds = 0, parts = -1;
       for (final ItemEntity entity : helper.getLevel().getEntitiesOfClass(ItemEntity.class, new AABB(abs).inflate(3))) {
         final var info = li.cil.oc.api.Items.get(entity.getItem());
@@ -218,10 +218,10 @@ public final class AuditTests {
     final BlockPos cable = new BlockPos(1, 2, 2), print = new BlockPos(3, 2, 2);
     helper.setBlock(cable, Blocks.CABLE.get());
     helper.setBlock(print, Blocks.PRINT.get());
-    helper.runAfterDelay(5, () -> {
+    TestMachines.later(helper, 5, () -> {
       helper.getLevel().destroyBlock(helper.absolutePos(cable), false);
       helper.getLevel().destroyBlock(helper.absolutePos(print), false);
-      helper.runAfterDelay(2, () -> {
+      TestMachines.later(helper, 2, () -> {
         int cables = 0, prints = 0;
         for (final ItemEntity entity : helper.getLevel().getEntitiesOfClass(ItemEntity.class, new AABB(helper.absolutePos(new BlockPos(2, 2, 2))).inflate(4))) {
           final var info = li.cil.oc.api.Items.get(entity.getItem());
@@ -260,7 +260,7 @@ public final class AuditTests {
         mc.markUnloading();
         final var saved = mc.saveWithoutMetadata();
         helper.getLevel().removeBlockEntity(abs);
-        helper.runAfterDelay(3, () -> {
+        TestMachines.later(helper, 3, () -> {
           helper.assertTrue(capacitor.network().node(plugAddress) == null, "the unloaded microcontroller's plug is still in the capacitor's network");
           helper.assertTrue(plug.network() == null, "the plug still has a network");
           helper.assertTrue(!mc.machine().isRunning(), "the unloaded microcontroller's machine is still running");
@@ -268,7 +268,7 @@ public final class AuditTests {
           final var reloaded = (li.cil.oc.core.impl.common.blockentity.Microcontroller) helper.getLevel().getBlockEntity(abs);
           helper.assertTrue(reloaded != null && reloaded != mc, "no fresh block entity after the removal");
           reloaded.load(saved);
-          helper.runAfterDelay(40, () -> {
+          TestMachines.later(helper, 40, () -> {
             final var newPlug = reloaded.sidedNode(reloaded.facing().getOpposite());
             helper.assertTrue(newPlug != null && plugAddress.equals(newPlug.address()), "the plug came back as " + (newPlug == null ? null : newPlug.address()) + " instead of " + plugAddress);
             helper.assertTrue(capacitor.network().node(plugAddress) == newPlug, "the capacitor's network does not hold the reloaded plug under its address");
@@ -286,7 +286,7 @@ public final class AuditTests {
     final BlockPos pos = new BlockPos(2, 2, 2);
     helper.setBlock(pos, Blocks.RACK.get());
     final BlockPos abs = helper.absolutePos(pos);
-    helper.runAfterDelay(5, () -> {
+    TestMachines.later(helper, 5, () -> {
       final var rack = (li.cil.oc.core.impl.common.blockentity.Rack) helper.getBlockEntity(pos);
       rack.setItem(0, item(Constants.ItemName.ServerTier1));
       final var server = (li.cil.oc.core.impl.server.component.ServerBase) rack.getMountable(0);
@@ -303,10 +303,10 @@ public final class AuditTests {
         helper.assertTrue(slot >= 0, "no server slot takes " + part);
         server.setItem(slot, part);
       }
-      helper.runAfterDelay(5, () -> {
+      TestMachines.later(helper, 5, () -> {
         ((li.cil.oc.api.network.Connector) server.machine().node()).changeBuffer(1000);
         helper.assertTrue(server.machine().start(), "the server did not start: " + server.machine().lastError());
-        helper.runAfterDelay(100, () -> {
+        TestMachines.later(helper, 100, () -> {
           helper.assertTrue(server.machine().isRunning(), "the server program stopped: " + server.machine().lastError());
           final int signal = helper.getLevel().getBestNeighborSignal(abs.above());
           helper.assertTrue(signal == 15, "the rack emits " + signal + " above instead of 15 (output enabled: " + rack.isOutputEnabled() + ")");
@@ -363,7 +363,7 @@ public final class AuditTests {
         release.countDown();
         helper.assertTrue(ms < 500, "the server thread waited " + ms + " ms on the computer's lock");
         helper.assertTrue(savedWhileBusy.contains("state"), "a save while the computer was busy wrote no machine state (it would come back off): " + savedWhileBusy);
-        helper.runAfterDelay(60, () -> {
+        TestMachines.later(helper, 60, () -> {
           helper.assertTrue(mc.machine().isRunning(), "the machine stopped: " + mc.machine().lastError());
           helper.succeed();
         });

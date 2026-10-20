@@ -614,14 +614,25 @@ public interface NetworkControl<AETile extends IActionHost> extends Persistable,
     private IGrid linkedGrid;
     private boolean following;
 
-    // The craftable that last told AE2 of a job, by its crafting ID. A machine loaded again has its craftables back as
-    // new ones; the old ones live on until collected (the job's link held them) and followed the grid too: at a grid
-    // change both told AE2, the last one told had the job, and its end could go to the old one - the live one then
-    // followed it for good, and after a reload its status said cancelled. A craftable lets go of a job another told
-    // AE2 of after it.
+    // The craftable that told AE2 of a job, by its crafting ID. A machine loaded again has its craftables back as new
+    // ones; the old ones live on until collected (the job's link held them) and followed the grid too: at a grid change
+    // both told AE2, the last one told had the job, and its end could go to the old one - the live one then followed it
+    // for good, and after a reload its status said cancelled. The newest craftable holds a job: by the order they were
+    // made, not told (an old one still waiting for its interface's chunk told AE2 after the restored one, and took the
+    // job from it the same way).
     private static final Map<java.util.UUID, java.lang.ref.WeakReference<Craftable>> tellers = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final java.util.concurrent.atomic.AtomicLong made = new java.util.concurrent.atomic.AtomicLong();
+    private final long madeAt = made.incrementAndGet();
+
+    // whether a craftable made after this one told AE2 of the job
+    private boolean heldByNewer(ICraftingLink link) {
+      var teller = tellers.get(link.getCraftingID());
+      var other = teller != null ? teller.get() : null;
+      return other != null && other != this && other.madeAt > madeAt;
+    }
 
     private void tell(IGrid grid) {
+      links.removeIf(this::heldByNewer);
       if (grid.getCraftingService() instanceof CraftingService crafting) {
         for (var link : links) {
           if (link instanceof CraftingLink craftingLink) crafting.addLink(craftingLink);
@@ -639,7 +650,12 @@ public interface NetworkControl<AETile extends IActionHost> extends Persistable,
       linkedGrid = told;
       tellers.values().removeIf(teller -> teller.get() == null);
       var self = new java.lang.ref.WeakReference<>(this);
-      for (var link : links) tellers.put(link.getCraftingID(), self);
+      for (var link : links) {
+        tellers.compute(link.getCraftingID(), (id, teller) -> {
+          var other = teller != null ? teller.get() : null;
+          return other != null && other.madeAt > madeAt ? teller : self;
+        });
+      }
       if (following || links.isEmpty()) return;
       following = true;
       scheduleFollow(new java.lang.ref.WeakReference<>(this));
@@ -654,11 +670,7 @@ public interface NetworkControl<AETile extends IActionHost> extends Persistable,
 
     // whether to go on
     private boolean followGrid() {
-      links.removeIf(link -> {
-        var teller = tellers.get(link.getCraftingID());
-        var other = teller != null ? teller.get() : null;
-        return other != null && other != this; // (its own link is the one AE2 tells now)
-      });
+      links.removeIf(this::heldByNewer); // (its own link is the one AE2 tells now)
       if (links.isEmpty()) {
         following = false;
         return false;

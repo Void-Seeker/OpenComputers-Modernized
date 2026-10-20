@@ -167,7 +167,7 @@ public final class DroneTests {
       final Entity moved = drone.changeDimension(end);
       helper.assertTrue(moved instanceof Drone, "the drone did not reach the End: " + moved);
       final Drone there = (Drone) moved;
-      helper.runAfterDelay(3, () -> {
+      TestMachines.later(helper, 3, () -> {
         final double off = Math.sqrt(Math.pow(there.targetX() - there.getX(), 2) + Math.pow(there.targetY() - there.getY(), 2) + Math.pow(there.targetZ() - there.getZ(), 2));
         there.discard();
         helper.assertTrue(off < 2, "in the End the drone's target is " + off + " blocks from it (" + there.targetX() + ", " + there.targetY() + ", " + there.targetZ() + ")");

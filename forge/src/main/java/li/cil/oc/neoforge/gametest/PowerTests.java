@@ -114,7 +114,7 @@ public final class PowerTests {
         final var moved = drone.changeDimension(end);
         helper.assertTrue(moved instanceof li.cil.oc.core.impl.common.entity.Drone, "the drone did not reach the End: " + moved);
         final var there = (li.cil.oc.core.impl.common.entity.Drone) moved;
-        helper.runAfterDelay(5, () -> {
+        TestMachines.later(helper, 5, () -> {
           int after = 0;
           for (final ItemEntity e : helper.getLevel().getEntitiesOfClass(ItemEntity.class, box)) after += coalIn(e.getItem());
           for (int i = 0; i < there.mainInventory().getContainerSize(); i++) after += coalIn(there.mainInventory().getItem(i));
@@ -132,7 +132,7 @@ public final class PowerTests {
   public static void waypointsAreFoundWithinTheWholeRange(final GameTestHelper helper) {
     helper.setBlock(AT, Blocks.WAYPOINT.get());
     final BlockPos abs = helper.absolutePos(AT);
-    helper.runAfterDelay(5, () -> {
+    TestMachines.later(helper, 5, () -> {
       final var from = li.cil.oc.core.impl.util.BlockPosition.apply(abs.getX() + 12, abs.getY(), abs.getZ(), helper.getLevel());
       int found = 0;
       for (final var ignored : li.cil.oc.core.impl.server.network.WaypointManager.findWaypoints(from, 16)) found++;
@@ -151,7 +151,7 @@ public final class PowerTests {
     final var sensor = (li.cil.oc.core.impl.common.blockentity.MotionSensor) helper.getBlockEntity(AT);
     final var mark = li.cil.oc.core.impl.common.blockentity.traits.BlockEntity.class.getDeclaredField("changeScheduled");
     mark.setAccessible(true);
-    helper.runAfterDelay(3, () -> {
+    TestMachines.later(helper, 3, () -> {
       try {
         ((java.util.concurrent.atomic.AtomicBoolean) mark.get(sensor)).set(false);
         sensor.motionSensor.setSensitivity(context(), new ArgumentsImpl(new Object[]{2.0}));

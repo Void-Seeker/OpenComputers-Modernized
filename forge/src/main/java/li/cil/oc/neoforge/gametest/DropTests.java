@@ -179,12 +179,12 @@ public final class DropTests {
     helper.setBlock(pos, Blocks.MICROCONTROLLER.get());
     final BlockPos abs = helper.absolutePos(pos);
     Blocks.MICROCONTROLLER.get().setPlacedBy(helper.getLevel(), abs, helper.getLevel().getBlockState(abs), player(helper), data.createItemStack());
-    helper.runAfterDelay(5, () -> {
+    TestMachines.later(helper, 5, () -> {
       final var mc = (li.cil.oc.core.impl.common.blockentity.Microcontroller) helper.getLevel().getBlockEntity(abs);
       final String before = networkOf(mc);
       helper.assertTrue(machineSees(mc, "redstone"), "parts not connected even before the swap: " + before);
       mc.changeEEPROM(item(Constants.ItemName.EEPROM));
-      helper.runAfterDelay(2, () -> {
+      TestMachines.later(helper, 2, () -> {
         final String after = networkOf(mc);
         helper.assertTrue(machineSees(mc, "eeprom") && machineSees(mc, "redstone"),
           "after the swap the machine should see the EEPROM and still its redstone card. Before: " + before + " | after: " + after);
@@ -205,7 +205,7 @@ public final class DropTests {
     helper.setBlock(pos, Blocks.MICROCONTROLLER.get());
     final BlockPos abs = helper.absolutePos(pos);
     Blocks.MICROCONTROLLER.get().setPlacedBy(helper.getLevel(), abs, helper.getLevel().getBlockState(abs), player(helper), data.createItemStack());
-    helper.runAfterDelay(5, () -> {
+    TestMachines.later(helper, 5, () -> {
       final var mc = (li.cil.oc.core.impl.common.blockentity.Microcontroller) helper.getLevel().getBlockEntity(abs);
       mc.changeEEPROM(li.cil.oc.api.Items.registerEEPROM("old", "-- old".getBytes(java.nio.charset.StandardCharsets.UTF_8), null, false));
       final FakePlayer player = player(helper);
@@ -253,7 +253,7 @@ public final class DropTests {
     final byte[] code = ("local rs = component.proxy(component.list(\"redstone\")())\n"
       + "for s = 0, 5 do rs.setOutput(s, 15) end\n"
       + "while true do computer.pullSignal(1) end\n").getBytes(java.nio.charset.StandardCharsets.UTF_8);
-    helper.runAfterDelay(5, () -> {
+    TestMachines.later(helper, 5, () -> {
       final var mc = (li.cil.oc.core.impl.common.blockentity.Microcontroller) helper.getLevel().getBlockEntity(abs);
       mc.changeEEPROM(li.cil.oc.api.Items.registerEEPROM("redstone test", code, null, false));
       ((li.cil.oc.api.network.Connector) mc.snooperNode).changeBuffer(1000);

@@ -72,7 +72,7 @@ public final class MachineryTests {
     printer.amountInk = 10000;
     printer.limit = 3;
     printer.isActive = true;
-    helper.runAfterDelay(40, () -> {
+    TestMachines.later(helper, 40, () -> {
       helper.assertTrue(printer.amountMaterial == 10000 && printer.amountInk == 10000 && printer.getItem(Printer.SLOT_OUTPUT).getCount() == full.getMaxStackSize(),
         "with a full output the printer used material " + (10000 - printer.amountMaterial) + ", ink " + (10000 - printer.amountInk));
       helper.succeed();
@@ -86,7 +86,7 @@ public final class MachineryTests {
     final Printer printer = (Printer) helper.getBlockEntity(AT);
     printer.setItem(Printer.SLOT_INK, item(Constants.ItemName.InkCartridge, 16));
     printer.amountInk = 0;
-    helper.runAfterDelay(5, () -> {
+    TestMachines.later(helper, 5, () -> {
       final ItemStack ink = printer.getItem(Printer.SLOT_INK);
       final int empties = loose(helper, Constants.ItemName.InkCartridgeEmpty);
       helper.assertTrue(net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(ink.getItem()).getPath().equals("inkcartridge")
@@ -158,7 +158,7 @@ public final class MachineryTests {
     helper.setBlock(AT, Blocks.DISK_DRIVE.get());
     final var drive = (li.cil.oc.core.impl.common.blockentity.DiskDrive) helper.getBlockEntity(AT);
     drive.setItem(0, item(Constants.ItemName.Floppy, 1));
-    helper.runAfterDelay(5, () -> {
+    TestMachines.later(helper, 5, () -> {
       li.cil.oc.core.impl.server.component.FileSystem fs = null;
       for (final var env : drive.componentEnvironments()) {
         if (env instanceof li.cil.oc.core.impl.server.component.FileSystem f) fs = f;

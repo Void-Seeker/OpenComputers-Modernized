@@ -411,7 +411,7 @@ public final class Audit3StorageTests {
       restoredStatus.load(statusTag, registries);
       final var restored = new NetworkControl.Craftable();
       restored.load(craftableTag, registries);
-      helper.runAfterDelay(150, () -> {
+      TestMachines.later(helper, 150, () -> {
         try {
           helper.assertTrue(restored.requesting(null, NO_ARGS)[0] instanceof Number, "the restored craftable did not find its interface");
           helper.assertTrue(cpuBusy(grid) && runsOn(restoredStatus), "the job of the restored requester alone was "
@@ -457,7 +457,7 @@ public final class Audit3StorageTests {
           cable.run(); // the network whole again
           when(helper, () -> iface.getMainNode().getGrid() == main.get(), 20, () -> {
             helper.assertTrue(iface.getMainNode().getGrid() == main.get(), "the interface did not join the main grid again");
-            helper.runAfterDelay(120, () -> {
+            TestMachines.later(helper, 120, () -> {
               try {
                 helper.assertTrue(restored.requesting(null, NO_ARGS)[0] instanceof Number, "the restored craftable lost its interface");
                 helper.assertTrue(cpuBusy(main.get()) && runsOn(restoredStatus), "the job the restored requester followed into the main grid was "
@@ -506,7 +506,7 @@ public final class Audit3StorageTests {
       TestMachines.atEnd(helper, () -> status.cancel(null, NO_ARGS)); // (the job, whoever has it)
       when(helper, () -> restored.requesting(null, NO_ARGS)[0] instanceof Number, 20, () -> {
         helper.assertTrue(restored.requesting(null, NO_ARGS)[0] instanceof Number, "the restored craftable did not find its interface");
-        helper.runAfterDelay(2, () -> {
+        TestMachines.later(helper, 2, () -> {
           // a grid change, as each follower sees it: the restored one tells AE2, then the one left behind (their order
           // within a tick is the scheduler's)
           followGridChange(restored);
@@ -524,6 +524,66 @@ public final class Audit3StorageTests {
         });
       });
     }));
+  }
+
+  /**
+   * Of two craftables restored from one save (a computer's chunk loaded, unloaded and loaded again before the first one
+   * was collected), the newer one keeps the job though the older, waiting for its interface's chunk, tells AE2 of it
+   * after the newer: the last one to tell took the job, the newer let go of it for good, and its status said cancelled
+   * after a grid change while the job ran ("no link" after a save).
+   */
+  @GameTest(template = EMPTY, timeoutTicks = 1000)
+  public static void theNewestRestoredCraftableKeepsItsJob(final GameTestHelper helper) {
+    final var registries = helper.getLevel().registryAccess();
+    craftingGrid(helper, grid -> runningJob(helper, grid, (craftable, status) -> {
+      final CompoundTag craftableTag = new CompoundTag();
+      final CompoundTag statusTag = new CompoundTag();
+      craftable.save(craftableTag, registries);
+      status.save(statusTag, registries);
+      TestMachines.atEnd(helper, () -> grid.getCraftingService().getCpus().forEach(ICraftingCPU::cancelJob));
+      final var older = new NetworkControl.Craftable();
+      older.load(craftableTag, registries);
+      final var newer = new NetworkControl.Craftable();
+      newer.load(craftableTag, registries);
+      final var newerStatus = new NetworkControl.CraftingStatus();
+      newerStatus.load(statusTag, registries);
+      // the newer one finds its interface now, the older one at its first retry
+      retryNow(newer);
+      helper.assertTrue(newer.requesting(null, NO_ARGS)[0] instanceof Number, "the newer craftable did not find its interface");
+      helper.assertTrue(!(older.requesting(null, NO_ARGS)[0] instanceof Number), "the older craftable found its interface first");
+      when(helper, () -> older.requesting(null, NO_ARGS)[0] instanceof Number, 20, () -> {
+        helper.assertTrue(older.requesting(null, NO_ARGS)[0] instanceof Number, "the older craftable did not find its interface");
+        TestMachines.later(helper, 2, () -> { // (each follower had its tick)
+          helper.assertTrue(requesterOfTheJob(grid, newer), "AE2 tells the job to the older craftable, which told it last ("
+            + requesterOfTheJob(grid, older) + "), not the newer one");
+          helper.assertTrue(!newer.getRequestedJobs().isEmpty(), "the newer craftable let go of its job");
+          helper.assertTrue(older.getRequestedJobs().isEmpty() && craftable.getRequestedJobs().isEmpty(), "an older craftable still holds the job");
+          // a grid change, as each follower sees it
+          followGridChange(newer);
+          followGridChange(older);
+          followGridChange(craftable);
+          helper.assertTrue(requesterOfTheJob(grid, newer), "after a grid change AE2 tells an older craftable of the job");
+          grid.getCraftingService().getCpus().forEach(ICraftingCPU::cancelJob);
+          when(helper, () -> !cpuBusy(grid), 20, () -> {
+            helper.assertTrue(!cpuBusy(grid), "the job was not cancelled");
+            helper.assertTrue(Boolean.TRUE.equals(newerStatus.isCanceled(null, NO_ARGS)[0]), "the newer status does not report the cancel");
+            helper.assertTrue(newer.getRequestedJobs().isEmpty(), "the newer craftable was not told of the job's end");
+            helper.succeed();
+          });
+        });
+      });
+    }));
+  }
+
+  // a restored craftable's retry for its interface, now
+  private static void retryNow(final NetworkControl.Craftable craftable) {
+    try {
+      final var retry = NetworkControl.Craftable.class.getDeclaredMethod("delayLoadGrid");
+      retry.setAccessible(true);
+      retry.invoke(craftable);
+    } catch (ReflectiveOperationException e) {
+      throw new IllegalStateException(e);
+    }
   }
 
   // what the craftable's follower does on its next tick after its interface went to another grid
@@ -620,7 +680,7 @@ public final class Audit3StorageTests {
   private static void chunkStaysUnloaded(final GameTestHelper helper, final ChunkPos chunk, final int ticks, final Runnable then) {
     helper.assertTrue(helper.getLevel().getChunkSource().getChunkNow(chunk.x, chunk.z) == null, "a restored craftable loaded its controller's chunk");
     if (ticks <= 0) then.run();
-    else helper.runAfterDelay(1, () -> chunkStaysUnloaded(helper, chunk, ticks - 1, then));
+    else TestMachines.later(helper, 1, () -> chunkStaysUnloaded(helper, chunk, ticks - 1, then));
   }
 
   private static void collected(final GameTestHelper helper, final WeakReference<?> ref, final int ticks) {
@@ -630,7 +690,7 @@ public final class Audit3StorageTests {
       return;
     }
     helper.assertTrue(ticks > 0, "a restored craftable no machine holds is kept by its retries");
-    helper.runAfterDelay(1, () -> collected(helper, ref, ticks - 1));
+    TestMachines.later(helper, 1, () -> collected(helper, ref, ticks - 1));
   }
 
   /**

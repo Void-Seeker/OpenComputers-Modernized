@@ -187,7 +187,7 @@ public final class Audit3LuaTests {
       if (connector.globalBuffer() < 200) connector.changeBuffer(200 - connector.globalBuffer());
       started[0] = computer.machine().start();
     });
-    helper.runAfterDelay(100, () -> TestMachines.when(helper, () -> started[0] && !computer.machine().isRunning(), 200, () -> {
+    TestMachines.later(helper, 100, () -> TestMachines.when(helper, () -> started[0] && !computer.machine().isRunning(), 200, () -> {
       final String error = String.valueOf(computer.machine().lastError());
       final String integers = String.join(",", java.util.Collections.nCopies(20, "integer"));
       helper.assertTrue(error.contains("done:Lua 5.3 " + integers + " 80x25"), "the types under Lua 5.3: " + error);
@@ -220,7 +220,7 @@ public final class Audit3LuaTests {
       Blocks.MICROCONTROLLER.get().setPlacedBy(helper.getLevel(), abs, helper.getLevel().getBlockState(abs), net.minecraftforge.common.util.FakePlayerFactory.getMinecraft(helper.getLevel()), data.createItemStack());
       machines.add((li.cil.oc.core.impl.common.blockentity.Microcontroller) helper.getLevel().getBlockEntity(abs));
     }
-    helper.runAfterDelay(5, () -> {
+    TestMachines.later(helper, 5, () -> {
       for (final var mc : machines) {
         mc.changeEEPROM(li.cil.oc.api.Items.registerEEPROM("arch", program.getBytes(java.nio.charset.StandardCharsets.UTF_8), null, false));
         ((li.cil.oc.api.network.Connector) mc.snooperNode).changeBuffer(1000);
@@ -437,7 +437,7 @@ public final class Audit3LuaTests {
       MinecraftForge.EVENT_BUS.unregister(onGameEvent);
       throw e;
     }
-    helper.runAfterDelay(3, () -> { // (block events run at the end of the tick)
+    TestMachines.later(helper, 3, () -> { // (block events run at the end of the tick)
       MinecraftForge.EVENT_BUS.unregister(onPlay);
       MinecraftForge.EVENT_BUS.unregister(onGameEvent);
       final List<String> state = new ArrayList<>();

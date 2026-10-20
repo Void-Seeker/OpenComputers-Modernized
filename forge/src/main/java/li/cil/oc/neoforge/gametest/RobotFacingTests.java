@@ -113,12 +113,12 @@ public final class RobotFacingTests {
     final String program = "local r = component.proxy(component.list('robot')()) r.turn(%s) while true do computer.pullSignal(1) end";
     final Robot left = bootedRobot(helper, new BlockPos(1, 2, 1), String.format(program, "false"));
     final Robot right = bootedRobot(helper, new BlockPos(3, 2, 1), String.format(program, "true"));
-    helper.runAfterDelay(5, () -> {
+    TestMachines.later(helper, 5, () -> {
       for (final Robot robot : new Robot[]{left, right}) {
         ((li.cil.oc.api.network.Connector) robot.machine().node()).changeBuffer(10000);
         helper.assertTrue(robot.machine().start(), "the robot did not start: " + robot.machine().lastError());
       }
-      helper.runAfterDelay(60, () -> {
+      TestMachines.later(helper, 60, () -> {
         helper.assertTrue(left.machine().lastError() == null && right.machine().lastError() == null,
           "program errors: " + left.machine().lastError() + " / " + right.machine().lastError());
         helper.assertTrue(left.yaw() == Direction.EAST && left.toGlobal(Direction.SOUTH) == Direction.EAST,
