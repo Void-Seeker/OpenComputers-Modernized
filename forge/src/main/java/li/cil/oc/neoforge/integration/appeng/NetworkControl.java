@@ -792,6 +792,7 @@ public interface NetworkControl<AETile extends IActionHost> extends Persistable,
     private volatile boolean saved, reloaded;
     private CraftingStatus origin;
     private boolean restored; // (saved before this server started)
+    private long loadedAt; // (server tick)
 
     public void setLink(ICraftingLink value) {
       link = value;
@@ -809,16 +810,23 @@ public interface NetworkControl<AETile extends IActionHost> extends Persistable,
     // the link the job's craftables share now, else the last one it had. Restored statuses were handed the link of the
     // next craftable loaded: of copies loaded together, maybe the one AE2 no longer told (the status went stale), and a
     // second copy of the status got none ("no link", saved without its job). A job no craftable came back with after a
-    // restart (its craftable was not kept, or it was the old machine's) is cancelled by AE2, which has no requester for
-    // it: its status said "no link" for good (OC 1.12 too), and a program waiting for it to be done or cancelled hung.
+    // restart (its craftable was not kept, or it was the old machine's) has no requester: its status said "no link" for
+    // good (OC 1.12 too), and a program waiting for it to be done or cancelled hung. AE2 runs such a job on for its
+    // grace ticks and cancels it unless it ends first: the status follows it on its CPU, else (once the grids are up)
+    // it is over - cancelled, or ended before the restart unseen.
     private ICraftingLink link() {
       if (id == null) return link;
       ICraftingLink current = LinkCache.howEnded(id);
       if (current == null) current = LinkCache.current(id);
+      if (current == null) current = LinkCache.orphan(id, restored && link == null);
       if (current != null) link = current;
-      else if (link == null && restored) link = new Ended(id, false, true);
+      else if (link == null && restored && LinkCache.tick() - loadedAt >= GRID_TICKS) link = new Ended(id, false, true);
       return link;
     }
+
+    // (AE2 grids and their CPUs are up within a few ticks of their chunk loading; it cancels a job with no requester
+    // after 60 of its grid's)
+    private static final int GRID_TICKS = 20;
 
     // A status saved while computing came back computing for good (OC 1.12 too): the job was submitted for the old
     // craftable or never (the server stopped). It takes what came of the request.
@@ -919,6 +927,7 @@ public interface NetworkControl<AETile extends IActionHost> extends Persistable,
         reason = nbt.getString(REASON_KEY);
       }
       restored = !LinkCache.session().toString().equals(nbt.getString(SESSION_KEY)); // (an older OC saved none)
+      loadedAt = LinkCache.tick();
       if (isComputing) {
         java.util.UUID token = null;
         try {
@@ -1030,6 +1039,39 @@ public interface NetworkControl<AETile extends IActionHost> extends Persistable,
       return ended.get(id);
     }
 
+    // Jobs restored statuses found on a CPU with no requester (AE2 dropped the CPU's link of a job over): held until
+    // they end, then kept as they ended.
+    private static final Map<java.util.UUID, ICraftingLink> orphans = new java.util.concurrent.ConcurrentHashMap<>();
+
+    static void orphan(ICraftingLink link) {
+      orphans.put(link.getCraftingID(), link);
+    }
+
+    static ICraftingLink orphan(java.util.UUID id, boolean look) {
+      var link = orphans.get(id);
+      if (link == null && look && (link = onCpu(id)) != null) orphan(link);
+      if (link != null && (link.isDone() || link.isCanceled())) {
+        var how = new Ended(id, link.isDone(), link.isCanceled());
+        ended.put(id, how);
+        orphans.remove(id);
+        persisted.remove(id);
+        return how;
+      }
+      return link;
+    }
+
+    private static ICraftingLink onCpu(java.util.UUID id) {
+      for (var grid : appeng.hooks.ticking.TickHandler.instance().getGridList()) {
+        for (var cpu : grid.getCraftingService().getCpus()) {
+          if (cpu instanceof appeng.me.cluster.implementations.CraftingCPUCluster cluster) {
+            var link = cluster.craftingLogic.getLastLink();
+            if (link != null && id.equals(link.getCraftingID())) return link;
+          }
+        }
+      }
+      return null;
+    }
+
     // Requests computing, by their status's token; and what came of those whose status was saved meanwhile, for the
     // statuses loaded again: the job's crafting ID or why it failed (the status itself, held for the session, held its
     // link, the old craftable, its controller and level).
@@ -1079,11 +1121,12 @@ public interface NetworkControl<AETile extends IActionHost> extends Persistable,
       shared.clear();
       persisted.clear();
       ended.clear();
+      orphans.clear();
       computing.clear();
       computed.clear();
     }
 
-    private static long tick() {
+    static long tick() {
       var server = li.cil.oc.core.impl.util.SideTracker.getCurrentServer();
       return server != null ? server.getTickCount() : -1;
     }
