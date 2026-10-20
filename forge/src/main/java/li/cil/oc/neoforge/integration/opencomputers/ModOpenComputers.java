@@ -19,6 +19,7 @@ import li.cil.oc.core.impl.common.nanomachines.provider.HungryProvider;
 import li.cil.oc.core.impl.common.nanomachines.provider.MagnetProvider;
 import li.cil.oc.core.impl.common.nanomachines.provider.ParticleProvider;
 import li.cil.oc.core.impl.common.nanomachines.provider.PotionProvider;
+import li.cil.oc.core.impl.common.template.ContentsTemplate;
 import li.cil.oc.core.impl.common.template.DroneTemplate;
 import li.cil.oc.core.impl.common.template.MicrocontrollerTemplate;
 import li.cil.oc.core.impl.common.template.NavigationUpgradeTemplate;
@@ -141,6 +142,7 @@ public final class ModOpenComputers implements ModProxy {
 
   @Override
   public void initialize() {
+    ContentsTemplate.register();
     DroneTemplate.register();
     MicrocontrollerTemplate.register();
     NavigationUpgradeTemplate.register();

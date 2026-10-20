@@ -91,8 +91,7 @@ public abstract class UpgradeNavigationBase extends AbstractManagedEnvironment i
     Vec3 positionVec = position.toVec3();
     List<WaypointInfo> waypoints = queryWaypoints(position, range);
     Object[] waypointsArray = waypoints.stream()
-      .filter(waypoint -> new Vec3(waypoint.position().x(), waypoint.position().y(), waypoint.position().z())
-        .distanceTo(positionVec) <= range)
+      .filter(waypoint -> waypoint.position().toVec3().distanceTo(positionVec) <= range) // (centre to centre, as OC)
       .map(waypoint -> {
         Vec3 waypointPos = waypoint.position().offset(waypoint.facing()).toVec3();
         Vec3 delta = new Vec3(

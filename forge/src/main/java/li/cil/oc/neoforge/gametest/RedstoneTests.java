@@ -97,7 +97,7 @@ public final class RedstoneTests {
         helper.assertTrue(inFront.is(Items.STONE) && inFront.getCount() == 1, "the chest in front holds " + inFront);
         int dropped = 0;
         for (final ItemEntity item : helper.getLevel().getEntitiesOfClass(ItemEntity.class, new AABB(abs.relative(front[0])).inflate(0.5))) {
-          dropped += item.getItem().getCount();
+          if (item.getItem().is(Items.STONE)) dropped += item.getItem().getCount(); // (the framework's buttons of tests next to it fall here too)
         }
         helper.assertTrue(dropped == 1, dropped + " items were dropped in front instead of 1");
         helper.succeed();

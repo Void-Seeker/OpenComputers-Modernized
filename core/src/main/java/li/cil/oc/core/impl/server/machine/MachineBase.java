@@ -293,8 +293,8 @@ public abstract class MachineBase extends AbstractManagedEnvironment implements 
   // The architecture a close from within its own call left open (a program removing its own block): a Lua state in
   // use cannot close ("cannot close" threw into the world code removing the block, and the state was never let go).
   private Architecture closeAfterCall;
-  // the thread running a slice (with the execution lock)
-  private Thread sliceThread;
+  // the thread running a slice (with the execution lock), set by it for the whole slice: whether one runs
+  private volatile Thread sliceThread;
 
   // once the call is over
   private void closeAfterCall() {
@@ -703,11 +703,19 @@ public abstract class MachineBase extends AbstractManagedEnvironment implements 
   private long lastLockWarning;
 
   private boolean lockForServer(String what) {
-    try {
-      if (executionLock.tryLock(10, java.util.concurrent.TimeUnit.MILLISECONDS)) return true;
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      return false;
+    // not while a slice runs, which may go on for seconds: its caller tries again (each tick of a long slice waited
+    // 10 ms here - a tablet changing dimension pausing it, a computer crashed by the server thread closing)
+    Thread slice = sliceThread;
+    if (slice != null && slice != Thread.currentThread()) {
+      if (executionLock.tryLock()) return true; // (just over)
+      if (System.nanoTime() - cpuStart < 1_000_000_000L) return false; // (warned of once it has run a second)
+    } else {
+      try {
+        if (executionLock.tryLock(10, java.util.concurrent.TimeUnit.MILLISECONDS)) return true;
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        return false;
+      }
     }
     long now = System.currentTimeMillis();
     if (now - lastLockWarning > 10000) {
@@ -718,10 +726,12 @@ public abstract class MachineBase extends AbstractManagedEnvironment implements 
     return false;
   }
 
+  /**
+   * Whether a slice runs, or a synchronized call: kept by the executor (the state's Running was gone while a slice
+   * that stopped and started the computer went on, and a crash from the server thread cleared it).
+   */
   public boolean isExecuting() {
-    synchronized (state) {
-      return state.contains(State.Running);
-    }
+    return sliceThread != null || inSynchronizedCall;
   }
 
   public java.util.Deque<State> state() {
@@ -1305,9 +1315,9 @@ public abstract class MachineBase extends AbstractManagedEnvironment implements 
           return;
         }
         isSyncReturn = switchTo(State.Running) == State.SynchronizedReturn;
+        cpuStart = System.nanoTime();
+        sliceThread = Thread.currentThread();
       }
-      cpuStart = System.nanoTime();
-      sliceThread = Thread.currentThread();
       try {
         ExecutionResult result = architecture.runThreaded(isSyncReturn);
         synchronized (state) {

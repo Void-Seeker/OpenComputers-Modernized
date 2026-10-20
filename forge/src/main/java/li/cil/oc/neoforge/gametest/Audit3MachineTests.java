@@ -31,7 +31,8 @@ import net.minecraftforge.gametest.PrefixGameTestTemplate;
 
 /**
  * The machine core: restarts, saves and pauses against a running slice, a program taking out its own CPU, and nested
- * signal arguments (third audit). A slice is stood in for by holding the machine's execution lock on a test thread.
+ * signal arguments (third audit). A slice is stood in for by holding the machine's execution lock on a test thread,
+ * marked as the slice's.
  */
 @GameTestHolder(OpenComputers.ID)
 @PrefixGameTestTemplate(false)
@@ -135,10 +136,12 @@ public final class Audit3MachineTests {
       thread = new Thread(() -> {
         lock.lock();
         try {
+          setField(machine, "sliceThread", Thread.currentThread()); // (as the executor marks its slice)
           held.countDown();
           over.await(30, TimeUnit.SECONDS);
         } catch (InterruptedException ignored) {
         } finally {
+          setField(machine, "sliceThread", null);
           lock.unlock();
         }
       }, "test slice");
@@ -507,6 +510,58 @@ public final class Audit3MachineTests {
         probe.remove();
         helper.assertTrue(machine.state().peek() == State.Stopped, "the computer did not stop after the slice: " + machine.state());
         helper.assertTrue(stopped.size() == 1, "the stop closed the computer " + stopped.size() + " times");
+        helper.succeed();
+      });
+    });
+  }
+
+  // the fastest of five, in ms
+  private static double fastestMs(final Runnable call) {
+    long fastest = Long.MAX_VALUE;
+    for (int i = 0; i < 5; i++) {
+      final long start = System.nanoTime();
+      call.run();
+      fastest = Math.min(fastest, System.nanoTime() - start);
+    }
+    return fastest / 1e6;
+  }
+
+  /**
+   * The server thread does not wait for a slice running: a computer stopped and started within its slice was not
+   * executing (no Running left), so a tablet changing dimension paused it each tick, and each pause waited 10 ms for the
+   * slice; a crash from the server thread (out of energy) left no Running either, and each tick's close waited 10 ms.
+   */
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
+  public static void serverThreadDoesNotWaitForASlice(final GameTestHelper helper) {
+    startCase(helper, AT, SLEEPER, machine -> {
+      final Deque<State> stack = stack(machine);
+      final Slice slice = new Slice(machine);
+      try {
+        synchronized (stack) { // (as the slice's start)
+          stack.clear();
+          stack.push(State.Running);
+        }
+        helper.assertTrue(machine.stop() && machine.start(), "a stop and start within the slice were refused");
+        helper.assertTrue(machine.isExecuting(), "a computer restarted within its slice is not executing: " + machine.state());
+        final double pause = fastestMs(() -> machine.pause(0.05));
+        helper.assertTrue(pause < 5, "each pause within the slice waited " + pause + " ms");
+        synchronized (stack) {
+          stack.clear();
+          stack.push(State.Running);
+        }
+        machine.crash("gui.opencomputers.error.noenergy");
+        final double close = fastestMs(machine::tryClose);
+        helper.assertTrue(close < 5, "each close of a computer crashed within its slice waited " + close + " ms");
+        helper.assertTrue(machine.state().peek() == State.Stopping, "within the slice the crashed computer went " + machine.state());
+        synchronized (stack) { // (as the slice's end, once stopped)
+          stack.clear();
+          stack.push(State.Stopping);
+        }
+      } finally {
+        slice.end();
+      }
+      within(helper, 30, () -> machine.state().peek() == State.Stopped, () -> {
+        helper.assertTrue(machine.state().peek() == State.Stopped, "the crashed computer did not stop after the slice: " + machine.state());
         helper.succeed();
       });
     });

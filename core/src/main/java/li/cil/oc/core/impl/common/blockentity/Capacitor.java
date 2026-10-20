@@ -131,10 +131,12 @@ public class Capacitor extends BlockEntity implements Environment, DeviceInfo {
     }
   }
 
-  // neighbours in loaded chunks only (hasChunk asks the ticket level: a chunk still loading was loaded there and then,
-  // the server thread waiting for it)
-  public void recomputeCapacity(boolean updateSecondGradeNeighbors) {
+  // Neighbours in loaded chunks only (hasChunk asks the ticket level: a chunk still loading was loaded there and then,
+  // the server thread waiting for it). With updateNeighbors, those around it count again too: one connecting (its
+  // chunk loaded after theirs) was not counted by its direct neighbours, which only block updates told.
+  public void recomputeCapacity(boolean updateNeighbors) {
     var bonus = 0;
+    var unknown = false;
     for (var side : Direction.values()) {
       var nx = worldPosition.getX() + side.getStepX();
       var ny = worldPosition.getY() + side.getStepY();
@@ -142,8 +144,11 @@ public class Capacitor extends BlockEntity implements Environment, DeviceInfo {
       var capPos = new BlockPos(nx, ny, nz);
       if (li.cil.oc.core.impl.util.LoadedChunks.isReady(level(), capPos)) {
         var te = level().getBlockEntity(capPos);
-        if (te instanceof Capacitor) bonus++;
-      }
+        if (te instanceof Capacitor cap) {
+          if (updateNeighbors) cap.recomputeCapacity(false);
+          bonus++;
+        }
+      } else unknown = true;
     }
     var indirectBonus = 0;
     for (var coord : indirectNeighbors()) {
@@ -154,15 +159,20 @@ public class Capacitor extends BlockEntity implements Environment, DeviceInfo {
       if (li.cil.oc.core.impl.util.LoadedChunks.isReady(level(), capPos)) {
         var te = level().getBlockEntity(new BlockPos(nx, ny, nz));
         if (te instanceof Capacitor cap) {
-          if (updateSecondGradeNeighbors) cap.recomputeCapacity(false);
+          if (updateNeighbors) cap.recomputeCapacity(false);
           indirectBonus++;
         }
-      }
+      } else unknown = true;
     }
     var buffer = OCSettings.get().bufferCapacitor
       + OCSettings.get().bufferCapacitorAdjacencyBonus * bonus
       + OCSettings.get().bufferCapacitorAdjacencyBonus / 2 * indirectBonus;
-    ((li.cil.oc.api.network.Connector) node).setLocalBufferSize(buffer);
+    var connector = (li.cil.oc.api.network.Connector) node;
+    // a neighbour in a chunk not loaded yet may be a capacitor, counted once it connects: until then it keeps what it
+    // holds (it shrank, the energy over its new size went to the network, lost when that was full - at a chunk's
+    // edge, on every load)
+    if (unknown) buffer = Math.max(buffer, Math.min(connector.localBuffer(), connector.localBufferSize()));
+    connector.setLocalBufferSize(buffer);
   }
 
   private int[][] indirectNeighbors() {

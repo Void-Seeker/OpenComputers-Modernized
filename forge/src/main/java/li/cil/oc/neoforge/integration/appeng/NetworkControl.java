@@ -477,6 +477,7 @@ public interface NetworkControl<AETile extends IActionHost> extends Persistable,
               var link = result.link();
               status.setLink(link);
               links.add(link);
+              follow(grid); // (told by the submit)
             } else {
               status.fail("missing resources?");
             }
@@ -573,6 +574,14 @@ public interface NetworkControl<AETile extends IActionHost> extends Persistable,
         nbt.putInt(Y_KEY, be.getBlockPos().getY());
         nbt.putInt(Z_KEY, be.getBlockPos().getZ());
         if (controller instanceof AEBasePart part && part.getSide() != null) nbt.putInt(SIDE_KEY, part.getSide().get3DDataValue());
+      } else if (delayData != null) {
+        // still waiting for its controller's chunk: where it waits (saved nowhere, it never looked again - "no
+        // controller" for good, and AE2 cancelled its jobs)
+        nbt.putString(DIM_KEY, delayData.dimension);
+        nbt.putInt(X_KEY, delayData.x);
+        nbt.putInt(Y_KEY, delayData.y);
+        nbt.putInt(Z_KEY, delayData.z);
+        if (delayData.side != null) nbt.putInt(SIDE_KEY, delayData.side.get3DDataValue());
       }
     }
 
@@ -595,12 +604,56 @@ public interface NetworkControl<AETile extends IActionHost> extends Persistable,
       if (grid == null) return true;
       // AE2 knows a requester's jobs again only when told (OC 1.12 added the node): they were cancelled after a reload,
       // or never reported done
+      controller = host;
+      tell(grid);
+      return true;
+    }
+
+    /** The grid AE2 was last told of the jobs in, and whether they follow the controller's grid each tick. */
+    private IGrid linkedGrid;
+    private boolean following;
+
+    private void tell(IGrid grid) {
       if (grid.getCraftingService() instanceof CraftingService crafting) {
         for (var link : links) {
           if (link instanceof CraftingLink craftingLink) crafting.addLink(craftingLink);
         }
       }
-      controller = host;
+      follow(grid);
+    }
+
+    // AE2 moves a job's requester along to the grid its node goes to only for requesters that are grid nodes (and CPU
+    // clusters): the jobs stayed with the grid they were told to when the interface's node went to another (restored
+    // at login into a part of the network still forming, merged into the rest a few ticks later), and AE2, the job's
+    // requester gone, cancelled it after 60 ticks - its status, tied to the old grid, never said so. While it has
+    // jobs, they are told to the controller's grid each time it changes.
+    private void follow(IGrid told) {
+      linkedGrid = told;
+      if (following || links.isEmpty()) return;
+      following = true;
+      scheduleFollow(new java.lang.ref.WeakReference<>(this));
+    }
+
+    private static void scheduleFollow(java.lang.ref.WeakReference<Craftable> self) {
+      EventHandler.scheduleServer(() -> {
+        var craftable = self.get();
+        if (craftable != null && craftable.followGrid()) scheduleFollow(self);
+      }, 1);
+    }
+
+    // whether to go on
+    private boolean followGrid() {
+      if (links.isEmpty()) {
+        following = false;
+        return false;
+      }
+      var node = controller != null ? controller.getActionableNode() : null;
+      IGrid grid = null;
+      try {
+        grid = node != null ? node.getGrid() : null;
+      } catch (IllegalStateException ignored) { // (a node destroyed: AE2 cancels the jobs)
+      }
+      if (grid != null && grid != linkedGrid) tell(grid);
       return true;
     }
 

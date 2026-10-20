@@ -599,6 +599,98 @@ public final class Audit3RobotTests {
       })));
   }
 
+  private static UpgradeChunkloaderBase loader(final li.cil.oc.core.impl.common.entity.Drone drone) {
+    for (final var env : drone.components._components()) {
+      if (env instanceof UpgradeChunkloaderBase loader) return loader;
+    }
+    return null;
+  }
+
+  /**
+   * A drone with its chunkloader on, taken to another dimension (a portal, /tp), forces the chunks around it there once
+   * it ticks there: its copy, wired up before it was moved, forced the chunks around its old x and z in the new
+   * dimension, loading (generating) them there and then.
+   */
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
+  public static void droneInAnotherDimensionForcesNoChunksWhereItWas(final GameTestHelper helper) {
+    final ServerLevel level = helper.getLevel();
+    final ServerLevel nether = level.getServer().getLevel(net.minecraft.world.level.Level.NETHER);
+    final BlockPos there = new BlockPos(-40000 - level.random.nextInt(64) * 64 + 8, 100, -40000 - level.random.nextInt(64) * 64 + 8);
+    final ChunkPos thereChunk = new ChunkPos(there);
+    nether.getChunkSource().addRegionTicket(TICKING, thereChunk, 2, thereChunk); // (where the drone ticks)
+    final Runnable cleanup = () -> {
+      releaseNear(nether, thereChunk);
+      nether.getChunkSource().removeRegionTicket(TICKING, thereChunk, 2, thereChunk);
+    };
+    TestMachines.runDrone(helper, AT, List.of(Constants.ItemName.ChunkloaderUpgrade), drone -> {
+    }, IDLE, 20, (drone, ignored) -> TestMachines.whenWithin(helper, () -> forced(level, drone.blockPosition()) == 9
+      && nether.getChunkSource().getChunkNow(thereChunk.x, thereChunk.z) != null && nether.isPositionEntityTicking(there), 1000, 30, () -> {
+      Entity moved = null;
+      boolean handedOver = false;
+      try {
+        helper.assertTrue(forced(level, drone.blockPosition()) == 9, "the drone's loader forced " + forced(level, drone.blockPosition()) + " chunks");
+        helper.assertTrue(nether.isPositionEntityTicking(there), "the place in the Nether does not tick");
+        final UUID owner = owner(loader(drone));
+        final ChunkPos was = new ChunkPos(drone.blockPosition());
+        for (final BlockPos pos : BlockPos.betweenClosed(there.offset(-1, -1, -1), there.offset(1, 1, 1))) {
+          nether.setBlock(pos, (pos.getY() < there.getY() ? Blocks.STONE : Blocks.AIR).defaultBlockState(), 2 | 16);
+        }
+        // through a portal there (as /tp: a copy made, then moved)
+        moved = drone.changeDimension(nether, new net.minecraftforge.common.util.ITeleporter() {
+          @Override
+          public net.minecraft.world.level.portal.PortalInfo getPortalInfo(final Entity entity, final ServerLevel destination,
+                                                                        final java.util.function.Function<ServerLevel, net.minecraft.world.level.portal.PortalInfo> vanilla) {
+            return new net.minecraft.world.level.portal.PortalInfo(net.minecraft.world.phys.Vec3.atCenterOf(there), net.minecraft.world.phys.Vec3.ZERO, 0, 0);
+          }
+        });
+        helper.assertTrue(moved instanceof li.cil.oc.core.impl.common.entity.Drone, "the drone did not reach the Nether: " + moved);
+        final LongSet early = tickets(nether).get(owner);
+        helper.assertTrue(early == null || early.longStream().noneMatch(c -> Math.abs(ChunkPos.getX(c) - was.x) <= 1 && Math.abs(ChunkPos.getZ(c) - was.z) <= 1),
+          "the drone's copy forced the chunks around its old place in the Nether: " + early);
+        final Entity copy = moved;
+        TestMachines.whenWithin(helper, () -> forced(nether, there) == 9, 200, 10, () -> {
+          try {
+            final var d = (li.cil.oc.core.impl.common.entity.Drone) copy;
+            final var cl = loader(d);
+            helper.assertTrue(forced(nether, there) == 9, "in the Nether the drone's loader forced " + forced(nether, there) + " chunks around it (running "
+              + d.machine().isRunning() + " " + ((li.cil.oc.core.impl.server.machine.MachineBase) d.machine()).state() + ", loader " + (cl == null ? null : cl.active())
+              + ", ticks " + d.tickCount + ", removed " + d.isRemoved() + ", at " + d.blockPosition() + " ticking " + nether.isPositionEntityTicking(d.blockPosition())
+              + ", its tickets " + tickets(nether).get(owner) + ", error " + d.machine().lastError() + ")");
+          } finally {
+            copy.discard();
+            cleanup.run();
+          }
+          helper.succeed();
+        });
+        handedOver = true;
+      } finally {
+        if (!handedOver) {
+          if (moved != null) moved.discard();
+          else drone.discard();
+          cleanup.run();
+        }
+      }
+    }));
+  }
+
+  /**
+   * What a robot's block handed out (a pipe's item handler) goes when the robot moves on: the old place's went on
+   * feeding the robot wherever it went (the block left behind was never removed as such, its robot living on).
+   */
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
+  public static void robotMovingOnTakesBackItsCapabilities(final GameTestHelper helper) {
+    TestMachines.runRobot(helper, AT, List.of(Constants.ItemName.InventoryUpgrade), IDLE, 20, (robot, ignored) -> {
+      final BlockPos abs = helper.absolutePos(AT);
+      final var proxy = helper.getLevel().getBlockEntity(abs);
+      helper.assertTrue(proxy instanceof li.cil.oc.core.impl.common.blockentity.RobotProxy, "no robot at " + abs + ": " + proxy);
+      final var items = proxy.getCapability(net.minecraftforge.common.capabilities.ForgeCapabilities.ITEM_HANDLER, net.minecraft.core.Direction.WEST);
+      helper.assertTrue(items.isPresent(), "the robot hands out no item handler");
+      helper.assertTrue(robot.move(net.minecraft.core.Direction.UP), "the robot did not move");
+      helper.assertTrue(!items.isPresent(), "the item handler of the robot's old place still feeds it");
+      helper.succeed();
+    });
+  }
+
   /** The loaders' chunks of a stopped server's levels are let go (they kept those levels, a whole world, for good). */
   @GameTest(template = EMPTY)
   @SuppressWarnings("unchecked")

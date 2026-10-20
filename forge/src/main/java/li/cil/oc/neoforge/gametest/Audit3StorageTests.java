@@ -309,8 +309,14 @@ public final class Audit3StorageTests {
   /** Requests stone through an ME interface on the controller; then gets the craftable and its status once the job runs. */
   private static void runningJob(final GameTestHelper helper, final IGrid grid,
                                  final java.util.function.BiConsumer<NetworkControl.Craftable, NetworkControl.CraftingStatus> then) {
-    helper.setBlock(ON_TOP, ae2Block("interface"));
-    final var iface = (appeng.blockentity.misc.InterfaceBlockEntity) helper.getBlockEntity(ON_TOP);
+    runningJob(helper, grid, ON_TOP, then);
+  }
+
+  /** The same, through an ME interface at the position. */
+  private static void runningJob(final GameTestHelper helper, final IGrid grid, final BlockPos at,
+                                 final java.util.function.BiConsumer<NetworkControl.Craftable, NetworkControl.CraftingStatus> then) {
+    helper.setBlock(at, ae2Block("interface"));
+    final var iface = (appeng.blockentity.misc.InterfaceBlockEntity) helper.getBlockEntity(at);
     when(helper, () -> iface.getMainNode().isActive(), 100, () -> {
       final var craftable = stoneCraftable(helper, new DriverBlockInterface.Environment(iface));
       final var status = request(helper, craftable);
@@ -365,6 +371,137 @@ public final class Audit3StorageTests {
         });
       });
     }));
+  }
+
+  // As at a reload: AE2's job keeps no requester (it waits 60 ticks for one to come back), and the craftable that asked
+  // is gone (it would follow the job along).
+  private static void forgetRequester(final IGrid grid, final NetworkControl.Craftable craftable) {
+    try {
+      final var links = appeng.me.service.CraftingService.class.getDeclaredField("craftingLinks");
+      links.setAccessible(true);
+      for (final Object nexus : ((java.util.Map<?, ?>) links.get(grid.getCraftingService())).values()) {
+        if (((appeng.crafting.CraftingLinkNexus) nexus).isRequester(craftable)) ((appeng.crafting.CraftingLinkNexus) nexus).removeNode();
+      }
+      final var own = NetworkControl.Craftable.class.getDeclaredField("links");
+      own.setAccessible(true);
+      ((java.util.Set<?>) own.get(craftable)).clear();
+    } catch (ReflectiveOperationException e) {
+      throw new IllegalStateException(e);
+    }
+  }
+
+  private static boolean runsOn(final NetworkControl.CraftingStatus status) {
+    return Boolean.FALSE.equals(status.isCanceled(null, NO_ARGS)[0]) && Boolean.FALSE.equals(status.isDone(null, NO_ARGS)[0]);
+  }
+
+  /**
+   * A job whose only requester is the craftable restored (the one that asked gone, as after a reload) runs on past the
+   * 60 ticks AE2 waits for one: AE2 was never told of the restored one, and cancelled the job.
+   */
+  @GameTest(template = EMPTY, timeoutTicks = 1000)
+  public static void aJobRunsOnForItsRestoredRequesterAlone(final GameTestHelper helper) {
+    final var registries = helper.getLevel().registryAccess();
+    craftingGrid(helper, grid -> runningJob(helper, grid, (craftable, status) -> {
+      final CompoundTag craftableTag = new CompoundTag();
+      final CompoundTag statusTag = new CompoundTag();
+      craftable.save(craftableTag, registries);
+      status.save(statusTag, registries);
+      forgetRequester(grid, craftable);
+      final var restoredStatus = new NetworkControl.CraftingStatus();
+      restoredStatus.load(statusTag, registries);
+      final var restored = new NetworkControl.Craftable();
+      restored.load(craftableTag, registries);
+      helper.runAfterDelay(150, () -> {
+        try {
+          helper.assertTrue(restored.requesting(null, NO_ARGS)[0] instanceof Number, "the restored craftable did not find its interface");
+          helper.assertTrue(cpuBusy(grid) && runsOn(restoredStatus), "the job of the restored requester alone was "
+            + (cpuBusy(grid) ? "reported over" : "cancelled") + " (cancelled " + restoredStatus.isCanceled(null, NO_ARGS)[0] + ")");
+        } finally {
+          restoredStatus.cancel(null, NO_ARGS);
+        }
+        helper.succeed();
+      });
+    }));
+  }
+
+  /**
+   * A restored craftable whose interface is in a grid of its own (the network still forming at login) and then joins the
+   * main one keeps its job there: AE2 moves a job's requester along between grids only for grid nodes, the job lost its
+   * requester and was cancelled after 60 ticks, while the status, tied to the grid left, said neither done nor cancelled.
+   */
+  @GameTest(template = EMPTY, timeoutTicks = 1000)
+  public static void aRestoredJobFollowsItsInterfaceIntoTheMainGrid(final GameTestHelper helper) {
+    final ServerLevel level = helper.getLevel();
+    final var registries = level.registryAccess();
+    final BlockPos bridge = ON_TOP, at = ON_TOP.above();
+    final Runnable cable = () -> helper.assertTrue(PartHelper.setPart(level, helper.absolutePos(bridge), null, null, (IPartItem<?>) ae2Item("fluix_glass_cable")) != null,
+      "the cable could not be placed");
+    final java.util.function.Supplier<IGrid> main = () -> ((appeng.me.helpers.IGridConnectedBlockEntity) helper.getBlockEntity(CONTROLLER)).getMainNode().getGrid();
+    craftingGrid(helper, grid -> {
+      cable.run();
+      runningJob(helper, grid, at, (craftable, status) -> {
+        final CompoundTag craftableTag = new CompoundTag();
+        final CompoundTag statusTag = new CompoundTag();
+        craftable.save(craftableTag, registries);
+        status.save(statusTag, registries);
+        forgetRequester(grid, craftable);
+        helper.setBlock(bridge, Blocks.AIR); // the interface in a grid of its own
+        final var iface = (appeng.blockentity.misc.InterfaceBlockEntity) helper.getBlockEntity(at);
+        final var restoredStatus = new NetworkControl.CraftingStatus();
+        restoredStatus.load(statusTag, registries);
+        final var restored = new NetworkControl.Craftable();
+        restored.load(craftableTag, registries);
+        when(helper, () -> restored.requesting(null, NO_ARGS)[0] instanceof Number, 20, () -> {
+          helper.assertTrue(restored.requesting(null, NO_ARGS)[0] instanceof Number, "the restored craftable did not find its interface");
+          helper.assertTrue(iface.getMainNode().getGrid() != main.get(), "the interface is still in the main grid");
+          cable.run(); // the network whole again
+          when(helper, () -> iface.getMainNode().getGrid() == main.get(), 20, () -> {
+            helper.assertTrue(iface.getMainNode().getGrid() == main.get(), "the interface did not join the main grid again");
+            helper.runAfterDelay(120, () -> {
+              try {
+                helper.assertTrue(restored.requesting(null, NO_ARGS)[0] instanceof Number, "the restored craftable lost its interface");
+                helper.assertTrue(cpuBusy(main.get()) && runsOn(restoredStatus), "the job the restored requester followed into the main grid was "
+                  + (cpuBusy(main.get()) ? "reported over" : "cancelled") + " (status cancelled " + restoredStatus.isCanceled(null, NO_ARGS)[0] + ")");
+              } finally {
+                restoredStatus.cancel(null, NO_ARGS);
+              }
+              helper.succeed();
+            });
+          });
+        });
+      });
+    });
+  }
+
+  /**
+   * A restored craftable still waiting for its controller's chunk is saved with where it waits (saved without, it never
+   * looked again: "no controller" for good, and AE2 cancelled its jobs).
+   */
+  @GameTest(template = EMPTY, timeoutTicks = 100)
+  public static void waitingCraftablesAreSavedWithWhereTheyWait(final GameTestHelper helper) {
+    final ServerLevel level = helper.getLevel();
+    final var registries = level.registryAccess();
+    final ChunkPos chunk = new ChunkPos(60000 + level.random.nextInt(5000), -60000 - level.random.nextInt(5000));
+    final BlockPos pos = chunk.getMiddleBlockPosition(64);
+    helper.assertTrue(level.getChunkSource().getChunkNow(chunk.x, chunk.z) == null, "the far chunk is loaded already");
+    final CompoundTag tag = new CompoundTag();
+    tag.putString("dimension", level.dimension().location().toString());
+    tag.putInt("x", pos.getX());
+    tag.putInt("y", pos.getY());
+    tag.putInt("z", pos.getZ());
+    tag.putInt("side", Direction.UP.get3DDataValue());
+    final var waiting = new NetworkControl.Craftable();
+    waiting.load(tag, registries);
+    final CompoundTag saved = new CompoundTag();
+    waiting.save(saved, registries);
+    helper.assertTrue(level.dimension().location().toString().equals(saved.getString("dimension")) && saved.getInt("x") == pos.getX()
+      && saved.getInt("y") == pos.getY() && saved.getInt("z") == pos.getZ() && saved.contains("side") && saved.getInt("side") == Direction.UP.get3DDataValue(),
+      "a craftable waiting for its controller was saved as " + saved);
+    final var again = new NetworkControl.Craftable();
+    again.load(saved, registries);
+    final Object[] result = again.request(null, new ArgumentsImpl(new Object[]{1}));
+    helper.assertTrue(result.length > 1 && "waiting for ae network to load".equals(result[1]), "loaded again, the craftable says " + java.util.Arrays.toString(result));
+    helper.succeed();
   }
 
   /**

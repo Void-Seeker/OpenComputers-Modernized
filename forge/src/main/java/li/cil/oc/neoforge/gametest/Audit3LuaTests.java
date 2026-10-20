@@ -239,11 +239,10 @@ public final class Audit3LuaTests {
     });
   }
 
-  /** findWaypoints gives one table of waypoints, as OC 1.12 (each waypoint was a value of its own); none: an empty one. */
-  @GameTest(template = EMPTY)
-  public static void findWaypointsGivesOneTable(final GameTestHelper helper) {
+  // a navigation upgrade at AT, with waypoints the given blocks east of it
+  private static li.cil.oc.core.impl.server.component.UpgradeNavigationBase navigation(final GameTestHelper helper, final int... dxs) {
     final BlockPos abs = helper.absolutePos(AT);
-    final var navigation = new li.cil.oc.core.impl.server.component.UpgradeNavigationBase(host(helper, AT)) {
+    return new li.cil.oc.core.impl.server.component.UpgradeNavigationBase(host(helper, AT)) {
       @Override
       protected boolean consumeEnergy(final double amount) {
         return true;
@@ -252,18 +251,38 @@ public final class Audit3LuaTests {
       @Override
       protected List<li.cil.oc.core.impl.server.component.WaypointInfo> queryWaypoints(final li.cil.oc.core.impl.util.BlockPosition pos, final double range) {
         final List<li.cil.oc.core.impl.server.component.WaypointInfo> found = new ArrayList<>();
-        for (final int dx : new int[]{2, -2}) {
+        for (final int dx : dxs) {
           found.add(new li.cil.oc.core.impl.server.component.WaypointInfo(li.cil.oc.core.impl.util.BlockPosition.apply(abs.getX() + dx, abs.getY(), abs.getZ(), helper.getLevel()),
             Direction.UP, 0, "w" + dx, "address" + dx));
         }
         return found;
       }
     };
+  }
+
+  /** findWaypoints gives one table of waypoints, as OC 1.12 (each waypoint was a value of its own); none: an empty one. */
+  @GameTest(template = EMPTY)
+  public static void findWaypointsGivesOneTable(final GameTestHelper helper) {
+    final var navigation = navigation(helper, 2, -2);
     final Object[] two = navigation.findWaypoints(context(), new ArgumentsImpl(new Object[]{16.0}));
     helper.assertTrue(two.length == 1 && two[0] instanceof Object[] list && list.length == 2 && list[0] instanceof Map,
       "two waypoints in range gave " + java.util.Arrays.deepToString(two));
     final Object[] none = navigation.findWaypoints(context(), new ArgumentsImpl(new Object[]{0.0}));
     helper.assertTrue(none.length == 1 && none[0] instanceof Object[] list && list.length == 0, "a range of 0 gave " + java.util.Arrays.deepToString(none));
+    helper.succeed();
+  }
+
+  /**
+   * findWaypoints measures the range from the waypoint's centre, as OC 1.12 (from its block's corner: one as far west as
+   * another is east was out of range, the other in).
+   */
+  @GameTest(template = EMPTY)
+  public static void findWaypointsMeasuresFromTheirCentre(final GameTestHelper helper) {
+    final var navigation = navigation(helper, 2, -2);
+    final Object[] two = navigation.findWaypoints(context(), new ArgumentsImpl(new Object[]{2.0}));
+    helper.assertTrue(two[0] instanceof Object[] list && list.length == 2, "two waypoints 2 blocks away gave " + java.util.Arrays.deepToString(two) + " in a range of 2");
+    final Object[] none = navigation.findWaypoints(context(), new ArgumentsImpl(new Object[]{1.9}));
+    helper.assertTrue(none[0] instanceof Object[] list && list.length == 0, "two waypoints 2 blocks away gave " + java.util.Arrays.deepToString(none) + " in a range of 1.9");
     helper.succeed();
   }
 

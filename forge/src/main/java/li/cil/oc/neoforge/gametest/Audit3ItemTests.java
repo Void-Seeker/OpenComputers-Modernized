@@ -205,6 +205,63 @@ public final class Audit3ItemTests {
     helper.succeed();
   }
 
+  /** An empty bucket a recipe uses up is a part: an empty ink cartridge's did not come back (stripped as filled ones). */
+  @GameTest(template = EMPTY)
+  public static void disassemblyGivesBackUsedUpBuckets(final GameTestHelper helper) {
+    final ItemStack[] parts = ItemUtils.getIngredients(item(Constants.ItemName.InkCartridgeEmpty));
+    helper.assertTrue(count(parts, net.minecraft.world.item.Items.BUCKET) == 1, "an empty ink cartridge came apart into " + java.util.Arrays.toString(parts));
+    helper.succeed();
+  }
+
+  /**
+   * What an item holds comes out with its parts: a raid's drives, a mountable disk drive's floppy, a generator upgrade's
+   * fuel (taken apart by their recipe whatever their data, they were destroyed with them - silently, fed in by a hopper
+   * or a robot); a tank upgrade holding fluid is not taken. Into a chest next to the disassembler.
+   */
+  @GameTest(template = EMPTY)
+  public static void disassemblyGivesBackWhatItemsHold(final GameTestHelper helper) {
+    helper.setBlock(AT, Blocks.DISASSEMBLER.get());
+    helper.setBlock(AT.above(), net.minecraft.world.level.block.Blocks.CHEST);
+    final var disassembler = (Disassembler) helper.getBlockEntity(AT);
+    final var chest = (net.minecraft.world.Container) helper.getBlockEntity(AT.above());
+    final java.util.function.Function<net.minecraft.world.item.Item, Integer> inChest = item -> {
+      int n = 0;
+      for (int i = 0; i < chest.getContainerSize(); i++) if (chest.getItem(i).is(item)) n += chest.getItem(i).getCount();
+      return n;
+    };
+    final var raidData = new li.cil.oc.core.impl.common.item.data.RaidData();
+    for (int i = 0; i < 3; i++) raidData.disks.add(item(Constants.ItemName.HDDTier1));
+    final ItemStack raid = raidData.createItemStack();
+    final ItemStack mountable = item(Constants.ItemName.DiskDriveMountable);
+    final ListTag floppies = new ListTag();
+    final CompoundTag slot = new CompoundTag();
+    slot.putByte("slot", (byte) 0);
+    slot.put("item", item(Constants.ItemName.Floppy).save(new CompoundTag()));
+    floppies.add(slot);
+    Item.getDataTag(mountable).put(NS + "items", floppies);
+    final ItemStack generator = item(Constants.ItemName.GeneratorUpgrade);
+    Item.getDataTag(generator).put("inventory", new ItemStack(net.minecraft.world.item.Items.COAL, 5).save(new CompoundTag()));
+    for (final ItemStack holder : List.of(raid, mountable, generator)) {
+      helper.assertTrue(disassembler.canPlaceItem(0, holder), "the disassembler refuses " + holder);
+      disassembler.disassemble(holder.copy(), false);
+      helper.assertTrue(!disassembler.queue.isEmpty(), holder + " came apart into nothing");
+      disassembler.queue.clear();
+    }
+    final var hdd = li.cil.oc.api.Items.get(Constants.ItemName.HDDTier1).item();
+    final var floppy = li.cil.oc.api.Items.get(Constants.ItemName.Floppy).item();
+    helper.assertTrue(inChest.apply(hdd) == 3, "a raid's 3 drives came out as " + inChest.apply(hdd));
+    helper.assertTrue(inChest.apply(floppy) == 1, "a mountable's floppy came out as " + inChest.apply(floppy));
+    helper.assertTrue(inChest.apply(net.minecraft.world.item.Items.COAL) == 5, "a generator upgrade's 5 coal came out as " + inChest.apply(net.minecraft.world.item.Items.COAL));
+    final ItemStack tank = item(Constants.ItemName.TankUpgrade);
+    final CompoundTag fluid = new CompoundTag();
+    fluid.putString("id", "minecraft:water");
+    fluid.putInt("Amount", 1000);
+    Item.getDataTag(tank).put("fluid", fluid);
+    helper.assertTrue(!disassembler.canPlaceItem(0, tank), "the disassembler takes a tank upgrade holding water");
+    helper.assertTrue(disassembler.canPlaceItem(0, item(Constants.ItemName.TankUpgrade)), "the disassembler refuses an empty tank upgrade");
+    helper.succeed();
+  }
+
   /** A part made of any of a tag's items is its plain one: a computer case's chest a chest (any chest: an ender chest). */
   @GameTest(template = EMPTY)
   public static void disassemblyGivesTheTagsPlainItem(final GameTestHelper helper) {

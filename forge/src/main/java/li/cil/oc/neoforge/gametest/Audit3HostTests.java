@@ -175,6 +175,23 @@ public final class Audit3HostTests {
     });
   }
 
+  // whether the block at the position is to be sent to the clients with the chunk's next changes (sendBlockUpdated)
+  private static boolean toBeSent(final net.minecraft.server.level.ServerLevel level, final BlockPos pos) {
+    try {
+      final var visible = net.minecraft.server.level.ChunkMap.class.getDeclaredMethod("getVisibleChunkIfPresent", long.class);
+      visible.setAccessible(true);
+      final var holder = visible.invoke(level.getChunkSource().chunkMap, net.minecraft.world.level.ChunkPos.asLong(pos));
+      if (holder == null) return false;
+      final var changed = net.minecraft.server.level.ChunkHolder.class.getDeclaredField("changedBlocksPerSection");
+      changed.setAccessible(true);
+      final var sections = (it.unimi.dsi.fastutil.shorts.ShortSet[]) changed.get(holder);
+      final var section = sections[level.getSectionIndex(pos.getY())];
+      return section != null && section.contains(net.minecraft.core.SectionPos.sectionRelativePos(pos));
+    } catch (ReflectiveOperationException e) {
+      throw new IllegalStateException(e);
+    }
+  }
+
   /** A robot's machine marks it on every slice: saved only (it was sent whole to its clients each time). */
   @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void runningRobotIsOnlyMarkedForSaving(final GameTestHelper helper) {
@@ -189,7 +206,17 @@ public final class Audit3HostTests {
       } catch (ReflectiveOperationException e) {
         throw new IllegalStateException(e);
       }
-      helper.succeed();
+      // (looked at after the block entities ticked, before the chunk's changes go out)
+      final BlockPos abs = helper.absolutePos(AT);
+      final int[] sent = {0};
+      within(helper, 1, () -> {
+        if (toBeSent(helper.getLevel(), abs)) sent[0]++;
+        return false;
+      }, () -> {
+        helper.assertTrue(robot.machine().isRunning(), "the robot stopped: " + robot.machine().lastError());
+        helper.assertTrue(sent[0] < 5, "a running robot was sent to its clients " + sent[0] + " times in a second");
+        helper.succeed();
+      });
     });
   }
 

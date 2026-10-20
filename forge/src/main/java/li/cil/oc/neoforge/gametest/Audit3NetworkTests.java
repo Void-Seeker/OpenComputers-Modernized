@@ -174,7 +174,10 @@ public final class Audit3NetworkTests {
     });
   }
 
-  /** A charger charges at the speed of the redstone signal next to it (each side read on its own now). */
+  /**
+   * A charger charges at the speed of the redstone signal next to it, each side read on its own (each side read the best
+   * signal of all sides, from blocks in chunks not loaded too).
+   */
   @GameTest(template = EMPTY, timeoutTicks = 100)
   public static void chargersFollowRedstone(final GameTestHelper helper) {
     helper.setBlock(AT, Blocks.CHARGER.get());
@@ -183,6 +186,10 @@ public final class Audit3NetworkTests {
       helper.assertTrue(charger.chargeSpeed == 0, "an unpowered charger charges at " + charger.chargeSpeed);
       helper.setBlock(AT.east(), net.minecraft.world.level.block.Blocks.REDSTONE_BLOCK);
       helper.assertTrue(charger.chargeSpeed == 1, "a charger next to a redstone block charges at " + charger.chargeSpeed);
+      for (final Direction side : Direction.values()) {
+        final int expected = side == Direction.EAST ? 15 : 0;
+        helper.assertTrue(charger.getInput(side) == expected, "a charger with a redstone block east of it reads " + charger.getInput(side) + " at its " + side + " side");
+      }
       helper.setBlock(AT.east(), net.minecraft.world.level.block.Blocks.AIR);
       helper.assertTrue(charger.chargeSpeed == 0, "a charger whose redstone block went charges at " + charger.chargeSpeed);
       helper.succeed();
@@ -317,6 +324,82 @@ public final class Audit3NetworkTests {
           cleanup.run();
         }
         helper.succeed();
+      });
+    });
+  }
+
+  /**
+   * A capacitor at a chunk's edge, loaded before the chunk next to it, keeps what it holds, and counts a capacitor there
+   * once that connects: it counted the chunk still loading as empty and shrank, the energy over its new size going to
+   * its network (lost, full) on every load; and the capacitor connecting later told only those two blocks away.
+   */
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
+  public static void capacitorsAtAChunksEdgeKeepWhatTheyHold(final GameTestHelper helper) {
+    final ServerLevel level = helper.getLevel();
+    final var chunks = level.getChunkSource();
+    // a pair of far chunks of its own, side by side (another row than the loading test's)
+    final ChunkPos a = new ChunkPos(2500 + level.random.nextInt(2000) * 3, 2500 + level.random.nextInt(2000) * 3);
+    final ChunkPos b = new ChunkPos(a.x + 1, a.z);
+    helper.assertTrue(chunks.getChunkNow(a.x, a.z) == null && !level.hasChunk(b.x, b.z), "the far chunks are loaded already");
+    final BlockPos atA = new BlockPos(a.getMaxBlockX(), 100, a.getMinBlockZ() + 4);
+    final BlockPos atB = atA.east(); // in b
+    final double base = OCSettings.get().bufferCapacitor, bonus = OCSettings.get().bufferCapacitorAdjacencyBonus;
+    final double held = base + bonus / 2; // more than it holds alone, less than beside another
+    final Runnable cleanup = () -> {
+      for (final BlockPos pos : new BlockPos[]{atB, atA}) {
+        if (chunks.getChunkNow(pos.getX() >> 4, pos.getZ() >> 4) != null) {
+          level.removeBlockEntity(pos);
+          level.setBlock(pos, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 2 | 16 | 64);
+        }
+      }
+      chunks.removeRegionTicket(LOADING, b, 0, b);
+      chunks.removeRegionTicket(LOADING, a, 0, a);
+    };
+    chunks.addRegionTicket(LOADING, a, 0, a);
+    within(helper, 60, () -> chunks.getChunkNow(a.x, a.z) != null, () -> {
+      final Capacitor first;
+      try {
+        helper.assertTrue(chunks.getChunkNow(a.x, a.z) != null, "the far chunk did not load");
+        level.setBlock(atA, Blocks.CAPACITOR.get().defaultBlockState(), 2 | 16);
+        first = (Capacitor) level.getBlockEntity(atA);
+        connector(first).changeBuffer(held); // (as loaded: in no network yet)
+      } catch (RuntimeException e) {
+        cleanup.run();
+        throw e;
+      }
+      within(helper, 10, () -> first.node().network() != null, () -> {
+        boolean handedOver = false;
+        try {
+          helper.assertTrue(first.node().network() != null, "the capacitor did not join");
+          helper.assertTrue(Math.abs(connector(first).localBuffer() - held) < 1e-6, "the capacitor beside a chunk not loaded kept "
+            + connector(first).localBuffer() + " of the " + held + " it held (" + connector(first).localBufferSize() + " its size)");
+          chunks.addRegionTicket(LOADING, b, 0, b);
+          within(helper, 60, () -> chunks.getChunkNow(b.x, b.z) != null, () -> {
+            final Capacitor second;
+            try {
+              helper.assertTrue(chunks.getChunkNow(b.x, b.z) != null, "the next chunk did not load");
+              level.setBlock(atB, Blocks.CAPACITOR.get().defaultBlockState(), 2 | 16 | 64); // (no block update for the first)
+              second = (Capacitor) level.getBlockEntity(atB);
+            } catch (RuntimeException e) {
+              cleanup.run();
+              throw e;
+            }
+            within(helper, 10, () -> second.node().network() != null, () -> {
+              try {
+                helper.assertTrue(second.node().network() != null, "the second capacitor did not join");
+                helper.assertTrue(connector(first).localBufferSize() == base + bonus, "the capacitor beside the one connecting later holds "
+                  + connector(first).localBufferSize() + ", not " + (base + bonus));
+                helper.assertTrue(Math.abs(connector(first).localBuffer() - held) < 1e-6, "the capacitor beside the one connecting later kept " + connector(first).localBuffer());
+              } finally {
+                cleanup.run();
+              }
+              helper.succeed();
+            });
+          });
+          handedOver = true;
+        } finally {
+          if (!handedOver) cleanup.run();
+        }
       });
     });
   }

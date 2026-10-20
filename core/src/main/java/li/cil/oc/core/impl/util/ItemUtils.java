@@ -50,8 +50,11 @@ public final class ItemUtils {
 
       // a recipe making the item as it is first (a loot disk's own, a dyed floppy's), then any making the item: its data
       // does not count (OC: isItemEqual - a crafted navigation upgrade carries its map, a used card its address, a
-      // configured server its parts: none had parts, and their templates none to give back), its damage does
+      // configured server its parts: none had parts, and their templates none to give back), its damage does. Only for
+      // OC's own items, whose data is known (what they hold, templates give back: ContentsTemplate); another mod's may
+      // hold anything, which would go with it
       for (boolean exact : new boolean[]{true, false}) {
+        if (!exact && li.cil.oc.api.Items.get(stack) == null) break;
         for (var recipe : craftingRecipes) {
           var result = recipe.getResultItem(server.registryAccess());
           if (ItemStack.isSameItem(result, stack) && result.getDamageValue() == stack.getDamageValue() && ItemStack.isSameItemSameTags(result, stack) == exact) {
@@ -72,8 +75,11 @@ public final class ItemUtils {
     List<ItemStack> stacks = new ArrayList<>();
     for (var ingr : ings) {
       var chosen = pick(ingr.getItems());
-      // what crafting gives back is no part (OC stripped buckets: acid gave its water bucket back a second time)
-      if (chosen.isEmpty() || chosen.getItem().hasCraftingRemainingItem() || chosen.getItem() instanceof BucketItem) continue;
+      // what crafting gives back is no part (OC stripped buckets: acid gave its water bucket back a second time), nor a
+      // filled bucket of a mod's that leaves none (its fluid is no item); an empty bucket used up is one (an empty ink
+      // cartridge's did not come back)
+      if (chosen.isEmpty() || chosen.getItem().hasCraftingRemainingItem()
+        || chosen.getItem() instanceof BucketItem && !chosen.is(net.minecraft.world.item.Items.BUCKET)) continue;
       if (isInputBlacklisted(chosen)) return null;
       stacks.add(chosen);
     }

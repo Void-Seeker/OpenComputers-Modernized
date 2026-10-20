@@ -31,6 +31,10 @@ public abstract class UpgradeChunkloaderBase extends AbstractManagedEnvironment 
   }};
   protected boolean active = false;
   private boolean wasActive = false; // as saved: a robot's machine resumes after a reload, it sends no computer.started
+  // an entity's loader comes back on at its first update, where the entity stands: a drone's copy through a portal or
+  // /tp is wired up (restoreFrom) before it is moved, and forced the chunks around its old x/z in the new dimension,
+  // loading (generating) them there and then
+  private boolean restorePending = false;
 
   public UpgradeChunkloaderBase(EnvironmentHost host) {
     this.host = host;
@@ -49,6 +53,10 @@ public abstract class UpgradeChunkloaderBase extends AbstractManagedEnvironment 
   @Override
   public void update() {
     super.update();
+    if (restorePending) {
+      restorePending = false;
+      if (!(host instanceof Context context) || context.isRunning()) setActive(true);
+    }
     if (host.level().getGameTime() % OCSettings.get().tickFrequency == 0 && active) {
       if (!consumeEnergy(OCSettings.get().chunkloaderCost * OCSettings.get().tickFrequency)) {
         setActive(false);
@@ -86,13 +94,15 @@ public abstract class UpgradeChunkloaderBase extends AbstractManagedEnvironment 
       // its chunks still forced, for good)
       boolean restore = host instanceof Context ? ((Context) host).isRunning() : wasActive;
       wasActive = false;
-      if (restore) requestTicket(false);
+      if (restore && host instanceof Entity) restorePending = true;
+      else if (restore) requestTicket(false);
     }
   }
 
   @Override
   public void onDisconnect(Node node) {
     super.onDisconnect(node);
+    if (node == this.node) restorePending = false;
     // also when its host's machine goes (a broken robot only removes that: its chunks stayed forced)
     if (node == this.node || host instanceof li.cil.oc.api.machine.MachineHost mh && mh.machine() != null && node == mh.machine().node()) {
       setActive(false);

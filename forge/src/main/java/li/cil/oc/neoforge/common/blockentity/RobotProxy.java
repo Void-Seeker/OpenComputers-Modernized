@@ -46,6 +46,14 @@ public class RobotProxy extends li.cil.oc.core.impl.common.blockentity.RobotProx
     setupRobotProxy();
   }
 
+  // left behind by its robot moving on, it is not removed as such (the robot lives on): what it handed out goes (a
+  // pipe's item handler went on feeding the robot wherever it went)
+  @Override
+  public void setRemoved() {
+    if (li.cil.oc.core.impl.common.blockentity.RobotBase.movingRobot.get() == robot) invalidateCaps();
+    super.setRemoved();
+  }
+
   private Robot neoRobot() {
     return (Robot) robot;
   }
