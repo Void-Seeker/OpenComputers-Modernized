@@ -487,6 +487,22 @@ public final class Audit3HostTests {
 
       final var waiting = restored.apply(UUID.randomUUID(), session.toString()); // (its craftable lives on, not kept)
       helper.assertTrue(java.util.Arrays.equals(waiting.isCanceled(null, args), new Object[]{false, "no link"}), "a job in this session is cancelled: " + java.util.Arrays.toString(waiting.isCanceled(null, args)));
+      final CompoundTag waited = new CompoundTag();
+      waiting.save(waited, provider);
+      final var waitingAgain = new li.cil.oc.neoforge.integration.appeng.NetworkControl.CraftingStatus();
+      waitingAgain.load(waited, provider); // (saved under this server)
+      helper.assertTrue(java.util.Arrays.equals(waitingAgain.isCanceled(null, args), new Object[]{false, "no link"}), "a job in this session is cancelled when loaded again: " + java.util.Arrays.toString(waitingAgain.isCanceled(null, args)));
+
+      final CompoundTag doneNbt = new CompoundTag(); // (saved done by the last server)
+      doneNbt.putBoolean("computing", false);
+      doneNbt.putString("link", UUID.randomUUID().toString());
+      doneNbt.putBoolean("done", true);
+      doneNbt.putBoolean("canceled", false);
+      doneNbt.putString("session", UUID.randomUUID().toString());
+      final var done = new li.cil.oc.neoforge.integration.appeng.NetworkControl.CraftingStatus();
+      done.load(doneNbt, provider);
+      helper.assertTrue(java.util.Arrays.equals(done.isDone(null, args), new Object[]{true}), "a job done before a restart is not done: " + java.util.Arrays.toString(done.isDone(null, args)));
+      helper.assertTrue(java.util.Arrays.equals(done.isCanceled(null, args), new Object[]{false}), "a job done before a restart is cancelled: " + java.util.Arrays.toString(done.isCanceled(null, args)));
 
       final UUID kept = UUID.randomUUID();
       final var link = testLink(kept, false);
