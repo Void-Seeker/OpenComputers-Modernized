@@ -392,7 +392,6 @@ public interface NetworkControl<AETile extends IActionHost> extends Persistable,
     @Override
     public void jobStateChange(ICraftingLink link) {
       links.remove(link);
-      tellers.computeIfPresent(link.getCraftingID(), (id, teller) -> teller.get() == this ? null : teller);
     }
 
     @Override
@@ -538,10 +537,7 @@ public interface NetworkControl<AETile extends IActionHost> extends Persistable,
       }
       var linksList = nbt.getList(LINKS_KEY, Tag.TAG_COMPOUND);
       for (int i = 0; i < linksList.size(); i++) {
-        var linkTag = linksList.getCompound(i);
-        var link = StorageHelper.loadCraftingLink(linkTag, this);
-        LinkCache.store(link);
-        links.add(link);
+        links.add(LinkCache.load(StorageHelper.loadCraftingLink(linksList.getCompound(i), this)));
       }
       if (nbt.contains(DIM_KEY)) {
         var dimension = nbt.getString(DIM_KEY);
@@ -614,28 +610,21 @@ public interface NetworkControl<AETile extends IActionHost> extends Persistable,
     private IGrid linkedGrid;
     private boolean following;
 
-    // The craftable that told AE2 of a job, by its crafting ID. A machine loaded again has its craftables back as new
-    // ones; the old ones live on until collected (the job's link held them) and followed the grid too: at a grid change
-    // both told AE2, the last one told had the job, and its end could go to the old one - the live one then followed it
-    // for good, and after a reload its status said cancelled. The newest craftable holds a job: by the order they were
-    // made, not told (an old one still waiting for its interface's chunk told AE2 after the restored one, and took the
-    // job from it the same way).
-    private static final Map<java.util.UUID, java.lang.ref.WeakReference<Craftable>> tellers = new java.util.concurrent.ConcurrentHashMap<>();
-    private static final java.util.concurrent.atomic.AtomicLong made = new java.util.concurrent.atomic.AtomicLong();
-    private final long madeAt = made.incrementAndGet();
-
-    // whether a craftable made after this one told AE2 of the job
-    private boolean heldByNewer(ICraftingLink link) {
-      var teller = tellers.get(link.getCraftingID());
-      var other = teller != null ? teller.get() : null;
-      return other != null && other != this && other.madeAt > madeAt;
+    // A job this craftable lets go of: over (AE2 tells only the requester of the job's link, one of the craftables
+    // sharing it: the others followed it for good, and a done link told again got a nexus with no CPU, which AE2
+    // cancelled), or taken over by a later load of the machine (see LinkCache).
+    private static boolean over(ICraftingLink link) {
+      return link.isDone() || link.isCanceled() || LinkCache.superseded(link);
     }
 
     private void tell(IGrid grid) {
-      links.removeIf(this::heldByNewer);
+      links.removeIf(Craftable::over);
       if (grid.getCraftingService() instanceof CraftingService crafting) {
         for (var link : links) {
-          if (link instanceof CraftingLink craftingLink) crafting.addLink(craftingLink);
+          if (link instanceof CraftingLink craftingLink) {
+            crafting.addLink(craftingLink);
+            LinkCache.told(link);
+          }
         }
       }
       follow(grid);
@@ -648,14 +637,6 @@ public interface NetworkControl<AETile extends IActionHost> extends Persistable,
     // jobs, they are told to the controller's grid each time it changes.
     private void follow(IGrid told) {
       linkedGrid = told;
-      tellers.values().removeIf(teller -> teller.get() == null);
-      var self = new java.lang.ref.WeakReference<>(this);
-      for (var link : links) {
-        tellers.compute(link.getCraftingID(), (id, teller) -> {
-          var other = teller != null ? teller.get() : null;
-          return other != null && other.madeAt > madeAt ? teller : self;
-        });
-      }
       if (following || links.isEmpty()) return;
       following = true;
       scheduleFollow(new java.lang.ref.WeakReference<>(this));
@@ -670,7 +651,7 @@ public interface NetworkControl<AETile extends IActionHost> extends Persistable,
 
     // whether to go on
     private boolean followGrid() {
-      links.removeIf(this::heldByNewer); // (its own link is the one AE2 tells now)
+      links.removeIf(Craftable::over);
       if (links.isEmpty()) {
         following = false;
         return false;
@@ -758,12 +739,14 @@ public interface NetworkControl<AETile extends IActionHost> extends Persistable,
 
     private boolean isComputing = true;
     private ICraftingLink link;
+    private java.util.UUID id; // the job's
     private boolean failed = false;
     private String reason = "no link";
 
     public void setLink(ICraftingLink value) {
       isComputing = false;
       link = value;
+      id = value.getCraftingID();
     }
 
     public void fail(String reason) {
@@ -772,9 +755,19 @@ public interface NetworkControl<AETile extends IActionHost> extends Persistable,
       this.reason = "request failed (" + reason + ")";
     }
 
+    // The link the job's craftables share now (LinkCache), else the last one it had. Restored statuses were handed the
+    // link of the next craftable loaded: of copies loaded together, maybe the one AE2 no longer told (the status went
+    // stale), and a second copy of the status got none ("no link", saved without its job).
+    private ICraftingLink link() {
+      var current = id != null ? LinkCache.current(id) : null;
+      if (current != null) link = current;
+      return link;
+    }
+
     private Object[] asCraft(java.util.function.Function<ICraftingLink, Object[]> f) {
       if (isComputing) return ResultWrapper.result(null, "computing");
-      if (!failed && link != null) return f.apply(link);
+      var craft = failed ? null : link();
+      if (craft != null) return f.apply(craft);
       return ResultWrapper.result(false, reason);
     }
 
@@ -808,8 +801,8 @@ public interface NetworkControl<AETile extends IActionHost> extends Persistable,
     public void save(CompoundTag nbt, HolderLookup.Provider provider) {
       super.save(nbt, provider);
       nbt.putBoolean(COMPUTING_KEY, isComputing);
-      if (link != null) {
-        nbt.putString(LINK_ID_KEY, link.getCraftingID().toString());
+      if (id != null) {
+        nbt.putString(LINK_ID_KEY, id.toString());
       }
       nbt.putBoolean(FAILED_KEY, failed);
       nbt.putString(REASON_KEY, reason);
@@ -822,8 +815,10 @@ public interface NetworkControl<AETile extends IActionHost> extends Persistable,
         isComputing = nbt.getBoolean(COMPUTING_KEY);
       }
       if (nbt.contains(LINK_ID_KEY)) {
-        var id = nbt.getString(LINK_ID_KEY);
-        LinkCache.store(this, id);
+        try {
+          id = java.util.UUID.fromString(nbt.getString(LINK_ID_KEY));
+        } catch (IllegalArgumentException ignored) {
+        }
       }
       if (nbt.contains(FAILED_KEY)) {
         failed = nbt.getBoolean(FAILED_KEY);
@@ -834,38 +829,68 @@ public interface NetworkControl<AETile extends IActionHost> extends Persistable,
     }
   }
 
-  // Weakly held: a side never matched (a status the program dropped, a craftable whose status is gone) was kept for
-  // good, its host and level with it, across worlds too.
+  // The link of a job its restored craftables share, by crafting ID, with the server tick it was loaded at. A machine
+  // saved during a call on a craftable saves it twice (the program's copy and the call's): loaded with a link each, the
+  // one AE2 was told of last had the job, and ranking the copies failed both ways (the program's copy let go of it: its
+  // status went stale, saved again it saved no job, and AE2 cancelled the job after a restart). Copies loaded at one tick
+  // share one link: telling AE2 of it twice is harmless, and it holds its requester (the first copy) while any of them
+  // holds it. A later load takes over once it told AE2: a machine loaded again while its old craftables live on (the
+  // job's link holds them) - they let go of the job, whichever tells AE2 last, and follow it until then (the new ones
+  // may wait for their interface's chunk). Weakly held: AE2, the craftables and the statuses hold the links in use.
   final class LinkCache {
-    private static final java.util.Map<String, java.lang.ref.WeakReference<ICraftingLink>> linkCache = new java.util.concurrent.ConcurrentHashMap<>();
-    private static final java.util.Map<String, java.lang.ref.WeakReference<CraftingStatus>> statusCache = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final class Shared {
+      final java.lang.ref.WeakReference<ICraftingLink> link;
+      final long tick;
+      boolean told; // (AE2 of it, by a craftable)
 
-    static void store(ICraftingLink link) {
-      purge();
-      var id = link.getCraftingID().toString();
-      var entry = statusCache.remove(id);
-      var status = entry != null ? entry.get() : null;
-      if (status != null) {
-        status.setLink(link);
-      } else {
-        linkCache.put(id, new java.lang.ref.WeakReference<>(link));
+      Shared(ICraftingLink link, long tick) {
+        this.link = new java.lang.ref.WeakReference<>(link);
+        this.tick = tick;
       }
     }
 
-    static void store(CraftingStatus status, String id) {
+    private static final Map<java.util.UUID, Shared> shared = new java.util.concurrent.ConcurrentHashMap<>();
+
+    // the link a craftable loaded now holds: the one a copy of it loaded at this tick holds, else the one loaded
+    static ICraftingLink load(ICraftingLink loaded) {
       purge();
-      var entry = linkCache.remove(id);
-      var link = entry != null ? entry.get() : null;
-      if (link != null) {
-        status.setLink(link);
-      } else {
-        statusCache.put(id, new java.lang.ref.WeakReference<>(status));
-      }
+      var tick = tick();
+      var entry = shared.get(loaded.getCraftingID());
+      var link = entry != null && entry.tick == tick ? entry.link.get() : null;
+      if (link != null) return link;
+      shared.put(loaded.getCraftingID(), new Shared(loaded, tick));
+      return loaded;
+    }
+
+    static void told(ICraftingLink link) {
+      var entry = shared.get(link.getCraftingID());
+      if (entry != null && entry.link.get() == link) entry.told = true;
+    }
+
+    static ICraftingLink current(java.util.UUID id) {
+      var entry = shared.get(id);
+      return entry != null ? entry.link.get() : null;
+    }
+
+    // whether a later load took the job over from the link
+    static boolean superseded(ICraftingLink link) {
+      var entry = shared.get(link.getCraftingID());
+      var current = entry != null ? entry.link.get() : null;
+      return current != null && current != link && entry.told;
+    }
+
+    // (ticks count from 0 again on the next server: a link of the last one would pass for a copy)
+    static void onServerStopped() {
+      shared.clear();
+    }
+
+    private static long tick() {
+      var server = li.cil.oc.core.impl.util.SideTracker.getCurrentServer();
+      return server != null ? server.getTickCount() : -1;
     }
 
     private static void purge() {
-      linkCache.values().removeIf(r -> r.get() == null);
-      statusCache.values().removeIf(r -> r.get() == null);
+      shared.values().removeIf(entry -> entry.link.get() == null);
     }
   }
 }

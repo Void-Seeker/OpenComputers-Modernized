@@ -543,36 +543,220 @@ public final class Audit3StorageTests {
       TestMachines.atEnd(helper, () -> grid.getCraftingService().getCpus().forEach(ICraftingCPU::cancelJob));
       final var older = new NetworkControl.Craftable();
       older.load(craftableTag, registries);
-      final var newer = new NetworkControl.Craftable();
-      newer.load(craftableTag, registries);
-      final var newerStatus = new NetworkControl.CraftingStatus();
-      newerStatus.load(statusTag, registries);
-      // the newer one finds its interface now, the older one at its first retry
-      retryNow(newer);
-      helper.assertTrue(newer.requesting(null, NO_ARGS)[0] instanceof Number, "the newer craftable did not find its interface");
-      helper.assertTrue(!(older.requesting(null, NO_ARGS)[0] instanceof Number), "the older craftable found its interface first");
-      when(helper, () -> older.requesting(null, NO_ARGS)[0] instanceof Number, 20, () -> {
-        helper.assertTrue(older.requesting(null, NO_ARGS)[0] instanceof Number, "the older craftable did not find its interface");
-        TestMachines.later(helper, 2, () -> { // (each follower had its tick)
-          helper.assertTrue(requesterOfTheJob(grid, newer), "AE2 tells the job to the older craftable, which told it last ("
-            + requesterOfTheJob(grid, older) + "), not the newer one");
-          helper.assertTrue(!newer.getRequestedJobs().isEmpty(), "the newer craftable let go of its job");
-          helper.assertTrue(older.getRequestedJobs().isEmpty() && craftable.getRequestedJobs().isEmpty(), "an older craftable still holds the job");
-          // a grid change, as each follower sees it
-          followGridChange(newer);
-          followGridChange(older);
-          followGridChange(craftable);
-          helper.assertTrue(requesterOfTheJob(grid, newer), "after a grid change AE2 tells an older craftable of the job");
-          grid.getCraftingService().getCpus().forEach(ICraftingCPU::cancelJob);
-          when(helper, () -> !cpuBusy(grid), 20, () -> {
-            helper.assertTrue(!cpuBusy(grid), "the job was not cancelled");
-            helper.assertTrue(Boolean.TRUE.equals(newerStatus.isCanceled(null, NO_ARGS)[0]), "the newer status does not report the cancel");
-            helper.assertTrue(newer.getRequestedJobs().isEmpty(), "the newer craftable was not told of the job's end");
-            helper.succeed();
+      TestMachines.later(helper, 1, () -> { // (the machine loaded again, at a later tick)
+        final var newer = new NetworkControl.Craftable();
+        newer.load(craftableTag, registries);
+        final var newerStatus = new NetworkControl.CraftingStatus();
+        newerStatus.load(statusTag, registries);
+        // the newer one finds its interface now, the older one at its first retry
+        retryNow(newer);
+        helper.assertTrue(newer.requesting(null, NO_ARGS)[0] instanceof Number, "the newer craftable did not find its interface");
+        helper.assertTrue(!(older.requesting(null, NO_ARGS)[0] instanceof Number), "the older craftable found its interface first");
+        when(helper, () -> older.requesting(null, NO_ARGS)[0] instanceof Number, 20, () -> {
+          helper.assertTrue(older.requesting(null, NO_ARGS)[0] instanceof Number, "the older craftable did not find its interface");
+          TestMachines.later(helper, 2, () -> { // (each follower had its tick)
+            helper.assertTrue(requesterOfTheJob(grid, newer), "AE2 tells the job to the older craftable, which told it last ("
+              + requesterOfTheJob(grid, older) + "), not the newer one");
+            helper.assertTrue(!newer.getRequestedJobs().isEmpty(), "the newer craftable let go of its job");
+            helper.assertTrue(older.getRequestedJobs().isEmpty() && craftable.getRequestedJobs().isEmpty(), "an older craftable still holds the job");
+            // a grid change, as each follower sees it
+            followGridChange(newer);
+            followGridChange(older);
+            followGridChange(craftable);
+            helper.assertTrue(requesterOfTheJob(grid, newer), "after a grid change AE2 tells an older craftable of the job");
+            grid.getCraftingService().getCpus().forEach(ICraftingCPU::cancelJob);
+            when(helper, () -> !cpuBusy(grid), 20, () -> {
+              helper.assertTrue(!cpuBusy(grid), "the job was not cancelled");
+              helper.assertTrue(Boolean.TRUE.equals(newerStatus.isCanceled(null, NO_ARGS)[0]), "the newer status does not report the cancel");
+              helper.assertTrue(newer.getRequestedJobs().isEmpty(), "the newer craftable was not told of the job's end");
+              helper.succeed();
+            });
           });
         });
       });
     }));
+  }
+
+  /**
+   * A craftable loaded before (its machine loaded again since) follows its job on until the newer one has told AE2 of
+   * it (that one may wait for its interface's chunk: the job was no one's at a grid change), then lets go of it for good.
+   */
+  @GameTest(template = EMPTY, timeoutTicks = 1000)
+  public static void anOlderCraftableHandsItsJobToTheNewerOne(final GameTestHelper helper) {
+    final var registries = helper.getLevel().registryAccess();
+    craftingGrid(helper, grid -> runningJob(helper, grid, (craftable, status) -> {
+      final CompoundTag craftableTag = new CompoundTag();
+      final CompoundTag statusTag = new CompoundTag();
+      craftable.save(craftableTag, registries);
+      status.save(statusTag, registries);
+      TestMachines.atEnd(helper, () -> grid.getCraftingService().getCpus().forEach(ICraftingCPU::cancelJob));
+      final var older = loadedCraftable(craftableTag, registries);
+      retryNow(older);
+      helper.assertTrue(requesterOfTheJob(grid, older), "the older craftable did not tell AE2 of the job");
+      TestMachines.later(helper, 1, () -> { // (the machine loaded again, at a later tick)
+        final var newer = loadedCraftable(craftableTag, registries);
+        final var newerStatus = loadedStatus(statusTag, registries);
+        // a grid change, as the older one's follower sees it, before the newer one found its interface
+        followGridChange(older);
+        helper.assertTrue(!older.getRequestedJobs().isEmpty() && requesterOfTheJob(grid, older),
+          "the older craftable let go of its job before the newer one told AE2 of it");
+        retryNow(newer);
+        helper.assertTrue(requesterOfTheJob(grid, newer), "the newer craftable did not tell AE2 of the job");
+        followGridChange(older);
+        helper.assertTrue(requesterOfTheJob(grid, newer), "the older craftable took the job back (" + requesterOfTheJob(grid, older) + ")");
+        helper.assertTrue(older.getRequestedJobs().isEmpty(), "the older craftable still holds the job");
+        helper.assertTrue(!newer.getRequestedJobs().isEmpty(), "the newer craftable let go of the job");
+        grid.getCraftingService().getCpus().forEach(ICraftingCPU::cancelJob);
+        when(helper, () -> !cpuBusy(grid), 20, () -> {
+          helper.assertTrue(!cpuBusy(grid), "the job was not cancelled");
+          helper.assertTrue(Boolean.TRUE.equals(newerStatus.isCanceled(null, NO_ARGS)[0]), "the newer status does not report the cancel");
+          helper.assertTrue(newer.getRequestedJobs().isEmpty(), "the newer craftable was not told of the job's end");
+          helper.succeed();
+        });
+      });
+    }));
+  }
+
+  /**
+   * Copies of a craftable loaded together (a machine saved during a call on one saves it twice: the program's copy and
+   * the call's) share its job: either tells AE2 of it, the program's copy keeps it to save, and statuses loaded before
+   * and after them follow it across grid changes to its end. Loaded with a link each, the one AE2 was told of last had
+   * the job: the program's copy let go of it (its status stale, saved again without the job: "no link" and the job
+   * cancelled after a restart).
+   */
+  @GameTest(template = EMPTY, timeoutTicks = 1000)
+  public static void copiesOfACraftableLoadedTogetherShareItsJob(final GameTestHelper helper) {
+    final ServerLevel level = helper.getLevel();
+    final var registries = level.registryAccess();
+    final BlockPos bridge = ON_TOP, at = ON_TOP.above();
+    final Runnable cable = () -> helper.assertTrue(PartHelper.setPart(level, helper.absolutePos(bridge), null, null, (IPartItem<?>) ae2Item("fluix_glass_cable")) != null,
+      "the cable could not be placed");
+    final java.util.function.Supplier<IGrid> main = () -> ((appeng.me.helpers.IGridConnectedBlockEntity) helper.getBlockEntity(CONTROLLER)).getMainNode().getGrid();
+    craftingGrid(helper, grid -> {
+      cable.run();
+      helper.setBlock(CONTROLLER.north().north(), Blocks.CHEST); // (the pattern's input goes there: the job waits for stone)
+      runningJob(helper, grid, at, (craftable, status) -> {
+        final CompoundTag craftableTag = new CompoundTag();
+        final CompoundTag statusTag = new CompoundTag();
+        craftable.save(craftableTag, registries);
+        status.save(statusTag, registries);
+        forgetRequester(grid, craftable);
+        final var iface = (appeng.blockentity.misc.InterfaceBlockEntity) helper.getBlockEntity(at);
+        // as a machine loads them: the program's status before its craftable, the call's after
+        final var kernelStatus = loadedStatus(statusTag, registries);
+        final var kernel = loadedCraftable(craftableTag, registries);
+        final var stack = loadedCraftable(craftableTag, registries);
+        final var stackStatus = loadedStatus(statusTag, registries);
+        TestMachines.atEnd(helper, () -> main.get().getCraftingService().getCpus().forEach(ICraftingCPU::cancelJob));
+        final var job = kernel.getRequestedJobs();
+        helper.assertTrue(job.size() == 1 && job.equals(stack.getRequestedJobs()), "copies loaded together hold links of their own");
+        final Object link = job.iterator().next();
+        when(helper, () -> kernel.requesting(null, NO_ARGS)[0] instanceof Number && stack.requesting(null, NO_ARGS)[0] instanceof Number, 20, () -> {
+          helper.assertTrue(kernel.requesting(null, NO_ARGS)[0] instanceof Number && stack.requesting(null, NO_ARGS)[0] instanceof Number,
+            "a copy did not find its interface (they wait for it together)");
+          helper.assertTrue(jobRequest(grid) == link, "AE2 does not hold the shared link of the job");
+          // the interface in a grid of its own: the call's copy tells AE2 there, its follower first
+          helper.setBlock(bridge, Blocks.AIR);
+          final IGrid alone = iface.getMainNode().getGrid();
+          helper.assertTrue(alone != null && alone != main.get(), "the interface is still in the main grid");
+          followGridChange(stack);
+          helper.assertTrue(jobRequest(alone) == link, "the call's copy did not tell AE2 of the job in the interface's grid");
+          cable.run(); // the network whole again: the program's copy tells AE2, its follower first
+          when(helper, () -> iface.getMainNode().getGrid() == main.get(), 20, () -> {
+            helper.assertTrue(iface.getMainNode().getGrid() == main.get(), "the interface did not join the main grid again");
+            followGridChange(kernel);
+            helper.assertTrue(jobRequest(main.get()) == link, "the program's copy did not tell AE2 of the job in the main grid");
+            TestMachines.later(helper, 120, () -> { // (past the 60 ticks AE2 waits for a job's requester)
+              helper.assertTrue(cpuBusy(main.get()) && runsOn(kernelStatus) && runsOn(stackStatus), "the job was "
+                + (cpuBusy(main.get()) ? "reported over" : "cancelled") + " (statuses cancelled " + kernelStatus.isCanceled(null, NO_ARGS)[0]
+                + ", " + stackStatus.isCanceled(null, NO_ARGS)[0] + ")");
+              final CompoundTag saved = new CompoundTag();
+              kernel.save(saved, registries);
+              helper.assertTrue(saved.getList("links", net.minecraft.nbt.Tag.TAG_COMPOUND).size() == 1, "the program's copy saves no job: " + saved);
+              main.get().getStorageService().getInventory().insert(AEItemKey.of(Items.STONE), 1, Actionable.MODULATE, IActionSource.empty());
+              when(helper, () -> !cpuBusy(main.get()) && kernel.getRequestedJobs().isEmpty() && stack.getRequestedJobs().isEmpty(), 20, () -> {
+                helper.assertTrue(!cpuBusy(main.get()), "the job did not take its stone");
+                helper.assertTrue(Boolean.TRUE.equals(kernelStatus.isDone(null, NO_ARGS)[0]) && Boolean.TRUE.equals(stackStatus.isDone(null, NO_ARGS)[0]),
+                  "a status does not report the job done (" + kernelStatus.isDone(null, NO_ARGS)[0] + ", " + stackStatus.isDone(null, NO_ARGS)[0] + ")");
+                helper.assertTrue(Boolean.FALSE.equals(kernelStatus.isCanceled(null, NO_ARGS)[0]) && Boolean.FALSE.equals(stackStatus.isCanceled(null, NO_ARGS)[0]),
+                  "a status reports the job done cancelled");
+                helper.assertTrue(kernel.getRequestedJobs().isEmpty() && stack.getRequestedJobs().isEmpty(), "a copy still follows the job done");
+                helper.succeed();
+              });
+            });
+          });
+        });
+      });
+    });
+  }
+
+  /**
+   * A job's end reaches only the copy of a craftable its shared link was loaded for (AE2 tells the link's requester), held
+   * by no program here; the other copy lets go of it too (it followed the job for good).
+   */
+  @GameTest(template = EMPTY, timeoutTicks = 1000)
+  public static void everyCopyLetsGoOfAJobOver(final GameTestHelper helper) {
+    final var registries = helper.getLevel().registryAccess();
+    craftingGrid(helper, grid -> runningJob(helper, grid, (craftable, status) -> {
+      final CompoundTag craftableTag = new CompoundTag();
+      final CompoundTag statusTag = new CompoundTag();
+      craftable.save(craftableTag, registries);
+      status.save(statusTag, registries);
+      forgetRequester(grid, craftable);
+      TestMachines.atEnd(helper, () -> grid.getCraftingService().getCpus().forEach(ICraftingCPU::cancelJob));
+      final var first = new WeakReference<>(loadedCraftable(craftableTag, registries));
+      final var other = loadedCraftable(craftableTag, registries);
+      final var otherStatus = loadedStatus(statusTag, registries);
+      when(helper, () -> other.requesting(null, NO_ARGS)[0] instanceof Number, 20, () -> {
+        helper.assertTrue(other.requesting(null, NO_ARGS)[0] instanceof Number, "the copy did not find its interface");
+        System.gc();
+        final var requester = first.get();
+        helper.assertTrue(requester != null, "the copy the shared link was loaded for is gone while another holds the job");
+        helper.assertTrue(requesterOfTheJob(grid, requester) && !requesterOfTheJob(grid, other), "AE2's requester of the job is not the first copy");
+        grid.getCraftingService().getCpus().forEach(ICraftingCPU::cancelJob);
+        when(helper, () -> !cpuBusy(grid) && other.getRequestedJobs().isEmpty(), 20, () -> {
+          helper.assertTrue(!cpuBusy(grid), "the job was not cancelled");
+          helper.assertTrue(Boolean.TRUE.equals(otherStatus.isCanceled(null, NO_ARGS)[0]), "the status does not report the cancel");
+          helper.assertTrue(requester.getRequestedJobs().isEmpty(), "the job's requester was not told of its end");
+          helper.assertTrue(other.getRequestedJobs().isEmpty() && !following(other), "the other copy follows the job cancelled for good");
+          helper.succeed();
+        });
+      });
+    }));
+  }
+
+  private static NetworkControl.Craftable loadedCraftable(final CompoundTag tag, final net.minecraft.core.HolderLookup.Provider registries) {
+    final var craftable = new NetworkControl.Craftable();
+    craftable.load(tag, registries);
+    return craftable;
+  }
+
+  private static NetworkControl.CraftingStatus loadedStatus(final CompoundTag tag, final net.minecraft.core.HolderLookup.Provider registries) {
+    final var status = new NetworkControl.CraftingStatus();
+    status.load(tag, registries);
+    return status;
+  }
+
+  // the link AE2 holds as the request of the grid's one job
+  private static Object jobRequest(final IGrid grid) {
+    try {
+      final var links = appeng.me.service.CraftingService.class.getDeclaredField("craftingLinks");
+      links.setAccessible(true);
+      final var nexuses = ((java.util.Map<?, ?>) links.get(grid.getCraftingService())).values();
+      return nexuses.size() == 1 ? ((appeng.crafting.CraftingLinkNexus) nexuses.iterator().next()).getRequest() : null;
+    } catch (ReflectiveOperationException e) {
+      throw new IllegalStateException(e);
+    }
+  }
+
+  private static boolean following(final NetworkControl.Craftable craftable) {
+    try {
+      final var following = NetworkControl.Craftable.class.getDeclaredField("following");
+      following.setAccessible(true);
+      return following.getBoolean(craftable);
+    } catch (ReflectiveOperationException e) {
+      throw new IllegalStateException(e);
+    }
   }
 
   // a restored craftable's retry for its interface, now

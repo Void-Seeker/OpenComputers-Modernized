@@ -30,6 +30,8 @@ public final class ModAppEng implements ModProxy {
   @Override
   public void initialize() {
     AE2Power.setDelegate(new AE2GridDelegate());
+    net.minecraftforge.common.MinecraftForge.EVENT_BUS.addListener(net.minecraftforge.eventbus.api.EventPriority.NORMAL, false,
+      net.minecraftforge.event.server.ServerStoppedEvent.class, e -> NetworkControl.LinkCache.onServerStopped());
 
     li.cil.oc.core.impl.common.Registrar.registerWrenchTool("li.cil.oc.neoforge.integration.appeng.EventHandlerAE2.useWrench");
     li.cil.oc.core.impl.common.Registrar.registerWrenchToolCheck("li.cil.oc.neoforge.integration.appeng.EventHandlerAE2.isWrench");

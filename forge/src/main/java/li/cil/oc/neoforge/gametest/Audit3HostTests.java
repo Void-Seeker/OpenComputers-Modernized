@@ -430,41 +430,78 @@ public final class Audit3HostTests {
     helper.succeed();
   }
 
-  /** AE2 crafting links and statuses never matched are not kept (with their hosts, across worlds too). */
+  /** AE2 crafting links shared by the craftables of a job, and statuses restored, are not kept (with their hosts, across worlds too). */
   @GameTest(template = EMPTY, timeoutTicks = 200)
   public static void unmatchedCraftingLinksAreNotKept(final GameTestHelper helper) {
-    final List<WeakReference<?>> refs = storedUnmatched();
+    final List<WeakReference<?>> refs = storedUnmatched(helper);
     TestMachines.when(helper, () -> collected(refs), 20, () -> {
-      helper.assertTrue(refs.get(0).get() == null, "a crafting status never matched is still held");
-      helper.assertTrue(refs.get(1).get() == null, "a crafting link never matched is still held");
+      helper.assertTrue(refs.get(0).get() == null, "a crafting status restored is still held");
+      helper.assertTrue(refs.get(1).get() == null, "a crafting link loaded is still held");
       helper.succeed();
     });
   }
 
-  private static List<WeakReference<?>> storedUnmatched() {
+  private static List<WeakReference<?>> storedUnmatched(final GameTestHelper helper) {
     try {
-      final var cache = Class.forName("li.cil.oc.neoforge.integration.appeng.NetworkControl$LinkCache");
-      final var storeStatus = cache.getDeclaredMethod("store", li.cil.oc.neoforge.integration.appeng.NetworkControl.CraftingStatus.class, String.class);
-      final var storeLink = cache.getDeclaredMethod("store", appeng.api.networking.crafting.ICraftingLink.class);
-      storeStatus.setAccessible(true);
-      storeLink.setAccessible(true);
       final var status = new li.cil.oc.neoforge.integration.appeng.NetworkControl.CraftingStatus();
-      storeStatus.invoke(null, status, UUID.randomUUID().toString());
-      final UUID id = UUID.randomUUID();
-      final var link = (appeng.api.networking.crafting.ICraftingLink) java.lang.reflect.Proxy.newProxyInstance(
-        appeng.api.networking.crafting.ICraftingLink.class.getClassLoader(), new Class<?>[]{appeng.api.networking.crafting.ICraftingLink.class},
-        (proxy, method, args) -> switch (method.getName()) {
-          case "getCraftingID" -> id;
-          case "hashCode" -> System.identityHashCode(proxy);
-          case "equals" -> proxy == args[0];
-          case "toString" -> "test link";
-          default -> method.getReturnType() == boolean.class ? false : null;
-        });
-      storeLink.invoke(null, link);
+      final CompoundTag statusTag = new CompoundTag();
+      statusTag.putBoolean("computing", false);
+      statusTag.putString("link", UUID.randomUUID().toString());
+      status.load(statusTag, helper.getLevel().registryAccess());
+      status.isDone(null, new ArgumentsImpl(new Object[0])); // (looks its link up)
+      final var link = testLink(UUID.randomUUID());
+      linkCache("load", appeng.api.networking.crafting.ICraftingLink.class).invoke(null, link);
       return List.of(new WeakReference<>(status), new WeakReference<>(link));
     } catch (ReflectiveOperationException e) {
       throw new IllegalStateException(e);
     }
+  }
+
+  private static appeng.api.networking.crafting.ICraftingLink testLink(final UUID id) {
+    return (appeng.api.networking.crafting.ICraftingLink) java.lang.reflect.Proxy.newProxyInstance(
+      appeng.api.networking.crafting.ICraftingLink.class.getClassLoader(), new Class<?>[]{appeng.api.networking.crafting.ICraftingLink.class},
+      (proxy, method, args) -> switch (method.getName()) {
+        case "getCraftingID" -> id;
+        case "hashCode" -> System.identityHashCode(proxy);
+        case "equals" -> proxy == args[0];
+        case "toString" -> "test link";
+        default -> method.getReturnType() == boolean.class ? false : null;
+      });
+  }
+
+  private static java.lang.reflect.Method linkCache(final String name, final Class<?>... parameters) throws ReflectiveOperationException {
+    final var method = Class.forName("li.cil.oc.neoforge.integration.appeng.NetworkControl$LinkCache").getDeclaredMethod(name, parameters);
+    method.setAccessible(true);
+    return method;
+  }
+
+  /**
+   * A stopped server's AE2 links shared by craftables go: the next server's ticks count from 0 again, and a craftable
+   * loaded at the tick a link of the old one was loaded at took that link (its requester an old craftable, its grid gone).
+   */
+  @GameTest(template = EMPTY)
+  public static void sharedCraftingLinksForgetAStoppedServer(final GameTestHelper helper) {
+    try {
+      final var field = Class.forName("li.cil.oc.neoforge.integration.appeng.NetworkControl$LinkCache").getDeclaredField("shared");
+      field.setAccessible(true);
+      final var shared = (Map<?, ?>) field.get(null);
+      final var running = new HashMap<Object, Object>(shared); // the other tests' links, put back (all on the server thread)
+      final UUID id = UUID.randomUUID();
+      final var link = testLink(id);
+      linkCache("load", appeng.api.networking.crafting.ICraftingLink.class).invoke(null, link);
+      try {
+        helper.assertTrue(linkCache("current", UUID.class).invoke(null, id) == link, "the link was not shared");
+        linkCache("onServerStopped").invoke(null);
+        helper.assertTrue(linkCache("current", UUID.class).invoke(null, id) == null, "after the server stopped its craftables' links are still shared");
+      } finally {
+        shared.clear();
+        @SuppressWarnings("unchecked") final var back = (Map<Object, Object>) shared;
+        back.putAll(running);
+      }
+    } catch (ReflectiveOperationException e) {
+      throw new IllegalStateException(e);
+    }
+    helper.succeed();
   }
 
   // ---- screens, racks, holograms, GPU buffers ----
