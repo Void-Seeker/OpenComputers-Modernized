@@ -82,6 +82,6 @@ public abstract class UpgradeTradingBase extends AbstractManagedEnvironment impl
         result.add(createTradeObject(merchant, index, idMap.get(((Entity) merchant).getUUID())));
       }
     }
-    return ResultWrapper.result(result.toArray());
+    return ResultWrapper.result((Object) result.toArray()); // (one table, as OC 1.12: an array alone was spread into one value per trade)
   }
 }

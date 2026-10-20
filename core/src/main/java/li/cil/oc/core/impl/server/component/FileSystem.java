@@ -104,14 +104,14 @@ public class FileSystem extends AbstractManagedEnvironment implements DeviceInfo
     synchronized (fileSystem) {
       long space = fileSystem.spaceTotal();
       if (space < 0) return ResultWrapper.result(Double.POSITIVE_INFINITY);
-      return ResultWrapper.result((double) space);
+      return ResultWrapper.result(space);
     }
   }
 
   @Callback(direct = true, doc = "function():number -- The currently used capacity of the file system, in bytes.")
   public Object[] spaceUsed(Context ignoredContext, Arguments ignoredArgs) {
     synchronized (fileSystem) {
-      return ResultWrapper.result((double) fileSystem.spaceUsed());
+      return ResultWrapper.result(fileSystem.spaceUsed());
     }
   }
 
@@ -127,7 +127,7 @@ public class FileSystem extends AbstractManagedEnvironment implements DeviceInfo
   public Object[] size(Context ignoredContext, Arguments args) {
     synchronized (fileSystem) {
       diskActivity();
-      return ResultWrapper.result((double) fileSystem.size(clean(args.checkString(0))));
+      return ResultWrapper.result(fileSystem.size(clean(args.checkString(0))));
     }
   }
 
@@ -143,7 +143,7 @@ public class FileSystem extends AbstractManagedEnvironment implements DeviceInfo
   public Object[] lastModified(Context ignoredContext, Arguments args) {
     synchronized (fileSystem) {
       diskActivity();
-      return ResultWrapper.result((double) fileSystem.lastModified(clean(args.checkString(0))));
+      return ResultWrapper.result(fileSystem.lastModified(clean(args.checkString(0))));
     }
   }
 
@@ -287,7 +287,7 @@ public class FileSystem extends AbstractManagedEnvironment implements DeviceInfo
           default:
             throw new IllegalArgumentException("invalid mode");
         }
-        return ResultWrapper.result((double) file.position());
+        return ResultWrapper.result(file.position());
       }
       throw new RuntimeException(new IOException("bad file descriptor"));
     }

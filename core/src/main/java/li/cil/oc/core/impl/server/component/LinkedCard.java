@@ -83,7 +83,7 @@ public class LinkedCard extends AbstractManagedEnvironment implements QuantumNet
 
   @Callback(direct = true, doc = "function():number -- Gets the maximum packet size (config setting).")
   public Object[] maxPacketSize(Context context, Arguments args) {
-    return ResultWrapper.result((double) OCSettings.get().maxNetworkPacketSize);
+    return ResultWrapper.result(OCSettings.get().maxNetworkPacketSize);
   }
 
   public void receivePacket(Packet packet) {

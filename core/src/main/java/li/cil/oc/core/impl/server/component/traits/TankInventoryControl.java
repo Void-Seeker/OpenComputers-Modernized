@@ -33,7 +33,7 @@ public interface TankInventoryControl extends WorldAware, InventoryAware, TankAw
   @Callback(doc = "function([slot:number]):table -- Get a description of the fluid in the tank item in the specified slot or the selected slot.")
   default Object[] getFluidInTankInSlot(Context context, Arguments args) {
     if (OCSettings.get().allowItemStackInspection) {
-      return withFluidInfo(optSlot(args, 0), (fluid, capacity) -> result(fluid));
+      return withFluidInfo(optSlot(args, 0), (fluid, capacity) -> result(fluid == null || fluid.isEmpty() ? null : fluid)); // (nil when empty, as OC 1.12: it was {amount=0})
     }
     return result(null, "not enabled in config");
   }
@@ -42,7 +42,7 @@ public interface TankInventoryControl extends WorldAware, InventoryAware, TankAw
   default Object[] getFluidInInternalTank(Context context, Arguments args) {
     if (OCSettings.get().allowItemStackInspection) {
       FluidTank tank = getTank(optTank(args, 0));
-      return result(tank != null ? tank.getFluid() : null);
+      return result(tank != null && tank.getFluid() != null && !tank.getFluid().isEmpty() ? tank.getFluid() : null);
     }
     return result(null, "not enabled in config");
   }
@@ -122,7 +122,7 @@ public interface TankInventoryControl extends WorldAware, InventoryAware, TankAw
 
   default Object[] withFluidInfo(int slot, BiFunction<FluidStack, Integer, Object[]> f) {
     ItemStack stack = inventory().getItem(slot);
-    if (stack.isEmpty()) return null;
+    if (stack.isEmpty()) return result(null, "item is not a fluid container"); // (as OC 1.12, which asked the empty stack too)
     Function<ItemStack, Object[]> fluidInfo = s -> {
       FluidHandler handler = FluidUtils.fluidHandlerIn(s);
       if (handler != null) {

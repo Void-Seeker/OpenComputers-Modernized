@@ -48,7 +48,7 @@ public abstract class TradeBase extends AbstractValue {
 
   @Callback(doc = "function():number -- Returns a sort index of the merchant that provides this trade")
   public Object[] getMerchantId(Context context, Arguments arguments) {
-    return ResultWrapper.result((double) info.merchantID);
+    return ResultWrapper.result(info.merchantID);
   }
 
   @Callback(doc = "function():table, table -- Returns the items the merchant wants for this trade.")

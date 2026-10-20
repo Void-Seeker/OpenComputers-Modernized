@@ -189,7 +189,7 @@ public class GraphicsCardBase extends AbstractManagedEnvironment implements Devi
 
   @Callback(direct = true, doc = "function(): number -- returns the index of the currently selected buffer. 0 is reserved for the screen. Can return 0 even when there is no screen")
   public Object[] getActiveBuffer(Context context, Arguments args) {
-    return ResultWrapper.result((double) bufferIndex);
+    return ResultWrapper.result(bufferIndex);
   }
 
   @Callback(direct = true, doc = "function(index: number): number -- Sets the active buffer to `index`. 1 is the first vram buffer and 0 is reserved for the screen. returns nil for invalid index (0 is always valid)")
@@ -203,7 +203,7 @@ public class GraphicsCardBase extends AbstractManagedEnvironment implements Devi
     if (bufferIndex == 0) {
       screen(s -> ResultWrapper.result(true));
     }
-    return ResultWrapper.result((double) previousIndex);
+    return ResultWrapper.result(previousIndex);
   }
 
   @Callback(direct = true, doc = "function(): number -- Returns an array of indexes of the allocated buffers")
@@ -233,7 +233,7 @@ public class GraphicsCardBase extends AbstractManagedEnvironment implements Devi
     int idx = nextAvailableBufferIndex();
     GpuTextBuffer page = GpuTextBuffer.wrap(node.address(), idx, buffer);
     addBuffer(page);
-    return ResultWrapper.result((double) page.id);
+    return ResultWrapper.result(page.id);
   }
 
   @Callback(direct = true, doc = "function(index: number): boolean -- Closes buffer at `index`. Returns true if a buffer closed. If the current buffer is closed, index moves to 0")
@@ -248,7 +248,7 @@ public class GraphicsCardBase extends AbstractManagedEnvironment implements Devi
     int count = bufferIndexes().length;
     removeAllBuffers();
     if (bufferIndex != 0) bufferIndex = 0;
-    return ResultWrapper.result((double) count);
+    return ResultWrapper.result(count);
   }
 
   @Callback(direct = true, doc = "function(): number -- returns the total memory size of the gpu vram. This does not include the screen.")
@@ -264,7 +264,7 @@ public class GraphicsCardBase extends AbstractManagedEnvironment implements Devi
   @Callback(direct = true, doc = "function(index: number): number, number -- returns the buffer size at index. Returns the screen resolution for index 0. returns nil for invalid indexes")
   public Object[] getBufferSize(Context context, Arguments args) {
     int idx = args.optInteger(0, bufferIndex);
-    return screen(idx, s -> ResultWrapper.result((double) s.getWidth(), (double) s.getHeight()));
+    return screen(idx, s -> ResultWrapper.result(s.getWidth(), s.getHeight()));
   }
 
   @Callback(direct = true, doc = "function([dst: number, col: number, row: number, width: number, height: number, src: number, fromCol: number, fromRow: number]):boolean -- bitblt from buffer to screen. All parameters are optional. Writes to `dst` page in rectangle `x, y, width, height`, defaults to the bound screen and its viewport. Reads data from `src` page at `fx, fy`, default is the active page from position 1, 1")
@@ -375,7 +375,7 @@ public class GraphicsCardBase extends AbstractManagedEnvironment implements Devi
       Object oldColor, oldIndex;
       if (s.isBackgroundFromPalette()) {
         oldColor = s.getPaletteColor(oldValue);
-        oldIndex = (double) oldValue;
+        oldIndex = oldValue;
       } else {
         oldColor = oldValue;
         oldIndex = null;
@@ -401,7 +401,7 @@ public class GraphicsCardBase extends AbstractManagedEnvironment implements Devi
       Object oldColor, oldIndex;
       if (s.isForegroundFromPalette()) {
         oldColor = s.getPaletteColor(oldValue);
-        oldIndex = (double) oldValue;
+        oldIndex = oldValue;
       } else {
         oldColor = oldValue;
         oldIndex = null;
@@ -435,7 +435,7 @@ public class GraphicsCardBase extends AbstractManagedEnvironment implements Devi
       try {
         int oldColor = s.getPaletteColor(index);
         s.setPaletteColor(index, color);
-        return ResultWrapper.result((double) oldColor);
+        return ResultWrapper.result(oldColor);
       } catch (ArrayIndexOutOfBoundsException e) {
         throw new IllegalArgumentException("invalid palette index");
       }
@@ -444,7 +444,7 @@ public class GraphicsCardBase extends AbstractManagedEnvironment implements Devi
 
   @Callback(direct = true, doc = "function():number -- Returns the currently set color depth in bits.")
   public Object[] getDepth(Context context, Arguments args) {
-    return screen(s -> ResultWrapper.result((double) PackedColor.Depth.bits(s.getColorDepth())));
+    return screen(s -> ResultWrapper.result(PackedColor.Depth.bits(s.getColorDepth())));
   }
 
   @Callback(doc = "function(depth:number):number -- Set the color depth. Returns the previous value.")
@@ -472,12 +472,12 @@ public class GraphicsCardBase extends AbstractManagedEnvironment implements Devi
 
   @Callback(direct = true, doc = "function():number -- Gets the maximum supported color depth in bits.")
   public Object[] maxDepth(Context context, Arguments args) {
-    return screen(s -> ResultWrapper.result((double) PackedColor.Depth.bits(TextBuffer.ColorDepth.values()[Math.min(maxDepth.ordinal(), s.getMaximumColorDepth().ordinal())])));
+    return screen(s -> ResultWrapper.result(PackedColor.Depth.bits(TextBuffer.ColorDepth.values()[Math.min(maxDepth.ordinal(), s.getMaximumColorDepth().ordinal())])));
   }
 
   @Callback(direct = true, doc = "function():number, number -- Get the current screen resolution.")
   public Object[] getResolution(Context context, Arguments args) {
-    return screen(s -> ResultWrapper.result((double) s.getWidth(), (double) s.getHeight()));
+    return screen(s -> ResultWrapper.result(s.getWidth(), s.getHeight()));
   }
 
   @Callback(doc = "function(width:number, height:number):boolean -- Set the screen resolution. Returns true if the resolution changed.")
@@ -501,13 +501,13 @@ public class GraphicsCardBase extends AbstractManagedEnvironment implements Devi
       int gmh = maxResolution[1];
       int smw = s.getMaximumWidth();
       int smh = s.getMaximumHeight();
-      return ResultWrapper.result((double) Math.min(gmw, smw), (double) Math.min(gmh, smh));
+      return ResultWrapper.result(Math.min(gmw, smw), Math.min(gmh, smh));
     });
   }
 
   @Callback(direct = true, doc = "function():number, number -- Get the current viewport resolution.")
   public Object[] getViewport(Context context, Arguments args) {
-    return screen(s -> ResultWrapper.result((double) s.getViewportWidth(), (double) s.getViewportHeight()));
+    return screen(s -> ResultWrapper.result(s.getViewportWidth(), s.getViewportHeight()));
   }
 
   @Callback(doc = "function(width:number, height:number):boolean -- Set the viewport resolution. Cannot exceed the screen resolution. Returns true if the resolution changed.")
@@ -534,7 +534,7 @@ public class GraphicsCardBase extends AbstractManagedEnvironment implements Devi
       Object fgColor, fgIndex;
       if (s.isForegroundFromPalette(x, y)) {
         fgColor = s.getPaletteColor(fgValue);
-        fgIndex = (double) fgValue;
+        fgIndex = fgValue;
       } else {
         fgColor = fgValue;
         fgIndex = null;
@@ -544,7 +544,7 @@ public class GraphicsCardBase extends AbstractManagedEnvironment implements Devi
       Object bgColor, bgIndex;
       if (s.isBackgroundFromPalette(x, y)) {
         bgColor = s.getPaletteColor(bgValue);
-        bgIndex = (double) bgValue;
+        bgIndex = bgValue;
       } else {
         bgColor = bgValue;
         bgIndex = null;

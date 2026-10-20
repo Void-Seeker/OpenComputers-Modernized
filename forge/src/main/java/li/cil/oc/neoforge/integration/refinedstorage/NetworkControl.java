@@ -169,19 +169,19 @@ public interface NetworkControl extends Persistable, ManagedEnvironment {
   @Callback(doc = "function():number -- Get the average power usage of the network.")
   default Object[] getAvgPowerUsage(Context context, Arguments args) {
     var network = network();
-    return ResultWrapper.result(network != null ? (double) network.getEnergyUsage() : 0.0);
+    return ResultWrapper.result(network != null ? network.getEnergyUsage() : 0);
   }
 
   @Callback(doc = "function():number -- Get the maximum stored power in the network.")
   default Object[] getMaxStoredPower(Context context, Arguments args) {
     var network = network();
-    return ResultWrapper.result(network != null ? (double) network.getEnergyStorage().getMaxEnergyStored() : 0.0);
+    return ResultWrapper.result(network != null ? network.getEnergyStorage().getMaxEnergyStored() : 0);
   }
 
   @Callback(doc = "function():number -- Get the stored power in the network.")
   default Object[] getStoredPower(Context context, Arguments args) {
     var network = network();
-    return ResultWrapper.result(network != null ? (double) network.getEnergyStorage().getEnergyStored() : 0.0);
+    return ResultWrapper.result(network != null ? network.getEnergyStorage().getEnergyStored() : 0);
   }
 
   @Callback(doc = "function():boolean -- True if the RS network is considered online")

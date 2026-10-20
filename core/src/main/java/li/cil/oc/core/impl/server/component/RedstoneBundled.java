@@ -66,7 +66,7 @@ public interface RedstoneBundled extends DeviceInfo {
     Object[] key = getBundleKey(args);
     Direction side = (Direction) key[0];
     Integer color = (Integer) key[1];
-    if (color != null) return ResultWrapper.result((double) bundledRedstone().getBundledInput(side, color));
+    if (color != null) return ResultWrapper.result(bundledRedstone().getBundledInput(side, color));
     if (side != null)
       return ResultWrapper.result(colorsToMap(bundledRedstone().getBundledInput(side)));
     // by the device's own sides, as the per-side call (the inputs are kept by world side)
@@ -87,7 +87,7 @@ public interface RedstoneBundled extends DeviceInfo {
     Object[] key = getBundleKey(args);
     Direction side = (Direction) key[0];
     Integer color = (Integer) key[1];
-    if (color != null) return ResultWrapper.result((double) bundledRedstone().getBundledOutput(side, color));
+    if (color != null) return ResultWrapper.result(bundledRedstone().getBundledOutput(side, color));
     if (side != null) {
       return ResultWrapper.result(colorsToMap(bundledRedstone().getBundledOutput(side)));
     }

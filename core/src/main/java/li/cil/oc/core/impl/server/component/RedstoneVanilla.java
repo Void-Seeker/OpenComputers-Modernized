@@ -37,7 +37,7 @@ public abstract class RedstoneVanilla extends RedstoneSignaller implements Devic
   public Object[] getInput(Context context, Arguments args) {
     Direction side = getOptionalSide(args);
     if (side != null)
-      return ResultWrapper.result((double) ((RedstoneAware) redstone()).getInput(side));
+      return ResultWrapper.result(((RedstoneAware) redstone()).getInput(side));
     return ResultWrapper.result(valuesToMap(inputsBySides(((RedstoneAware) redstone()).input())));
   }
 
@@ -63,7 +63,7 @@ public abstract class RedstoneVanilla extends RedstoneSignaller implements Devic
   public Object[] getOutput(Context context, Arguments args) {
     Direction side = getOptionalSide(args);
     if (side != null)
-      return ResultWrapper.result((double) ((RedstoneAware) redstone()).getOutput(side));
+      return ResultWrapper.result(((RedstoneAware) redstone()).getOutput(side));
     return ResultWrapper.result(valuesToMap(bySides(((RedstoneAware) redstone()).output())));
   }
 
@@ -98,7 +98,7 @@ public abstract class RedstoneVanilla extends RedstoneSignaller implements Devic
     if (level.isLoaded(blockPos.toBlockPos())) {
       BlockState state = level.getBlockState(blockPos.toBlockPos());
       if (state.hasAnalogOutputSignal()) {
-        return ResultWrapper.result((double) state.getAnalogOutputSignal(level, blockPos.toBlockPos()));
+        return ResultWrapper.result(state.getAnalogOutputSignal(level, blockPos.toBlockPos()));
       }
     }
     return ResultWrapper.result(0);

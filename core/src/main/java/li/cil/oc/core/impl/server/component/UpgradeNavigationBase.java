@@ -83,7 +83,7 @@ public abstract class UpgradeNavigationBase extends AbstractManagedEnvironment i
   @Callback(doc = "function(range:number):table -- Find waypoints in the specified range.")
   public Object[] findWaypoints(Context context, Arguments args) {
     double range = MathCompat.clamp(args.checkDouble(0), 0, OCSettings.get().maxWirelessRange[Tier.Two]);
-    if (range <= 0) return ResultWrapper.result();
+    if (range <= 0) return ResultWrapper.result((Object) new Object[0]);
     if (!consumeEnergy(range * OCSettings.get().wirelessCostPerRange[Tier.Two] * 0.25))
       return ResultWrapper.result(null, "not enough energy");
     context.pause(0.5);
@@ -108,7 +108,7 @@ public abstract class UpgradeNavigationBase extends AbstractManagedEnvironment i
         return map;
       })
       .toArray();
-    return ResultWrapper.result(waypointsArray);
+    return ResultWrapper.result((Object) waypointsArray); // (one table, as OC 1.12: an array alone was spread into one value per waypoint)
   }
 
   @Override

@@ -40,7 +40,7 @@ public abstract class RedstoneSignaller extends AbstractManagedEnvironment {
 
   @Callback(direct = true, doc = "function():number -- Get the current wake-up threshold.")
   public Object[] getWakeThreshold(Context context, Arguments args) {
-    return ResultWrapper.result((double) wakeThreshold);
+    return ResultWrapper.result(wakeThreshold);
   }
 
   @Callback(doc = "function(threshold:number):number -- Set the wake-up threshold.")
@@ -49,7 +49,7 @@ public abstract class RedstoneSignaller extends AbstractManagedEnvironment {
     wakeThreshold = args.checkInteger(0);
     // saved by its host (a Redstone I/O block in another chunk than the computer lost it: the computer never woke)
     if (wakeThreshold != oldThreshold && this instanceof RedstoneVanilla vanilla && vanilla.redstone() != null) vanilla.redstone().markChanged();
-    return ResultWrapper.result((double) oldThreshold);
+    return ResultWrapper.result(oldThreshold);
   }
 
   public void onRedstoneChanged(RedstoneChangedEventArgs args) {

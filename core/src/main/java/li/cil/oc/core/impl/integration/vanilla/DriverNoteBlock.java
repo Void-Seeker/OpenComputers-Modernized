@@ -19,6 +19,7 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.NoteBlock;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.gameevent.GameEvent;
 
 @SuppressWarnings("unused")
 public final class DriverNoteBlock extends DriverSidedBlock {
@@ -77,9 +78,14 @@ public final class DriverNoteBlock extends DriverSidedBlock {
         BlockState state = world.getBlockState(pos);
         world.setBlock(pos, state.setValue(NoteBlock.NOTE, value - 1), 3);
       }
+      // vanilla's NoteBlock.playNote (private): only with air above, unless a head above is the instrument, and with
+      // the game event sculk sensors and allays hear (it played under any block, silently to them)
       BlockState state = world.getBlockState(pos);
-      boolean canTrigger = world.getBlockState(pos.above()).isAir();
-      world.blockEvent(pos, state.getBlock(), 0, state.getValue(NoteBlock.NOTE));
+      boolean canTrigger = state.getValue(NoteBlock.INSTRUMENT).worksAboveNoteBlock() || world.getBlockState(pos.above()).isAir();
+      if (canTrigger) {
+        world.blockEvent(pos, state.getBlock(), 0, 0);
+        world.gameEvent(null, GameEvent.NOTE_BLOCK_PLAY, pos);
+      }
       return ResultWrapper.result(canTrigger);
     }
   }

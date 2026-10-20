@@ -92,14 +92,14 @@ public abstract class RobotBase extends AgentBase implements DeviceInfo {
 
   @Callback(doc = "function():number -- Get the current color of the activity light as an integer encoded RGB value (0xRRGGBB).")
   public Object[] getLightColor(Context context, Arguments args) {
-    return ResultWrapper.result((double) getLightColor());
+    return ResultWrapper.result(getLightColor());
   }
 
   @Callback(doc = "function(value:number):number -- Set the color of the activity light to the specified integer encoded RGB value (0xRRGGBB).")
   public Object[] setLightColor(Context context, Arguments args) {
     setLightColor(args.checkInteger(0));
     context.pause(0.1);
-    return ResultWrapper.result((double) getLightColor());
+    return ResultWrapper.result(getLightColor());
   }
 
   @Callback(doc = "function():number -- Get the durability of the currently equipped tool.")

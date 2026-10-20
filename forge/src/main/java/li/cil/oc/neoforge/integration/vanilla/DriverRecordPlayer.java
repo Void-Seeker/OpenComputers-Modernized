@@ -1,4 +1,4 @@
-package li.cil.oc.core.impl.integration.vanilla;
+package li.cil.oc.neoforge.integration.vanilla;
 
 import li.cil.oc.api.driver.EnvironmentProvider;
 import li.cil.oc.api.driver.NamedBlock;
@@ -53,15 +53,13 @@ public final class DriverRecordPlayer extends DriverSidedBlockEntity {
       return null;
     }
 
+    // the jukebox's own start and stop: a bare level event 1010 left it not playing (no comparator signal, no end of
+    // the song, allays and parrots deaf to it) and 1010 with no record never stopped the music (1011 does)
     @Callback(doc = "function() -- Start playing the record currently in the jukebox.")
     public Object[] play(Context context, Arguments args) {
       var record = BlockEntity.getItem(0);
-      if (!record.isEmpty() && record.getItem() instanceof net.minecraft.world.item.RecordItem) {
-        var pos = BlockEntity.getBlockPos();
-        var level = BlockEntity.getLevel();
-        if (level != null) {
-          level.levelEvent(null, 1010, pos, net.minecraft.core.registries.BuiltInRegistries.ITEM.getId(record.getItem()));
-        }
+      if (!record.isEmpty() && record.getItem() instanceof net.minecraft.world.item.RecordItem && BlockEntity.getLevel() != null) {
+        BlockEntity.startPlaying();
         return ResultWrapper.result(true);
       }
       return null;
@@ -70,10 +68,8 @@ public final class DriverRecordPlayer extends DriverSidedBlockEntity {
     @Callback(doc = "function() -- Stop playing the record currently in the jukebox.")
     @SuppressWarnings("SameReturnValue")
     public Object[] stop(Context context, Arguments args) {
-      var pos = BlockEntity.getBlockPos();
-      var level = BlockEntity.getLevel();
-      if (level != null) {
-        level.levelEvent(1010, pos, 0);
+      if (BlockEntity.isRecordPlaying() && BlockEntity.getLevel() != null) {
+        BlockEntity.stopPlaying();
       }
       return null;
     }

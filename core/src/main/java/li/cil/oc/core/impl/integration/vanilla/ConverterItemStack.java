@@ -49,7 +49,7 @@ public final class ConverterItemStack implements Converter {
       output.put("maxSize", stack.getMaxStackSize());
       output.put("hasTag", hasTag);
       output.put("name", BuiltInRegistries.ITEM.getKey(stack.getItem()).toString());
-      output.put("label", stack.getDisplayName().getString());
+      output.put("label", stack.getHoverName().getString()); // (getDisplayName is the chat form: "[Diamond]")
 
       if (hasTag) {
         // 1.20.1: lore lives in the stack's own display tag, which CustomData hides.

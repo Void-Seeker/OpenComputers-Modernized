@@ -149,7 +149,7 @@ public final class ScreenTests {
     final var computer = (li.cil.oc.core.impl.common.blockentity.Case) helper.getBlockEntity(AT);
     final String lua = "local gpu = component.proxy(component.list('gpu')())\n"
       + "while not component.list('screen')() do computer.pullSignal(0.1) end\n"
-      + "gpu.bind(component.list('screen')())\n"
+      + "gpu.bind((component.list('screen')())) -- (one value: the type would be bind's reset flag, an error in OC)\n"
       + "if computer.energy() > computer.maxEnergy() / 2 then error('the buffer is too full to see a gain') end\n"
       + "local before = computer.energy()\n"
       + "for i = 1, 20 do pcall(gpu.bitblt, 0, 1, 1, -1000000, 20) end\n"
@@ -229,7 +229,7 @@ public final class ScreenTests {
   public static void bitbltFromLeftOfTheScreenReachesItsRightEdge(final GameTestHelper helper) {
     runCase(helper, "local gpu = component.proxy(component.list('gpu')())\n"
       + "while not component.list('screen')() do computer.pullSignal(0.1) end\n"
-      + "gpu.bind(component.list('screen')())\n"
+      + "gpu.bind((component.list('screen')())) -- (one value: the type would be bind's reset flag, an error in OC)\n"
       + "local w, h = gpu.getResolution()\n"
       + "local page = gpu.allocateBuffer(w + 10, 2)\n"
       + "gpu.setActiveBuffer(page) gpu.fill(1, 1, w + 10, 2, 'X') gpu.setActiveBuffer(0)\n"
@@ -246,7 +246,7 @@ public final class ScreenTests {
   public static void bitbltOfAHugeSizeDrawsWhatFits(final GameTestHelper helper) {
     runCase(helper, "local gpu = component.proxy(component.list('gpu')())\n"
       + "while not component.list('screen')() do computer.pullSignal(0.1) end\n"
-      + "gpu.bind(component.list('screen')())\n"
+      + "gpu.bind((component.list('screen')())) -- (one value: the type would be bind's reset flag, an error in OC)\n"
       + "local w, h = gpu.getResolution()\n"
       + "local page = gpu.allocateBuffer(4, 2)\n"
       + "local ok, r, why = pcall(gpu.bitblt, 0, w + 2, 1, math.huge, 1, page, 1, 1)\n"
@@ -259,7 +259,7 @@ public final class ScreenTests {
 
   private static final String HEAD_LUA = "local gpu = component.proxy(component.list('gpu')())\n"
       + "while not component.list('screen')() do computer.pullSignal(0.1) end\n"
-      + "gpu.bind(component.list('screen')())\n"
+      + "gpu.bind((component.list('screen')())) -- (one value: the type would be bind's reset flag, an error in OC)\n"
       + "local w, h = gpu.getResolution()\n";
 
   /**

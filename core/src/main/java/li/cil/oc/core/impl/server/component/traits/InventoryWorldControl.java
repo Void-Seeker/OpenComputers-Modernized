@@ -33,10 +33,9 @@ public interface InventoryWorldControl extends InventoryAware, WorldAware, SideR
     if (stack != null && stack.getItem() instanceof BlockItem item) {
       BlockPosition blockPos = position().offset(side);
       BlockState state = level().getBlockState(blockPos.toBlockPos());
-      boolean fuzzy = args.optBoolean(1, false);
-      boolean idMatches = item.getBlock() == state.getBlock();
-      boolean subTypeMatches = fuzzy || state == item.getBlock().defaultBlockState();
-      return ResultWrapper.result(idMatches && subTypeMatches);
+      args.optBoolean(1, false); // (fuzzy skipped OC 1.12's metadata check: variants are blocks of their own now)
+      // the block, not its state (a rotated log or a connected fence never matched); a wall torch is its item's too
+      return ResultWrapper.result(item.getBlock() == state.getBlock() || state.getBlock().asItem() == item);
     }
     return ResultWrapper.result(false);
   }

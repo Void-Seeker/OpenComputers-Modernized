@@ -55,7 +55,7 @@ public interface RedstoneWireless extends DeviceInfo {
 
   @Callback(direct = true, doc = "function():number -- Get the currently set wireless redstone frequency.")
   default Object[] getWirelessFrequency(Context context, Arguments args) {
-    return ResultWrapper.result((double) getWirelessFrequencyValue());
+    return ResultWrapper.result(getWirelessFrequencyValue());
   }
 
   @Callback(doc = "function(frequency:number):number -- Set the wireless redstone frequency to use.")
@@ -75,7 +75,7 @@ public interface RedstoneWireless extends DeviceInfo {
       WirelessRedstone.addReceiver(this);
       context.pause(0.5);
     }
-    return ResultWrapper.result((double) oldValue);
+    return ResultWrapper.result(oldValue);
   }
 
   @Callback(direct = true, doc = "function():table -- Get the list of enabled wireless providers.")

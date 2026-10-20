@@ -84,8 +84,10 @@ public class CompoundBlockDriver implements DriverBlock {
     try {
       BlockEntity te = world.getBlockEntity(pos);
       if (te instanceof Container && te instanceof net.minecraft.world.Nameable named) {
-        named.getDisplayName();
-        return named.getDisplayName().getString().replaceFirst("^container\\.", "");
+        // the untranslated key, as OC 1.12 (a translation varies with the language: "______" in Cyrillic), or a custom name
+        var name = named.getDisplayName();
+        String id = name.getContents() instanceof net.minecraft.network.chat.contents.TranslatableContents key ? key.getKey() : name.getString();
+        if (!Strings.isNullOrEmpty(id)) return id.replaceFirst("^container\\.", "");
       }
     } catch (Throwable ignored) {
     }

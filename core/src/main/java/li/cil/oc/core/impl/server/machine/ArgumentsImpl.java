@@ -44,98 +44,116 @@ public class ArgumentsImpl implements Arguments {
     return args.length;
   }
 
+  // Errors and opt* as OC 1.12's ArgumentsImpl: "bad argument #2 (number expected, got string)", 1-based and in Lua's
+  // type names; an opt* argument given (not nil) must have the type, else it is an error (it was the default).
+
+  private boolean isDefined(int index) {
+    return index >= 0 && index < args.length && args[index] != null;
+  }
+
+  private void checkIndex(int index, String name) {
+    if (index < 0) throw new IndexOutOfBoundsException();
+    if (args.length <= index) throw new IllegalArgumentException("bad arguments #" + (index + 1) + " (" + name + " expected, got no value)"); // ("arguments": OC's words)
+  }
+
+  private static IllegalArgumentException typeError(int index, Object have, String want) {
+    return new IllegalArgumentException("bad argument #" + (index + 1) + " (" + want + " expected, got " + typeName(have) + ")");
+  }
+
+  private static IllegalArgumentException intError(int index, Object have) {
+    return new IllegalArgumentException("bad argument #" + (index + 1) + " (" + typeName(have) + " has no integer representation)");
+  }
+
+  private static String typeName(Object value) {
+    if (value == null) return "nil";
+    if (value instanceof Boolean) return "boolean";
+    if (value instanceof Byte || value instanceof Short || value instanceof Integer || value instanceof Long) return "integer";
+    if (value instanceof Number) return "number";
+    if (value instanceof String || value instanceof byte[]) return "string";
+    if (value instanceof Map) return "table";
+    return value.getClass().getSimpleName();
+  }
+
   @Override
   public Object checkAny(int index) {
-    if (index < 0 || index >= args.length) throw new IllegalArgumentException("not enough arguments");
+    checkIndex(index, "value");
     return args[index];
   }
 
   @Override
   public boolean checkBoolean(int index) {
-    Object value = checkAny(index);
+    checkIndex(index, "boolean");
+    Object value = args[index];
     if (value instanceof Boolean) return (Boolean) value;
-    throw new IllegalArgumentException("expected boolean, got " + (value != null ? value.getClass().getSimpleName() : "nil"));
+    throw typeError(index, value, "boolean");
   }
 
   @Override
   public double checkDouble(int index) {
-    Object value = checkAny(index);
+    checkIndex(index, "number");
+    Object value = args[index];
     if (value instanceof Number) return ((Number) value).doubleValue();
-    throw new IllegalArgumentException("expected number, got " + (value != null ? value.getClass().getSimpleName() : "nil"));
+    throw typeError(index, value, "number");
   }
 
   @Override
   public int checkInteger(int index) {
-    double value = checkDouble(index);
-    if (Double.isNaN(value)) throw new IllegalArgumentException("expected integer, got NaN");
-    if (value > Integer.MAX_VALUE) return Integer.MAX_VALUE;
-    if (value < Integer.MIN_VALUE) return Integer.MIN_VALUE;
-    return (int) value;
+    checkIndex(index, "integer");
+    Object value = args[index];
+    if (!(value instanceof Number number)) throw typeError(index, value, "integer");
+    double d = number.doubleValue();
+    if (Double.isNaN(d)) throw intError(index, value);
+    if (d > Integer.MAX_VALUE) return Integer.MAX_VALUE;
+    if (d < Integer.MIN_VALUE) return Integer.MIN_VALUE;
+    return (int) d;
   }
 
   @Override
   public String checkString(int index) {
-    Object value = checkAny(index);
+    checkIndex(index, "string");
+    Object value = args[index];
     if (value instanceof String) return (String) value;
     if (value instanceof byte[]) return new String((byte[]) value, java.nio.charset.StandardCharsets.UTF_8); // not the platform's (Windows: Cp1252)
-    throw new IllegalArgumentException("expected string, got " + (value != null ? value.getClass().getSimpleName() : "nil"));
+    throw typeError(index, value, "string");
   }
 
   @Override
   public byte[] checkByteArray(int index) {
-    Object value = checkAny(index);
+    checkIndex(index, "string");
+    Object value = args[index];
     if (value instanceof byte[]) return (byte[]) value;
     if (value instanceof String) return ((String) value).getBytes(java.nio.charset.StandardCharsets.UTF_8);
-    throw new IllegalArgumentException("expected byte array, got " + (value != null ? value.getClass().getSimpleName() : "nil"));
+    throw typeError(index, value, "string");
   }
 
   @Override
   public Object optAny(int index, Object defaultVal) {
-    if (index < 0 || index >= count()) return defaultVal;
-    return args[index];
+    return isDefined(index) ? checkAny(index) : defaultVal;
   }
 
   @Override
   public boolean optBoolean(int index, boolean defaultVal) {
-    if (index < 0 || index >= count()) return defaultVal;
-    Object value = args[index];
-    if (value instanceof Boolean) return (Boolean) value;
-    return defaultVal;
+    return isDefined(index) ? checkBoolean(index) : defaultVal;
   }
 
   @Override
   public double optDouble(int index, double defaultVal) {
-    if (index < 0 || index >= count()) return defaultVal;
-    Object value = args[index];
-    if (value instanceof Number) return ((Number) value).doubleValue();
-    return defaultVal;
+    return isDefined(index) ? checkDouble(index) : defaultVal;
   }
 
   @Override
   public int optInteger(int index, int defaultVal) {
-    double value = optDouble(index, defaultVal);
-    if (Double.isNaN(value)) return defaultVal;
-    if (value > Integer.MAX_VALUE) return Integer.MAX_VALUE;
-    if (value < Integer.MIN_VALUE) return Integer.MIN_VALUE;
-    return (int) value;
+    return isDefined(index) ? checkInteger(index) : defaultVal;
   }
 
   @Override
   public String optString(int index, String defaultVal) {
-    if (index < 0 || index >= count()) return defaultVal;
-    Object value = args[index];
-    if (value instanceof String) return (String) value;
-    if (value instanceof byte[]) return new String((byte[]) value, java.nio.charset.StandardCharsets.UTF_8); // not the platform's (Windows: Cp1252)
-    return defaultVal;
+    return isDefined(index) ? checkString(index) : defaultVal;
   }
 
   @Override
   public byte[] optByteArray(int index, byte[] defaultVal) {
-    if (index < 0 || index >= count()) return defaultVal;
-    Object value = args[index];
-    if (value instanceof byte[]) return (byte[]) value;
-    if (value instanceof String) return ((String) value).getBytes(java.nio.charset.StandardCharsets.UTF_8);
-    return defaultVal;
+    return isDefined(index) ? checkByteArray(index) : defaultVal;
   }
 
   @Override
@@ -146,19 +164,24 @@ public class ArgumentsImpl implements Arguments {
 
   @Override
   public long checkLong(int index) {
-    double value = checkDouble(index);
-    if (Double.isNaN(value)) throw new IllegalArgumentException("expected long, got NaN");
-    if (value > Long.MAX_VALUE) return Long.MAX_VALUE;
-    if (value < Long.MIN_VALUE) return Long.MIN_VALUE;
-    return (long) value;
+    checkIndex(index, "integer");
+    Object value = args[index];
+    if (!(value instanceof Number number)) throw typeError(index, value, "integer");
+    if (value instanceof Long || value instanceof Integer || value instanceof Short || value instanceof Byte) return number.longValue(); // (exact beyond 2^53)
+    double d = number.doubleValue();
+    if (Double.isNaN(d)) throw intError(index, value);
+    if (d > Long.MAX_VALUE) return Long.MAX_VALUE;
+    if (d < Long.MIN_VALUE) return Long.MIN_VALUE;
+    return (long) d;
   }
 
   @SuppressWarnings("rawtypes")
   @Override
   public Map checkTable(int index) {
-    Object value = checkAny(index);
+    checkIndex(index, "table");
+    Object value = args[index];
     if (value instanceof Map) return (Map) value;
-    throw new IllegalArgumentException("expected table, got " + (value != null ? value.getClass().getSimpleName() : "nil"));
+    throw typeError(index, value, "table");
   }
 
   @Override
@@ -205,30 +228,18 @@ public class ArgumentsImpl implements Arguments {
 
   @Override
   public long optLong(int index, long def) {
-    double value = optDouble(index, def);
-    if (Double.isNaN(value)) return def;
-    if (value > Long.MAX_VALUE) return Long.MAX_VALUE;
-    if (value < Long.MIN_VALUE) return Long.MIN_VALUE;
-    return (long) value;
+    return isDefined(index) ? checkLong(index) : def;
   }
 
   @SuppressWarnings("rawtypes")
   @Override
   public Map optTable(int index, Map def) {
-    if (index < 0 || index >= count()) return def;
-    Object value = args[index];
-    if (value instanceof Map) return (Map) value;
-    return def;
+    return isDefined(index) ? checkTable(index) : def;
   }
 
   @Override
   public ItemStack optItemStack(int index, ItemStack def) {
-    if (index < 0 || index >= count()) return def;
-    try {
-      return checkItemStack(index);
-    } catch (IllegalArgumentException e) {
-      return def;
-    }
+    return isDefined(index) ? checkItemStack(index) : def;
   }
 
   @Override

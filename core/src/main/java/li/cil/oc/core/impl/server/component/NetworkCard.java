@@ -132,7 +132,7 @@ public class NetworkCard extends AbstractManagedEnvironment implements RackBusCo
 
   @Callback(direct = true, doc = "function():number -- Gets the maximum packet size (config setting).")
   public Object[] maxPacketSize(Context context, Arguments args) {
-    return ResultWrapper.result((double) OCSettings.get().maxNetworkPacketSize);
+    return ResultWrapper.result(OCSettings.get().maxNetworkPacketSize);
   }
 
   protected void doSend(Packet packet) {

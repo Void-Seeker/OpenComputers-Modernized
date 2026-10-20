@@ -94,6 +94,7 @@ public final class OpenComputers {
       }
     });
     li.cil.oc.core.util.ConverterRegistry.setInstance(new li.cil.oc.core.impl.util.NeoConverterRegistry());
+    li.cil.oc.core.util.ResultWrapper.setEmptyStackCheck(value -> value instanceof net.minecraft.world.item.ItemStack stack && stack.isEmpty());
     EventHandlerDelegate.setInstance(new li.cil.oc.neoforge.util.EventHandlerDelegate());
     li.cil.oc.core.impl.util.PlayerUtils.setDataProvider(li.cil.oc.neoforge.common.PlayerDataProvider.INSTANCE);
     ContainerProviderDelegate.setInstance(new ContainerProviderDelegate() {

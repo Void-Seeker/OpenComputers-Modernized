@@ -10,7 +10,6 @@ import li.cil.oc.core.impl.integration.vanilla.DriverCommandBlock;
 import li.cil.oc.core.impl.integration.vanilla.DriverComparator;
 import li.cil.oc.core.impl.integration.vanilla.DriverMobSpawner;
 import li.cil.oc.core.impl.integration.vanilla.DriverNoteBlock;
-import li.cil.oc.core.impl.integration.vanilla.DriverRecordPlayer;
 import li.cil.oc.core.impl.util.BlockPosition;
 import li.cil.oc.neoforge.integration.ModProxy;
 import li.cil.oc.neoforge.integration.Mods;

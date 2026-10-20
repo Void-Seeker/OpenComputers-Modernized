@@ -429,7 +429,7 @@ public abstract class DebugCardBase extends AbstractManagedEnvironment implement
     @Callback(doc = "function():number -- Get the current world time.")
     public Object[] getTime(Context context, Arguments args) {
       checkAccess();
-      return ResultWrapper.result((double) world.getGameTime());
+      return ResultWrapper.result(world.getGameTime());
     }
 
     @SuppressWarnings("SameReturnValue")
@@ -446,9 +446,9 @@ public abstract class DebugCardBase extends AbstractManagedEnvironment implement
       var levelData = world.getLevelData();
       var spawn = new net.minecraft.core.BlockPos(levelData.getXSpawn(), levelData.getYSpawn(), levelData.getZSpawn());
       return ResultWrapper.result(
-        (double) spawn.getX(),
-        (double) spawn.getY(),
-        (double) spawn.getZ());
+        spawn.getX(),
+        spawn.getY(),
+        spawn.getZ());
     }
 
     @SuppressWarnings("SameReturnValue")
@@ -480,7 +480,7 @@ public abstract class DebugCardBase extends AbstractManagedEnvironment implement
     @Callback(doc = "function(x:number, y:number, z:number):number -- Get the ID of the block at the specified coordinates.")
     public Object[] getBlockId(Context context, Arguments args) {
       checkAccess();
-      return ResultWrapper.result((double) Block.getId(world.getBlockState(new net.minecraft.core.BlockPos(args.checkInteger(0), args.checkInteger(1), args.checkInteger(2)))));
+      return ResultWrapper.result(Block.getId(world.getBlockState(new net.minecraft.core.BlockPos(args.checkInteger(0), args.checkInteger(1), args.checkInteger(2)))));
     }
 
     @Callback(doc = "function(x:number, y:number, z:number) -- Gets the block state for the block at the specified position.")
@@ -542,14 +542,14 @@ public abstract class DebugCardBase extends AbstractManagedEnvironment implement
     public Object[] getLightOpacity(Context context, Arguments args) {
       checkAccess();
       BlockPos pos = new net.minecraft.core.BlockPos(args.checkInteger(0), args.checkInteger(1), args.checkInteger(2));
-      return ResultWrapper.result((double) world.getBlockState(pos).getLightBlock(world, pos));
+      return ResultWrapper.result(world.getBlockState(pos).getLightBlock(world, pos));
     }
 
     @Callback(doc = "function(x:number, y:number, z:number):number -- Get the light value (emission) of the block at the specified coordinates.")
     public Object[] getLightValue(Context context, Arguments args) {
       checkAccess();
       BlockPos pos = new net.minecraft.core.BlockPos(args.checkInteger(0), args.checkInteger(1), args.checkInteger(2));
-      return ResultWrapper.result((double) world.getBrightness(LightLayer.BLOCK, pos));
+      return ResultWrapper.result(world.getBrightness(LightLayer.BLOCK, pos));
     }
 
     @Callback(doc = "function(x:number, y:number, z:number):number -- Get whether the block at the specified coordinates is directly under the sky.")
@@ -774,12 +774,12 @@ public abstract class DebugCardBase extends AbstractManagedEnvironment implement
 
     @Callback(doc = "function():number -- Get the player's level")
     public Object[] getLevel(Context context, Arguments args) {
-      return withPlayer(p -> ResultWrapper.result((double) p.experienceLevel));
+      return withPlayer(p -> ResultWrapper.result(p.experienceLevel));
     }
 
     @Callback(doc = "function():number -- Get the player's total experience")
     public Object[] getExperienceTotal(Context context, Arguments args) {
-      return withPlayer(p -> ResultWrapper.result((double) p.totalExperience));
+      return withPlayer(p -> ResultWrapper.result(p.totalExperience));
     }
 
     @Callback(doc = "function(level:number) -- Add a level to the player's experience level")
@@ -962,7 +962,7 @@ public abstract class DebugCardBase extends AbstractManagedEnvironment implement
       Objective objective = scoreboard.getObjective(args.checkString(1));
       if (objective == null) throw new RuntimeException("objective not found");
       Score score = scoreboard.getOrCreatePlayerScore(name, objective);
-      return ResultWrapper.result((double) score.getScore());
+      return ResultWrapper.result(score.getScore());
     }
 
     @SuppressWarnings("SameReturnValue")

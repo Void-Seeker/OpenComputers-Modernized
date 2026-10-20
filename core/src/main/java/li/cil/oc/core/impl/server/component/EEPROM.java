@@ -81,7 +81,7 @@ public class EEPROM extends AbstractManagedEnvironment implements DeviceInfo {
 
   @Callback(direct = true, doc = "function():number -- Get the storage capacity of this EEPROM.")
   public Object[] getSize(Context context, Arguments args) {
-    return ResultWrapper.result((double) OCSettings.get().eepromSize);
+    return ResultWrapper.result(OCSettings.get().eepromSize);
   }
 
   @Callback(direct = true, doc = "function():string -- Get the checksum of the data on this EEPROM.")
@@ -100,7 +100,7 @@ public class EEPROM extends AbstractManagedEnvironment implements DeviceInfo {
 
   @Callback(direct = true, doc = "function():number -- Get the storage capacity of this EEPROM.")
   public Object[] getDataSize(Context context, Arguments args) {
-    return ResultWrapper.result((double) OCSettings.get().eepromDataSize);
+    return ResultWrapper.result(OCSettings.get().eepromDataSize);
   }
 
   @Callback(direct = true, doc = "function():string -- Get the currently stored byte array.")

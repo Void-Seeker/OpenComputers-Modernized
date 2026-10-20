@@ -390,7 +390,7 @@ public class InternetCard extends AbstractManagedEnvironment implements DeviceIn
       if (checkConnected()) {
         try {
           byte[] value = args.checkByteArray(0);
-          return ResultWrapper.result((double) channel.write(ByteBuffer.wrap(value)));
+          return ResultWrapper.result(channel.write(ByteBuffer.wrap(value)));
         } catch (IOException e) {
           throw new RuntimeException(e);
         }
@@ -519,7 +519,7 @@ public class InternetCard extends AbstractManagedEnvironment implements DeviceIn
     @Callback(direct = true, doc = "function():number, string, table -- Get response code, message and headers.")
     public synchronized Object[] response(Context context, Arguments args) {
       Object result = responseHeaders;
-      if (result != null) return ResultWrapper.result((double) responseCode, responseMessage, result);
+      if (result != null) return ResultWrapper.result(responseCode, responseMessage, result);
       return ResultWrapper.result((Object) null);
     }
 

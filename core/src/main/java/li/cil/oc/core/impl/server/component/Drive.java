@@ -115,17 +115,17 @@ public class Drive extends AbstractManagedEnvironment implements DeviceInfo {
 
   @Callback(direct = true, doc = "function():number -- Returns the total capacity of the drive, in bytes.")
   public Object[] getCapacity(Context context, Arguments args) {
-    return ResultWrapper.result((double) capacity);
+    return ResultWrapper.result(capacity);
   }
 
   @Callback(direct = true, doc = "function():number -- Returns the size of a single sector on the drive, in bytes.")
   public Object[] getSectorSize(Context context, Arguments args) {
-    return ResultWrapper.result((double) sectorSize);
+    return ResultWrapper.result(sectorSize);
   }
 
   @Callback(direct = true, doc = "function():number -- Returns the number of platters in the drive.")
   public Object[] getPlatterCount(Context context, Arguments args) {
-    return ResultWrapper.result((double) platterCount);
+    return ResultWrapper.result(platterCount);
   }
 
   @Callback(direct = true, doc = "function(sector:number):string -- Read the current contents of the specified sector.")
