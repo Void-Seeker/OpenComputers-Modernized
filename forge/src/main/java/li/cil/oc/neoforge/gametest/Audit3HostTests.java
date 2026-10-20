@@ -430,26 +430,35 @@ public final class Audit3HostTests {
     helper.succeed();
   }
 
-  /** AE2 crafting links shared by the craftables of a job, and statuses restored, are not kept (with their hosts, across worlds too). */
+  /**
+   * AE2 crafting links shared by the craftables of a job are not kept, nor statuses saved while computing once their
+   * request came back (each held its link, the old craftable, its host and level for the session); a status loaded
+   * again still learns what came of the request.
+   */
   @GameTest(template = EMPTY, timeoutTicks = 200)
   public static void unmatchedCraftingLinksAreNotKept(final GameTestHelper helper) {
-    final List<WeakReference<?>> refs = storedUnmatched(helper);
+    final CompoundTag saved = new CompoundTag();
+    final List<WeakReference<?>> refs = storedUnmatched(helper, saved);
     TestMachines.when(helper, () -> collected(refs), 20, () -> {
-      helper.assertTrue(refs.get(0).get() == null, "a crafting status restored is still held");
+      helper.assertTrue(refs.get(0).get() == null, "a crafting status saved while computing is still held after its request came back");
       helper.assertTrue(refs.get(1).get() == null, "a crafting link loaded is still held");
+      final var again = new li.cil.oc.neoforge.integration.appeng.NetworkControl.CraftingStatus();
+      again.load(saved, helper.getLevel().registryAccess());
+      final Object[] result = again.isDone(null, new ArgumentsImpl(new Object[0]));
+      helper.assertTrue(result.length == 2 && "request failed (test)".equals(result[1]), "the status loaded again says " + java.util.Arrays.toString(result));
       helper.succeed();
     });
   }
 
-  private static List<WeakReference<?>> storedUnmatched(final GameTestHelper helper) {
+  private static List<WeakReference<?>> storedUnmatched(final GameTestHelper helper, final CompoundTag saved) {
     try {
       final var status = new li.cil.oc.neoforge.integration.appeng.NetworkControl.CraftingStatus();
-      final CompoundTag statusTag = new CompoundTag();
-      statusTag.putBoolean("computing", false);
-      statusTag.putString("link", UUID.randomUUID().toString());
-      status.load(statusTag, helper.getLevel().registryAccess());
-      status.isDone(null, new ArgumentsImpl(new Object[0])); // (looks its link up)
-      final var link = testLink(UUID.randomUUID());
+      linkCache("computing", li.cil.oc.neoforge.integration.appeng.NetworkControl.CraftingStatus.class).invoke(null, status);
+      status.save(saved, helper.getLevel().registryAccess()); // (computing)
+      status.fail("test");
+      linkCache("computed", li.cil.oc.neoforge.integration.appeng.NetworkControl.CraftingStatus.class, appeng.api.networking.crafting.ICraftingLink.class)
+        .invoke(null, status, null);
+      final var link = testLink(UUID.randomUUID(), false);
       linkCache("load", appeng.api.networking.crafting.ICraftingLink.class).invoke(null, link);
       return List.of(new WeakReference<>(status), new WeakReference<>(link));
     } catch (ReflectiveOperationException e) {
@@ -457,11 +466,12 @@ public final class Audit3HostTests {
     }
   }
 
-  private static appeng.api.networking.crafting.ICraftingLink testLink(final UUID id) {
+  private static appeng.api.networking.crafting.ICraftingLink testLink(final UUID id, final boolean done) {
     return (appeng.api.networking.crafting.ICraftingLink) java.lang.reflect.Proxy.newProxyInstance(
       appeng.api.networking.crafting.ICraftingLink.class.getClassLoader(), new Class<?>[]{appeng.api.networking.crafting.ICraftingLink.class},
       (proxy, method, args) -> switch (method.getName()) {
         case "getCraftingID" -> id;
+        case "isDone" -> done;
         case "hashCode" -> System.identityHashCode(proxy);
         case "equals" -> proxy == args[0];
         case "toString" -> "test link";
@@ -476,27 +486,57 @@ public final class Audit3HostTests {
   }
 
   /**
-   * A stopped server's AE2 links shared by craftables go: the next server's ticks count from 0 again, and a craftable
-   * loaded at the tick a link of the old one was loaded at took that link (its requester an old craftable, its grid gone).
+   * A stopped server's AE2 bookkeeping goes: links shared by craftables (the next server's ticks count from 0 again, and
+   * a craftable loaded at the tick a link of the old one was loaded at took that link: its requester an old craftable,
+   * its grid gone), jobs over, requests computing and what came of them.
    */
   @GameTest(template = EMPTY)
   public static void sharedCraftingLinksForgetAStoppedServer(final GameTestHelper helper) {
     try {
-      final var field = Class.forName("li.cil.oc.neoforge.integration.appeng.NetworkControl$LinkCache").getDeclaredField("shared");
-      field.setAccessible(true);
-      final var shared = (Map<?, ?>) field.get(null);
-      final var running = new HashMap<Object, Object>(shared); // the other tests' links, put back (all on the server thread)
-      final UUID id = UUID.randomUUID();
-      final var link = testLink(id);
-      linkCache("load", appeng.api.networking.crafting.ICraftingLink.class).invoke(null, link);
+      final Class<?> cache = Class.forName("li.cil.oc.neoforge.integration.appeng.NetworkControl$LinkCache");
+      final Map<java.lang.reflect.Field, Object> running = new HashMap<>(); // the other tests' entries, put back (all on the server thread)
+      for (final var field : cache.getDeclaredFields()) {
+        if (!java.lang.reflect.Modifier.isStatic(field.getModifiers())) continue;
+        field.setAccessible(true);
+        final Object value = field.get(null);
+        if (value instanceof Map<?, ?> map) running.put(field, new HashMap<>(map));
+        else if (value instanceof java.util.Collection<?> collection) running.put(field, new java.util.ArrayList<>(collection));
+      }
+      helper.assertTrue(running.size() >= 5, "LinkCache keeps " + running.size() + " collections");
       try {
+        final UUID id = UUID.randomUUID();
+        final var link = testLink(id, false);
+        linkCache("load", appeng.api.networking.crafting.ICraftingLink.class).invoke(null, link); // shared, persisted
+        final var over = testLink(UUID.randomUUID(), true);
+        linkCache("persisted", UUID.class).invoke(null, over.getCraftingID());
+        linkCache("over", appeng.api.networking.crafting.ICraftingLink.class).invoke(null, over); // a job over
+        final var statusClass = li.cil.oc.neoforge.integration.appeng.NetworkControl.CraftingStatus.class;
+        linkCache("computing", statusClass).invoke(null, new li.cil.oc.neoforge.integration.appeng.NetworkControl.CraftingStatus()); // computing
+        final var saved = new li.cil.oc.neoforge.integration.appeng.NetworkControl.CraftingStatus();
+        linkCache("computing", statusClass).invoke(null, saved);
+        saved.save(new CompoundTag(), helper.getLevel().registryAccess());
+        saved.fail("test");
+        linkCache("computed", statusClass, appeng.api.networking.crafting.ICraftingLink.class).invoke(null, saved, null); // what came of one
         helper.assertTrue(linkCache("current", UUID.class).invoke(null, id) == link, "the link was not shared");
         linkCache("onServerStopped").invoke(null);
-        helper.assertTrue(linkCache("current", UUID.class).invoke(null, id) == null, "after the server stopped its craftables' links are still shared");
+        for (final var field : running.keySet()) {
+          final Object value = field.get(null);
+          final int left = value instanceof Map<?, ?> map ? map.size() : ((java.util.Collection<?>) value).size();
+          helper.assertTrue(left == 0, "after the server stopped LinkCache." + field.getName() + " still holds " + left);
+        }
       } finally {
-        shared.clear();
-        @SuppressWarnings("unchecked") final var back = (Map<Object, Object>) shared;
-        back.putAll(running);
+        for (final var entry : running.entrySet()) {
+          final Object value = entry.getKey().get(null);
+          if (value instanceof Map<?, ?> map) {
+            map.clear();
+            @SuppressWarnings("unchecked") final var back = (Map<Object, Object>) map;
+            back.putAll((Map<?, ?>) entry.getValue());
+          } else {
+            @SuppressWarnings("unchecked") final var back = (java.util.Collection<Object>) value;
+            back.clear();
+            back.addAll((java.util.Collection<?>) entry.getValue());
+          }
+        }
       }
     } catch (ReflectiveOperationException e) {
       throw new IllegalStateException(e);

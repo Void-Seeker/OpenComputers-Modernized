@@ -285,6 +285,15 @@ public final class Audit3StorageTests {
     });
   }
 
+  // the jobs of the test's grid, whichever grid its controller is in by now (a job left running holds its CPU, craftable
+  // and grid on)
+  private static void cancelJobs(final GameTestHelper helper) {
+    if (helper.getLevel().getBlockEntity(helper.absolutePos(CONTROLLER)) instanceof appeng.me.helpers.IGridConnectedBlockEntity controller
+      && controller.getMainNode().getGrid() != null) {
+      controller.getMainNode().getGrid().getCraftingService().getCpus().forEach(ICraftingCPU::cancelJob);
+    }
+  }
+
   private static boolean cpuBusy(final IGrid grid) {
     return grid.getCraftingService().getCpus().stream().anyMatch(ICraftingCPU::isBusy);
   }
@@ -320,6 +329,7 @@ public final class Audit3StorageTests {
     when(helper, () -> iface.getMainNode().isActive(), 100, () -> {
       final var craftable = stoneCraftable(helper, new DriverBlockInterface.Environment(iface));
       final var status = request(helper, craftable);
+      TestMachines.atEnd(helper, () -> cancelJobs(helper));
       when(helper, () -> submitted(status) && cpuBusy(grid), 200, () -> {
         helper.assertTrue(submitted(status) && cpuBusy(grid), "the job did not start: " + java.util.Arrays.toString(status.isDone(null, NO_ARGS)));
         then.accept(craftable, status);
@@ -357,6 +367,7 @@ public final class Audit3StorageTests {
       final CompoundTag statusTag = new CompoundTag();
       craftable.save(craftableTag, registries);
       status.save(statusTag, registries);
+      TestMachines.atEnd(helper, () -> cancelJobs(helper)); // (the status's cancel is what is tested)
       final var restoredStatus = new NetworkControl.CraftingStatus();
       restoredStatus.load(statusTag, registries);
       final var restored = new NetworkControl.Craftable();
@@ -503,7 +514,7 @@ public final class Audit3StorageTests {
       restoredStatus.load(statusTag, registries);
       final var restored = new NetworkControl.Craftable();
       restored.load(craftableTag, registries);
-      TestMachines.atEnd(helper, () -> status.cancel(null, NO_ARGS)); // (the job, whoever has it)
+      TestMachines.atEnd(helper, () -> cancelJobs(helper)); // (a status cancels through its link: one never told AE2 only flags it)
       when(helper, () -> restored.requesting(null, NO_ARGS)[0] instanceof Number, 20, () -> {
         helper.assertTrue(restored.requesting(null, NO_ARGS)[0] instanceof Number, "the restored craftable did not find its interface");
         TestMachines.later(helper, 2, () -> {
@@ -634,7 +645,7 @@ public final class Audit3StorageTests {
     final java.util.function.Supplier<IGrid> main = () -> ((appeng.me.helpers.IGridConnectedBlockEntity) helper.getBlockEntity(CONTROLLER)).getMainNode().getGrid();
     craftingGrid(helper, grid -> {
       cable.run();
-      helper.setBlock(CONTROLLER.north().north(), Blocks.CHEST); // (the pattern's input goes there: the job waits for stone)
+      helper.setBlock(PUSHED_TO, Blocks.CHEST);
       runningJob(helper, grid, at, (craftable, status) -> {
         final CompoundTag craftableTag = new CompoundTag();
         final CompoundTag statusTag = new CompoundTag();
@@ -673,7 +684,7 @@ public final class Audit3StorageTests {
               final CompoundTag saved = new CompoundTag();
               kernel.save(saved, registries);
               helper.assertTrue(saved.getList("links", net.minecraft.nbt.Tag.TAG_COMPOUND).size() == 1, "the program's copy saves no job: " + saved);
-              main.get().getStorageService().getInventory().insert(AEItemKey.of(Items.STONE), 1, Actionable.MODULATE, IActionSource.empty());
+              deliver(main.get());
               when(helper, () -> !cpuBusy(main.get()) && kernel.getRequestedJobs().isEmpty() && stack.getRequestedJobs().isEmpty(), 20, () -> {
                 helper.assertTrue(!cpuBusy(main.get()), "the job did not take its stone");
                 helper.assertTrue(Boolean.TRUE.equals(kernelStatus.isDone(null, NO_ARGS)[0]) && Boolean.TRUE.equals(stackStatus.isDone(null, NO_ARGS)[0]),
@@ -725,27 +736,180 @@ public final class Audit3StorageTests {
     }));
   }
 
-  /** A status saved after its job ended says how it ended once loaded again (no craftable saves a job over: "no link"). */
+  /** A status saved after its job was cancelled says so once loaded again (no craftable saves a job over: "no link"). */
   @GameTest(template = EMPTY, timeoutTicks = 600)
-  public static void aStatusSavedAfterItsJobEndedSaysHowItEnded(final GameTestHelper helper) {
+  public static void aStatusSavedAfterItsJobWasCancelledSaysSo(final GameTestHelper helper) {
+    statusSavedAfterItsJobEnded(helper, false);
+  }
+
+  /** A status saved after its job was done says so once loaded again. */
+  @GameTest(template = EMPTY, timeoutTicks = 600)
+  public static void aStatusSavedAfterItsJobWasDoneSaysSo(final GameTestHelper helper) {
+    statusSavedAfterItsJobEnded(helper, true);
+  }
+
+  private static void statusSavedAfterItsJobEnded(final GameTestHelper helper, final boolean done) {
     final var registries = helper.getLevel().registryAccess();
-    craftingGrid(helper, grid -> runningJob(helper, grid, (craftable, status) -> {
-      grid.getCraftingService().getCpus().forEach(ICraftingCPU::cancelJob);
-      when(helper, () -> !cpuBusy(grid) && craftable.getRequestedJobs().isEmpty(), 20, () -> {
-        helper.assertTrue(!cpuBusy(grid) && craftable.getRequestedJobs().isEmpty(), "the job was not cancelled");
+    craftingGrid(helper, grid -> {
+      if (done) helper.setBlock(PUSHED_TO, Blocks.CHEST);
+      runningJob(helper, grid, (craftable, status) -> {
+        final Runnable end = done ? () -> deliverWhenPushed(helper, grid, () -> {
+        }) : () -> grid.getCraftingService().getCpus().forEach(ICraftingCPU::cancelJob);
+        end.run();
+        when(helper, () -> !cpuBusy(grid) && craftable.getRequestedJobs().isEmpty(), 60, () -> {
+          helper.assertTrue(!cpuBusy(grid) && craftable.getRequestedJobs().isEmpty(), "the job did not end");
+          final CompoundTag craftableTag = new CompoundTag();
+          final CompoundTag statusTag = new CompoundTag();
+          craftable.save(craftableTag, registries);
+          status.save(statusTag, registries);
+          TestMachines.later(helper, 1, () -> { // (the machine loaded again)
+            loadedCraftable(craftableTag, registries);
+            final var restored = loadedStatus(statusTag, registries);
+            helper.assertTrue(Boolean.valueOf(done).equals(restored.isDone(null, NO_ARGS)[0]) && Boolean.valueOf(!done).equals(restored.isCanceled(null, NO_ARGS)[0]),
+              "loaded again, the status of a job " + (done ? "done" : "cancelled") + " says done " + java.util.Arrays.toString(restored.isDone(null, NO_ARGS))
+                + ", cancelled " + java.util.Arrays.toString(restored.isCanceled(null, NO_ARGS)));
+            helper.succeed();
+          });
+        });
+      });
+    });
+  }
+
+  // where the provider puts the pattern's cobblestone: with a chest there, the job waits for its stone
+  private static final BlockPos PUSHED_TO = CONTROLLER.north().north();
+
+  // the stone the job waits for: it is done
+  private static void deliver(final IGrid grid) {
+    grid.getStorageService().getInventory().insert(AEItemKey.of(Items.STONE), 1, Actionable.MODULATE, IActionSource.empty());
+  }
+
+  // the stone, once the job waits for it (the CPU pushes the pattern at its tick: stone came before went to storage)
+  private static void deliverWhenPushed(final GameTestHelper helper, final IGrid grid, final Runnable then) {
+    final java.util.function.BooleanSupplier pushed = () -> helper.getBlockEntity(PUSHED_TO) instanceof net.minecraft.world.Container chest
+      && chest.hasAnyOf(java.util.Set.of(Items.COBBLESTONE));
+    when(helper, pushed, 40, () -> {
+      helper.assertTrue(pushed.getAsBoolean(), "the pattern was not pushed");
+      deliver(grid);
+      then.run();
+    });
+  }
+
+  private static int nexuses(final IGrid grid) {
+    try {
+      final var links = appeng.me.service.CraftingService.class.getDeclaredField("craftingLinks");
+      links.setAccessible(true);
+      return ((java.util.Map<?, ?>) links.get(grid.getCraftingService())).size();
+    } catch (ReflectiveOperationException e) {
+      throw new IllegalStateException(e);
+    }
+  }
+
+  /**
+   * A restored status first asked once its job is done and the job's link collected (no craftable, AE2 nor CPU holds it
+   * then: a program polling now and then after a restart) says done, and saves so: it said "no link" for good.
+   */
+  @GameTest(template = EMPTY, timeoutTicks = 1000)
+  public static void aRestoredStatusSaysHowItsJobEndedOnceItsLinkIsGone(final GameTestHelper helper) {
+    final var registries = helper.getLevel().registryAccess();
+    craftingGrid(helper, grid -> {
+      helper.setBlock(PUSHED_TO, Blocks.CHEST);
+      runningJob(helper, grid, (craftable, status) -> {
         final CompoundTag craftableTag = new CompoundTag();
         final CompoundTag statusTag = new CompoundTag();
         craftable.save(craftableTag, registries);
         status.save(statusTag, registries);
-        TestMachines.later(helper, 1, () -> { // (the machine loaded again)
-          loadedCraftable(craftableTag, registries);
-          final var restored = loadedStatus(statusTag, registries);
-          helper.assertTrue(Boolean.TRUE.equals(restored.isCanceled(null, NO_ARGS)[0]) && Boolean.FALSE.equals(restored.isDone(null, NO_ARGS)[0]),
-            "loaded again, the status of a job cancelled says " + java.util.Arrays.toString(restored.isCanceled(null, NO_ARGS)));
-          helper.succeed();
+        forgetRequester(grid, craftable); // (as after a restart)
+        final var restored = loadedCraftable(craftableTag, registries);
+        final var restoredStatus = loadedStatus(statusTag, registries); // (not asked before the link is gone)
+        when(helper, () -> requesterOfTheJob(grid, restored), 20, () -> {
+          helper.assertTrue(requesterOfTheJob(grid, restored), "the restored craftable did not tell AE2 of the job");
+          final var link = new WeakReference<>(restored.getRequestedJobs().iterator().next());
+          deliverWhenPushed(helper, grid, () -> when(helper, () -> {
+            System.gc();
+            return link.get() == null;
+          }, 40, () -> {
+            helper.assertTrue(!cpuBusy(grid) && restored.getRequestedJobs().isEmpty(), "the job was not done");
+            helper.assertTrue(link.get() == null, "the job's link is still held");
+            helper.assertTrue(Boolean.TRUE.equals(restoredStatus.isDone(null, NO_ARGS)[0]) && Boolean.FALSE.equals(restoredStatus.isCanceled(null, NO_ARGS)[0]),
+              "asked once its job's link was gone, the status says done " + java.util.Arrays.toString(restoredStatus.isDone(null, NO_ARGS)));
+            final CompoundTag saved = new CompoundTag();
+            restoredStatus.save(saved, registries);
+            helper.assertTrue(saved.getBoolean("done"), "the status saves no ending: " + saved);
+            helper.succeed();
+          }));
         });
       });
-    }));
+    });
+  }
+
+  /**
+   * A job done after its machine was saved, its old craftable about (the computer's chunk unloaded, AE2's loaded), is not
+   * told AE2 again by the machine loaded again, and its status says done: AE2 made it a nexus with no CPU and cancelled
+   * it, the status said cancelled (a program requesting again on a cancel crafted twice).
+   */
+  @GameTest(template = EMPTY, timeoutTicks = 1000)
+  public static void aJobDoneBeforeItsMachineLoadedAgainStaysDone(final GameTestHelper helper) {
+    final var registries = helper.getLevel().registryAccess();
+    craftingGrid(helper, grid -> {
+      helper.setBlock(PUSHED_TO, Blocks.CHEST);
+      runningJob(helper, grid, (craftable, status) -> {
+        final CompoundTag craftableTag = new CompoundTag();
+        final CompoundTag statusTag = new CompoundTag();
+        craftable.save(craftableTag, registries); // (the machine's chunk unloads: the craftable lives on, the job's requester)
+        status.save(statusTag, registries);
+        deliverWhenPushed(helper, grid, () -> when(helper, () -> !cpuBusy(grid) && craftable.getRequestedJobs().isEmpty() && nexuses(grid) == 0, 20, () -> {
+          helper.assertTrue(!cpuBusy(grid) && craftable.getRequestedJobs().isEmpty() && nexuses(grid) == 0, "the job was not done");
+          TestMachines.later(helper, 1, () -> { // (the machine loaded again)
+            final var restored = loadedCraftable(craftableTag, registries);
+            final var restoredStatus = loadedStatus(statusTag, registries);
+            retryNow(restored);
+            helper.assertTrue(restored.requesting(null, NO_ARGS)[0] instanceof Number, "the restored craftable did not find its interface");
+            helper.assertTrue(restored.getRequestedJobs().isEmpty() && nexuses(grid) == 0, "the machine loaded again told AE2 of the job done");
+            TestMachines.later(helper, 70, () -> { // (AE2 cancels a nexus with no CPU after 61 ticks)
+              helper.assertTrue(Boolean.TRUE.equals(restoredStatus.isDone(null, NO_ARGS)[0]) && Boolean.FALSE.equals(restoredStatus.isCanceled(null, NO_ARGS)[0]),
+                "the job done says done " + java.util.Arrays.toString(restoredStatus.isDone(null, NO_ARGS)) + ", cancelled "
+                  + java.util.Arrays.toString(restoredStatus.isCanceled(null, NO_ARGS)));
+              helper.succeed();
+            });
+          });
+        }));
+      });
+    });
+  }
+
+  /**
+   * A craftable with two jobs whose interface is broken cancels both and stops following: cancelling the first told it
+   * of the end at once, which took the link out of the set being gone through (the follower died, marked following,
+   * still waiting: "waiting for ae network to load" for good).
+   */
+  @GameTest(template = EMPTY, timeoutTicks = 600)
+  public static void aCraftableLosingItsInterfaceCancelsAllItsJobs(final GameTestHelper helper) {
+    craftingGrid(helper, grid -> {
+      helper.setBlock(CONTROLLER.south(), ae2Block("1k_crafting_storage")); // (a second CPU)
+      helper.setBlock(ON_TOP, ae2Block("interface"));
+      final var iface = (appeng.blockentity.misc.InterfaceBlockEntity) helper.getBlockEntity(ON_TOP);
+      TestMachines.atEnd(helper, () -> cancelJobs(helper));
+      when(helper, () -> iface.getMainNode().isActive() && grid.getCraftingService().getCpus().size() == 2, 100, () -> {
+        helper.assertTrue(grid.getCraftingService().getCpus().size() == 2, "the second CPU did not form");
+        final var craftable = stoneCraftable(helper, new DriverBlockInterface.Environment(iface));
+        final var first = request(helper, craftable);
+        final var second = request(helper, craftable);
+        when(helper, () -> submitted(first) && submitted(second) && craftable.getRequestedJobs().size() == 2, 200, () -> {
+          helper.assertTrue(craftable.getRequestedJobs().size() == 2, "the jobs did not start: " + java.util.Arrays.toString(first.isDone(null, NO_ARGS))
+            + ", " + java.util.Arrays.toString(second.isDone(null, NO_ARGS)));
+          helper.setBlock(ON_TOP, Blocks.AIR);
+          when(helper, () -> craftable.getRequestedJobs().isEmpty() && !following(craftable), 20, () -> {
+            helper.assertTrue(Boolean.TRUE.equals(first.isCanceled(null, NO_ARGS)[0]) && Boolean.TRUE.equals(second.isCanceled(null, NO_ARGS)[0]),
+              "a job of the interface broken was not cancelled");
+            helper.assertTrue(craftable.getRequestedJobs().isEmpty() && !following(craftable), "the craftable's follower is stuck ("
+              + craftable.getRequestedJobs().size() + " jobs, following " + following(craftable) + ")");
+            final Object[] again = craftable.request(null, new ArgumentsImpl(new Object[]{1}));
+            helper.assertTrue(again.length > 1 && "no controller".equals(again[1]), "with its interface broken the craftable says " + java.util.Arrays.toString(again));
+            helper.succeed();
+          });
+        });
+      });
+    });
   }
 
   /**
@@ -1040,6 +1204,7 @@ public final class Audit3StorageTests {
         final var env = new DriverPartInterface.Environment((IPartHost) level.getBlockEntity(abs), Direction.UP);
         final var craftable = stoneCraftable(helper, env);
         final var status = request(helper, craftable);
+        TestMachines.atEnd(helper, () -> cancelJobs(helper));
         when(helper, () -> submitted(status) && cpuBusy(grid), 200, () -> {
           helper.assertTrue(submitted(status) && cpuBusy(grid), "the job did not start: " + java.util.Arrays.toString(status.isDone(null, NO_ARGS)));
           final CompoundTag tag = new CompoundTag();
