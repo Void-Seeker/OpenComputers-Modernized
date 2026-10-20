@@ -417,6 +417,7 @@ public interface NetworkControl<AETile extends IActionHost> extends Persistable,
 
     @Callback(doc = "function():number -- Returns the number of requests in progress.")
     public Object[] requesting(Context ignoredContext, Arguments ignoredArgs) {
+      refind();
       var actionableNode = getActionableNode();
       if (actionableNode == null) return ResultWrapper.result(null, "no ae grid");
       var grid = actionableNode.getGrid();
@@ -426,6 +427,7 @@ public interface NetworkControl<AETile extends IActionHost> extends Persistable,
 
     @Callback(doc = "function([amount:int=1, prioritizePower:boolean=true, cpuName:string]):userdata -- Requests item to be crafted, returning an object that allows tracking the crafting status.")
     public Object[] request(Context ignoredContext, Arguments args) {
+      refind();
       if (delayData != null) {
         return ResultWrapper.result(null, "waiting for ae network to load");
       }
@@ -458,10 +460,16 @@ public interface NetworkControl<AETile extends IActionHost> extends Persistable,
       );
 
       var status = new CraftingStatus();
+      LinkCache.computing(status);
       java.util.concurrent.CompletableFuture.runAsync(() -> {
         try {
           var job = future.get();
           Runnable submit = () -> {
+            if (status.reloaded) { // (a job for a craftable its machine no longer has, which no status follows)
+              status.fail("computer reloaded while computing");
+              LinkCache.computed(status);
+              return;
+            }
             ICraftingCPU cpu = null;
             if (!cpuName.isEmpty()) {
               for (var c : craftingGrid.getCpus()) {
@@ -481,6 +489,7 @@ public interface NetworkControl<AETile extends IActionHost> extends Persistable,
             } else {
               status.fail("missing resources?");
             }
+            LinkCache.computed(status);
           };
           if (level != null && level.getServer() != null) {
             level.getServer().execute(submit);
@@ -490,6 +499,7 @@ public interface NetworkControl<AETile extends IActionHost> extends Persistable,
         } catch (Exception e) {
           OpenComputers.log().debug("Error submitting job to AE2.", e);
           status.fail(e.toString());
+          LinkCache.computed(status);
         }
       });
 
@@ -539,6 +549,7 @@ public interface NetworkControl<AETile extends IActionHost> extends Persistable,
       for (int i = 0; i < linksList.size(); i++) {
         links.add(LinkCache.load(StorageHelper.loadCraftingLink(linksList.getCompound(i), this)));
       }
+      if (!nbt.contains(DIM_KEY)) lost(); // (no controller to look for)
       if (nbt.contains(DIM_KEY)) {
         var dimension = nbt.getString(DIM_KEY);
         var x = nbt.getInt(X_KEY);
@@ -586,24 +597,45 @@ public interface NetworkControl<AETile extends IActionHost> extends Persistable,
       var server = li.cil.oc.core.impl.util.SideTracker.getCurrentServer();
       if (server == null) return false;
       var key = net.minecraft.resources.ResourceLocation.tryParse(data.dimension);
-      if (key == null) return true;
-      var world = server.getLevel(net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.DIMENSION, key));
-      if (world == null) return false;
+      var world = key != null ? server.getLevel(net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.DIMENSION, key)) : null;
+      if (world == null) return lost(); // (levels are all made at the server's start)
       var pos = new BlockPos(data.x, data.y, data.z);
       if (!LoadedChunks.isReady(world, pos)) return false; // (getBlockEntity loaded the chunk)
       var be = world.getBlockEntity(pos);
-      if (be == null) return true; // (the chunk is there: the controller is gone)
+      if (be == null) return lost(); // (the chunk is there: the controller is gone)
       var found = data.side != null && be instanceof IPartHost partHost ? partHost.getPart(data.side) : be;
-      if (!(found instanceof IActionHost host)) return true;
+      if (!(found instanceof IActionHost host)) return lost();
       var node = host.getActionableNode();
       if (node == null) return false;
       var grid = node.getGrid();
-      if (grid == null) return true;
+      if (grid == null) return lost();
       // AE2 knows a requester's jobs again only when told (OC 1.12 added the node): they were cancelled after a reload,
       // or never reported done
       controller = host;
       tell(grid);
       return true;
+    }
+
+    // Its controller gone for good: AE2 cancels its jobs for want of a requester, and their statuses, tied to no grid,
+    // said neither done nor cancelled for good. They are cancelled (done looking for it).
+    private boolean lost() {
+      links.removeIf(Craftable::over);
+      for (var link : links) link.cancel(); // (kept: its status looks the link up by its ID)
+      return true;
+    }
+
+    // A controller gone (its chunk unloaded, or broken) is looked for where it stood, as a restored craftable's: the
+    // interface's chunk unloaded and loaded again while the machine stayed, the craftable said "no controller" for good,
+    // and its jobs, never told AE2 again, were cancelled.
+    private void refind() {
+      if (delayData != null || controller == null || !isControllerInvalid(controller)) return;
+      var be = blockEntityOf(controller);
+      if (be == null || be.getLevel() == null) return;
+      var side = controller instanceof AEBasePart part ? part.getSide() : null;
+      var pos = be.getBlockPos();
+      delayData = new EphemeralDelayData(be.getLevel().dimension().location().toString(), pos.getX(), pos.getY(), pos.getZ(), side);
+      controller = null;
+      delayLoadGrid();
     }
 
     /** The grid AE2 was last told of the jobs in, and whether they follow the controller's grid each tick. */
@@ -656,6 +688,7 @@ public interface NetworkControl<AETile extends IActionHost> extends Persistable,
         following = false;
         return false;
       }
+      refind();
       var node = controller != null ? controller.getActionableNode() : null;
       IGrid grid = null;
       try {
@@ -737,22 +770,27 @@ public interface NetworkControl<AETile extends IActionHost> extends Persistable,
     public CraftingStatus() {
     }
 
-    private boolean isComputing = true;
+    private volatile boolean isComputing = true; // (set last: a failure comes from the calculation's thread)
     private ICraftingLink link;
     private java.util.UUID id; // the job's
     private boolean failed = false;
     private String reason = "no link";
+    // While computing: the request's token, whether it was saved (what comes of it is kept for the status loaded
+    // again) and loaded again (its machine has the craftable no more: nothing is submitted); a restored one's request.
+    private java.util.UUID request;
+    private volatile boolean saved, reloaded;
+    private CraftingStatus origin;
 
     public void setLink(ICraftingLink value) {
-      isComputing = false;
       link = value;
       id = value.getCraftingID();
+      isComputing = false;
     }
 
     public void fail(String reason) {
-      isComputing = false;
       failed = true;
       this.reason = "request failed (" + reason + ")";
+      isComputing = false;
     }
 
     // The link the job's craftables share now (LinkCache), else the last one it had. Restored statuses were handed the
@@ -764,7 +802,20 @@ public interface NetworkControl<AETile extends IActionHost> extends Persistable,
       return link;
     }
 
+    // A status saved while computing came back computing for good (OC 1.12 too): the job was submitted for the old
+    // craftable or never (the server stopped). It takes what came of the request.
+    private void fromRequest() {
+      var from = origin;
+      if (from == null || from.isComputing) return;
+      origin = null;
+      if (from.link != null) setLink(from.link);
+      failed = from.failed;
+      reason = from.reason;
+      isComputing = false;
+    }
+
     private Object[] asCraft(java.util.function.Function<ICraftingLink, Object[]> f) {
+      fromRequest();
       if (isComputing) return ResultWrapper.result(null, "computing");
       var craft = failed ? null : link();
       if (craft != null) return f.apply(craft);
@@ -793,16 +844,30 @@ public interface NetworkControl<AETile extends IActionHost> extends Persistable,
     }
 
     private static final String COMPUTING_KEY = "computing";
+    private static final String REQUEST_KEY = "request";
     private static final String LINK_ID_KEY = "link";
+    private static final String DONE_KEY = "done";
+    private static final String CANCELED_KEY = "canceled";
     private static final String FAILED_KEY = "failed";
     private static final String REASON_KEY = "reason";
 
     @Override
     public void save(CompoundTag nbt, HolderLookup.Provider provider) {
       super.save(nbt, provider);
+      fromRequest();
       nbt.putBoolean(COMPUTING_KEY, isComputing);
+      if (isComputing && request != null) {
+        nbt.putString(REQUEST_KEY, request.toString());
+        (origin != null ? origin : this).saved = true;
+      }
       if (id != null) {
         nbt.putString(LINK_ID_KEY, id.toString());
+      }
+      // how a job over ended: no craftable saves it ("no link" after a reload)
+      var craft = failed ? null : link();
+      if (craft != null && (craft.isDone() || craft.isCanceled())) {
+        nbt.putBoolean(DONE_KEY, craft.isDone());
+        nbt.putBoolean(CANCELED_KEY, craft.isCanceled());
       }
       nbt.putBoolean(FAILED_KEY, failed);
       nbt.putString(REASON_KEY, reason);
@@ -820,11 +885,42 @@ public interface NetworkControl<AETile extends IActionHost> extends Persistable,
         } catch (IllegalArgumentException ignored) {
         }
       }
+      if (id != null && (nbt.getBoolean(DONE_KEY) || nbt.getBoolean(CANCELED_KEY))) {
+        link = new Ended(id, nbt.getBoolean(DONE_KEY), nbt.getBoolean(CANCELED_KEY));
+      }
       if (nbt.contains(FAILED_KEY)) {
         failed = nbt.getBoolean(FAILED_KEY);
       }
       if (nbt.contains(REASON_KEY)) {
         reason = nbt.getString(REASON_KEY);
+      }
+      if (isComputing) {
+        try {
+          origin = nbt.contains(REQUEST_KEY) ? LinkCache.request(java.util.UUID.fromString(nbt.getString(REQUEST_KEY))) : null;
+        } catch (IllegalArgumentException ignored) {
+        }
+        if (origin != null) {
+          request = origin.request;
+          origin.reloaded = true;
+        } else {
+          fail("computer reloaded while computing"); // (by a server's restart)
+        }
+      }
+    }
+
+    // a job over, as its status last saw it
+    private record Ended(java.util.UUID getCraftingID, boolean isDone, boolean isCanceled) implements ICraftingLink {
+      @Override
+      public void cancel() {
+      }
+
+      @Override
+      public boolean isStandalone() {
+        return false;
+      }
+
+      @Override
+      public void writeToNBT(CompoundTag tag) {
       }
     }
   }
@@ -879,9 +975,26 @@ public interface NetworkControl<AETile extends IActionHost> extends Persistable,
       return current != null && current != link && entry.told;
     }
 
+    // Requests computing, by their status's token, and those saved meanwhile (for their statuses loaded again).
+    private static final Map<java.util.UUID, CraftingStatus> requests = new java.util.concurrent.ConcurrentHashMap<>();
+
+    static void computing(CraftingStatus status) {
+      status.request = java.util.UUID.randomUUID();
+      requests.put(status.request, status);
+    }
+
+    static void computed(CraftingStatus status) {
+      if (!status.saved) requests.remove(status.request);
+    }
+
+    static CraftingStatus request(java.util.UUID token) {
+      return requests.get(token);
+    }
+
     // (ticks count from 0 again on the next server: a link of the last one would pass for a copy)
     static void onServerStopped() {
       shared.clear();
+      requests.clear();
     }
 
     private static long tick() {
