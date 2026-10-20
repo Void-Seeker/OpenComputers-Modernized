@@ -159,7 +159,7 @@ public final class EventHandler {
   public static void onServerTickEnd(TickEvent.ServerTickEvent e) {
     if (e.phase != TickEvent.Phase.END) return;
     var cache = TabletCache.get();
-    if (cache != null) cache.cleanUp();
+    if (cache != null) cache.tick();
     List<Machine> closed = new ArrayList<>();
     for (Machine machine : machines) {
       if (machine.tryClose()) {

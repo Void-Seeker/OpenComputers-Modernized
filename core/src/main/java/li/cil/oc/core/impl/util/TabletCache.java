@@ -2,6 +2,7 @@ package li.cil.oc.core.impl.util;
 
 import li.cil.oc.compat.CustomData;
 
+import com.google.common.base.Ticker;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.ImmutableMap;
@@ -54,8 +55,32 @@ public abstract class TabletCache {
 
   private final Cache<String, TabletHostBase> cache;
 
+  private final TickClock clock = new TickClock();
+
+  /**
+   * The time the cache goes by: real time while it ticks, at most a tick's 50 ms per tick. On real time, a stall over
+   * the timeout (a lag spike, a world save, chunk loading) dropped and stopped every tablet the players carried.
+   */
+  private static final class TickClock extends Ticker {
+    private volatile long counted;
+    private long last = System.nanoTime();
+
+    @Override
+    public long read() {
+      return counted;
+    }
+
+    @SuppressWarnings("NonAtomicOperationOnVolatileField") // (ticked from one thread)
+    void tick() {
+      long now = System.nanoTime();
+      counted += Math.min(now - last, TimeUnit.MILLISECONDS.toNanos(50));
+      last = now;
+    }
+  }
+
   protected TabletCache(long timeoutSeconds) {
     this.cache = CacheBuilder.newBuilder()
+      .ticker(clock)
       .expireAfterAccess(timeoutSeconds, TimeUnit.SECONDS)
       .removalListener((com.google.common.cache.RemovalNotification<String, TabletHostBase> notification) -> {
         var wrapper = notification.getValue();
@@ -149,6 +174,14 @@ public abstract class TabletCache {
 
   public void cleanUp() {
     synchronized (cache) {
+      cache.cleanUp();
+    }
+  }
+
+  /** Once a tick (server or client, as the side), on the thread of that side: the time it goes by, then clean-up. */
+  public void tick() {
+    synchronized (cache) {
+      clock.tick();
       cache.cleanUp();
     }
   }

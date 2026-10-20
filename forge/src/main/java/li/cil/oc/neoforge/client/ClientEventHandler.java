@@ -19,7 +19,7 @@ public final class ClientEventHandler {
   public static void onClientTick(TickEvent.ClientTickEvent e) {
     if (e.phase != TickEvent.Phase.START) return;
     var localCache = TabletCache.forSide(true);
-    if (localCache != null) localCache.cleanUp();
+    if (localCache != null) localCache.tick();
     var server = ServerLifecycleHooks.getCurrentServer();
     if (server != null && Minecraft.getInstance().isPaused()) {
       var serverCache = TabletCache.get();

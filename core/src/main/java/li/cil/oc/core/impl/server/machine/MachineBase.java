@@ -260,8 +260,12 @@ public abstract class MachineBase extends AbstractManagedEnvironment implements 
     if (newArch != architecture && lockForServer("the architecture switch")) {
       try {
         // the one replaced is closed (a CPU taken out left its Lua state alive: JNI references kept it from ever
-        // being collected)
-        if (architecture != null) architecture.close();
+        // being collected), later if a call runs in it: a program taking out its own CPU (a transposer) made the
+        // close throw out of the inventory, which had emptied the slot - the CPU was gone
+        if (architecture != null) {
+          replaced.add(architecture);
+          if (!isExecuting()) closeReplaced();
+        }
         architecture = newArch;
         if (architecture != null && node != null && node.network() != null) architecture.onConnect();
       } finally {
@@ -269,6 +273,21 @@ public abstract class MachineBase extends AbstractManagedEnvironment implements 
       }
     }
     hasMemory = architecture != null && architecture.recomputeMemory(components);
+  }
+
+  /** Architectures a CPU change replaced, not closed yet (with the execution lock). */
+  private final List<Architecture> replaced = new ArrayList<>();
+
+  // with the execution lock held
+  private void closeReplaced() {
+    replaced.removeIf(old -> {
+      try {
+        old.close();
+        return true;
+      } catch (Throwable t) { // (in a call yet: next time)
+        return false;
+      }
+    });
   }
 
   @Override
@@ -479,8 +498,10 @@ public abstract class MachineBase extends AbstractManagedEnvironment implements 
     synchronized (signals) {
       if (signals.size() >= maxSignalQueueSize) return false;
       Object[] sanitized = new Object[args.length];
+      int[] nested = {MAX_NESTED_VALUES};
       for (int i = 0; i < args.length; i++) {
-        sanitized[i] = convertArg(args[i]);
+        sanitized[i] = convertArg(args[i], 0, nested);
+        if (sanitized[i] == TOO_NESTED) return false;
       }
       signals.add(new Signal(name, sanitized));
     }
@@ -488,7 +509,12 @@ public abstract class MachineBase extends AbstractManagedEnvironment implements 
     return true;
   }
 
-  private Object convertArg(Object arg) {
+  // Tables in tables are copied (OC dropped them) to a depth and a number of values, else the signal is not queued: a
+  // table within itself overflowed the stack, and one many times within another (no deeper) grew without bound.
+  private static final int MAX_NESTED_DEPTH = 16, MAX_NESTED_VALUES = 1 << 16;
+  private static final Object TOO_NESTED = new Object();
+
+  private Object convertArg(Object arg, int depth, int[] nested) {
     if (arg instanceof Boolean) {
       return arg;
     } else if (arg instanceof Byte) {
@@ -512,10 +538,13 @@ public abstract class MachineBase extends AbstractManagedEnvironment implements 
     } else if (arg instanceof Tag) {
       return arg;
     } else if (arg instanceof Map<?, ?> map) {
+      if (depth > MAX_NESTED_DEPTH) return TOO_NESTED;
       Map<Object, Object> converted = new LinkedHashMap<>();
       for (Map.Entry<?, ?> e : map.entrySet()) {
-        Object k = convertArg(e.getKey());
-        Object v = convertArg(e.getValue());
+        if (depth > 0 && --nested[0] < 0) return TOO_NESTED;
+        Object k = convertArg(e.getKey(), depth + 1, nested);
+        Object v = convertArg(e.getValue(), depth + 1, nested);
+        if (k == TOO_NESTED || v == TOO_NESTED) return TOO_NESTED;
         if (k != null && v != null) converted.put(k, v);
       }
       return converted;
@@ -689,6 +718,13 @@ public abstract class MachineBase extends AbstractManagedEnvironment implements 
 
   @Override
   public void update() {
+    if (!replaced.isEmpty() && executionLock.tryLock()) { // (one still in a call when it closed)
+      try {
+        if (!isExecuting()) closeReplaced();
+      } finally {
+        executionLock.unlock();
+      }
+    }
     synchronized (state) {
       if (state.peek() == State.Stopped) {
         return;
@@ -737,7 +773,14 @@ public abstract class MachineBase extends AbstractManagedEnvironment implements 
         switchTo(State.Yielded);
         break;
       case "Restarting":
-        close();
+        // once the slice that asked for it is over (a stop and start within one slice): each tick until then sent
+        // computer.stopped and wiped /tmp while nothing closed, after waiting 10 ms for the lock
+        if (!executionLock.tryLock()) break;
+        try {
+          close();
+        } finally {
+          executionLock.unlock();
+        }
         if (OCSettings.get().eraseTmpOnReboot) {
           if (tmp != null) tmp.node().remove();
           if (tmp != null) node.connect(tmp.node());
@@ -754,8 +797,11 @@ public abstract class MachineBase extends AbstractManagedEnvironment implements 
         if (remainingPause > 0) remainingPause--;
         else {
           verifyComponents();
-          state.pop();
-          switchTo(state.peek());
+          // at once: the end of a slice that paused itself, between the two, was undone (left Running, no executor)
+          synchronized (state) {
+            state.pop();
+            switchTo(state.peek());
+          }
         }
         break;
       case "SynchronizedCall":
@@ -903,6 +949,7 @@ public abstract class MachineBase extends AbstractManagedEnvironment implements 
         close();
         state.clear();
         lastSaved = nbt.isEmpty() ? null : nbt.copy();   // what a save that cannot wait writes, until a save succeeds
+        lastSavedCloses = closes;
         super.load(nbt, provider);
         int[] stateIds = nbt.getIntArray("state");
         for (int i = stateIds.length - 1; i >= 0; i--) {
@@ -991,6 +1038,8 @@ public abstract class MachineBase extends AbstractManagedEnvironment implements 
 
   /** What the last full save wrote: written again if a save cannot wait for the machine (rather than nothing). */
   private CompoundTag lastSaved;
+  // how often it closed, and as of the last full save: one from before a close is not of the program running now
+  private int closes, lastSavedCloses;
 
   @Override
   public void save(CompoundTag nbt, HolderLookup.Provider provider) {
@@ -1010,13 +1059,13 @@ public abstract class MachineBase extends AbstractManagedEnvironment implements 
     if (!locked) {
       LOGGER.warn("The computer at {}, {}, {} is busy; its last saved state is saved again.",
         (int) host.xPosition(), (int) host.yPosition(), (int) host.zPosition());
-      if (lastSaved != null) nbt.merge(lastSaved.copy());
+      saveBusy(nbt, provider);
       return;
     }
     try {
       synchronized (state) {
         if (isExecuting()) {
-          if (lastSaved != null) nbt.merge(lastSaved.copy());
+          saveBusy(nbt, provider);
           return;
         }
         pause(0.05);
@@ -1089,10 +1138,44 @@ public abstract class MachineBase extends AbstractManagedEnvironment implements 
           LOGGER.error("Error saving computer state", t);
         }
         lastSaved = nbt.copy();
+        lastSavedCloses = closes;
       }
     } finally {
       executionLock.unlock();
     }
+  }
+
+  /**
+   * A save while a slice runs: the node, owners and components as they are, with the program as last saved while it
+   * still runs that program - else switched off. It wrote nothing before a first full save (back with a new address,
+   * off, no owners), and the last full save's running program for a computer stopped since.
+   */
+  private void saveBusy(CompoundTag nbt, HolderLookup.Provider provider) {
+    boolean resume;
+    synchronized (state) {
+      State t = state.peek();
+      resume = lastSaved != null && lastSavedCloses == closes && t != State.Stopped && t != State.Stopping && t != State.Restarting;
+    }
+    if (resume) nbt.merge(lastSaved.copy());
+    else nbt.putIntArray("state", new int[]{State.Stopped.id});
+    super.save(nbt, provider);
+    ListTag ul = new ListTag();
+    synchronized (_users) {
+      for (String u : _users) ul.add(StringTag.valueOf(u));
+    }
+    nbt.put("users", ul);
+    if (message != null) nbt.putString("message", message);
+    else nbt.remove("message");
+    ListTag cl = new ListTag();
+    synchronized (_components) {
+      for (Map.Entry<String, String> e : (_components.isEmpty() ? _loadedComponents : _components).entrySet()) {
+        CompoundTag t = new CompoundTag();
+        t.putString("address", e.getKey());
+        t.putString("name", e.getValue());
+        cl.add(t);
+      }
+    }
+    nbt.put("components", cl);
   }
 
   private boolean init() {
@@ -1129,7 +1212,9 @@ public abstract class MachineBase extends AbstractManagedEnvironment implements 
       synchronized (state) {
         state.clear();
         state.push(State.Stopped);
+        closes++;
         if (architecture != null) architecture.close();
+        closeReplaced();
         signals.clear();
         uptime = 0;
         cpuTotal = 0;

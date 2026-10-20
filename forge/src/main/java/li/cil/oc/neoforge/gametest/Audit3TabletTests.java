@@ -49,13 +49,17 @@ public final class Audit3TabletTests {
   private static final String NS = OCSettings.namespace;
   private static final ArgumentsImpl NO_ARGS = new ArgumentsImpl(new Object[0]);
 
-  // counts 'tick' signals, works a second on 'busy' (adding 100), reports the count on 'report'
+  // counts 'tick' signals, works on 'busy' for a second of its uptime (20 updates; at most 4 s) adding 100, reports the
+  // count on 'report'
   private static final String COUNTER = """
     local n = 0
     while true do
       local s = computer.pullSignal()
       if s == "tick" then n = n + 1
-      elseif s == "busy" then local t = os.clock() while os.clock() - t < 1 do end n = n + 100
+      elseif s == "busy" then
+        local t, c = computer.uptime(), os.clock()
+        while computer.uptime() - t < 1 and os.clock() - c < 4 do end
+        n = n + 100
       elseif s == "report" then error("done:" .. n) end
     end""";
 
@@ -246,13 +250,6 @@ public final class Audit3TabletTests {
    */
   @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void tabletsBackFromAChestAreOffWithTheirEnergy(final GameTestHelper helper) {
-    backFromAChest(helper, 3);
-  }
-
-  // A server stall past the tablet cache's ten seconds (other tests load chunks, the GC) drops the cached machine,
-  // stopped, and the next get makes a new one: then it runs again with a new tablet (it waited for the dropped one to
-  // start, and failed with "did not start: null")
-  private static void backFromAChest(final GameTestHelper helper, final int tries) {
     final Player player = FakePlayerFactory.get(helper.getLevel(), new GameProfile(UUID.randomUUID(), "oc-tablet"));
     final ItemStack stack = tablet(item(Constants.ItemName.CPUTier1), item(Constants.ItemName.RAMTier1), item(Constants.ItemName.RAMTier1), eeprom(COUNTER));
     final var host = li.cil.oc.core.impl.common.item.Tablet.get(stack, player);
@@ -264,13 +261,7 @@ public final class Audit3TabletTests {
     host.startMachine();
     final java.util.function.BooleanSupplier cached = () -> li.cil.oc.core.impl.common.item.Tablet.get(stack, player) == host;
     within(helper, 30, () -> sleeping(host) || !cached.getAsBoolean(), () -> {
-      if (!cached.getAsBoolean() && tries > 1) {
-        carried[0] = false;
-        TabletCache.get().invalidate(stack);
-        backFromAChest(helper, tries - 1);
-        return;
-      }
-      helper.assertTrue(cached.getAsBoolean(), "the tablet's machine was dropped from the cache in every try (server stalls)");
+      helper.assertTrue(cached.getAsBoolean(), "the tablet's machine was dropped from the cache");
       helper.assertTrue(sleeping(host), "the tablet's program did not start: " + host.machine().lastError());
       TabletCache.get().saveAll(helper.getLevel()); // a world save while it runs
       ((li.cil.oc.api.network.Connector) host.serverComponent().node).changeBuffer(-1000);
@@ -343,6 +334,44 @@ public final class Audit3TabletTests {
     final var third = cache.get(stack.copy(), player);
     helper.assertTrue(made[0] == 1 && second == first && third == first, "three gets made " + made[0] + " tablet hosts");
     helper.succeed();
+  }
+
+  /**
+   * The tablet cache goes by the time the server ticks: a stall longer than its timeout (a lag spike, a world save)
+   * dropped and stopped every tablet the players carried. One not got for that long while the server ticks still goes.
+   */
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
+  public static void tabletsOutlastServerStalls(final GameTestHelper helper) {
+    final Player player = FakePlayerFactory.get(helper.getLevel(), new GameProfile(UUID.randomUUID(), "oc-tablet"));
+    final ItemStack stack = tablet(item(Constants.ItemName.CPUTier1), item(Constants.ItemName.RAMTier1));
+    final int[] made = {0};
+    final var cache = new TabletCache(1) { // (a second; ticked by this test only)
+      @Override
+      protected TabletHostBase createHost(final ItemStack stack, final Player player) {
+        made[0]++;
+        return new TabletHost(stack, player);
+      }
+    };
+    final var host = cache.get(stack, player);
+    final long stalled = System.nanoTime();
+    // a stall: a second and a half goes by, the cache does not tick
+    TestMachines.when(helper, () -> System.nanoTime() - stalled > 1_500_000_000L, 10_000_000, () -> {
+      helper.assertTrue(cache.get(stack, player) == host && made[0] == 1, "a stall past the cache's timeout dropped the tablet");
+      // then a second and a half of ticks without a get
+      within(helper, 1.5, () -> {
+        cache.tick();
+        return false;
+      }, () -> {
+        final var again = cache.get(stack, player);
+        try {
+          helper.assertTrue(again != host && made[0] == 2, "a tablet not got for longer than the cache's timeout was kept");
+        } finally {
+          cache.invalidate(stack);
+          cache.cleanUp();
+        }
+        helper.succeed();
+      });
+    });
   }
 
   // ----------------------------------------------------------------------- //

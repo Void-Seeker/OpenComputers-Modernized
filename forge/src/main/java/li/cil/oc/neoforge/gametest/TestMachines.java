@@ -96,9 +96,9 @@ final class TestMachines {
     helper.runAfterDelay(5, () -> {
       ((li.cil.oc.api.network.Connector) robot.machine().node()).changeBuffer(20000);
       helper.assertTrue(robot.machine().start(), "the robot did not start: " + robot.machine().lastError());
-      helper.runAfterDelay(delay, () -> when(helper, () -> reported(program, robot.machine()), 100, () -> {
+      helper.runAfterDelay(delay, () -> whenWithin(helper, () -> reported(program, robot.machine()), 100, 10, () -> {
         // (a check of what did not happen passed when the program had not got that far)
-        helper.assertTrue(reported(program, robot.machine()), "the program did not report within " + (delay + 100) + " ticks");
+        helper.assertTrue(reported(program, robot.machine()), "the program did not report within " + (delay + 100) + " ticks and 10 seconds");
         final String error = robot.machine().lastError();
         final int at = error == null ? -1 : error.indexOf("done:");
         helper.assertTrue(error == null || at >= 0, "the program failed: " + error);
@@ -131,8 +131,8 @@ final class TestMachines {
     helper.runAfterDelay(5, () -> {
       ((li.cil.oc.api.network.Connector) drone.machine().node()).changeBuffer(20000);
       helper.assertTrue(drone.start(), "the drone did not start: " + drone.machine().lastError());
-      helper.runAfterDelay(delay, () -> when(helper, () -> reported(program, drone.machine()), 100, () -> {
-        helper.assertTrue(reported(program, drone.machine()), "the program did not report within " + (delay + 100) + " ticks");
+      helper.runAfterDelay(delay, () -> whenWithin(helper, () -> reported(program, drone.machine()), 100, 10, () -> {
+        helper.assertTrue(reported(program, drone.machine()), "the program did not report within " + (delay + 100) + " ticks and 10 seconds");
         final String error = drone.machine().lastError();
         final int at = error == null ? -1 : error.indexOf("done:");
         helper.assertTrue(error == null || at >= 0, "the program failed: " + error);
@@ -158,5 +158,21 @@ final class TestMachines {
   static void when(final GameTestHelper helper, final java.util.function.BooleanSupplier ready, final int max, final Runnable then) {
     if (max <= 0 || ready.getAsBoolean()) then.run();
     else helper.runAfterDelay(1, () -> when(helper, ready, max - 1, then));
+  }
+
+  /**
+   * The same, giving up only once the seconds have gone by too, counted while the server ticks (at most 50 ms a tick):
+   * at times the test server ticks hundreds of times a second (a robot had not moved within 160 ticks, a third of a
+   * second).
+   */
+  static void whenWithin(final GameTestHelper helper, final java.util.function.BooleanSupplier ready, final int max, final double seconds, final Runnable then) {
+    final long[] clock = {System.nanoTime(), 0}; // last tick, time counted
+    final int[] ticks = {0};
+    when(helper, () -> {
+      final long now = System.nanoTime();
+      clock[1] += Math.min(now - clock[0], 50_000_000L);
+      clock[0] = now;
+      return ready.getAsBoolean() || ++ticks[0] > max && clock[1] > seconds * 1e9;
+    }, Integer.MAX_VALUE, then);
   }
 }

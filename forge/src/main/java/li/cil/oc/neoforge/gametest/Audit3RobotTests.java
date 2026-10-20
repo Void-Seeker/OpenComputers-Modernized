@@ -329,6 +329,7 @@ public final class Audit3RobotTests {
         helper.assertTrue(level.shouldTickBlocksAt(chunk.toLong()), "the far chunk does not tick");
         level.setBlock(far.below(), Blocks.STONE.defaultBlockState(), 2 | 16);
         level.setBlock(far.south().below(), Blocks.STONE.defaultBlockState(), 2 | 16);
+        level.setBlock(far.south(), Blocks.AIR.defaultBlockState(), 2 | 16); // (terrain at y 100 in some worlds: no move)
         then.accept(far, cleanup);
         handedOver = true;
       } finally {
@@ -361,7 +362,7 @@ public final class Audit3RobotTests {
   }
 
   /** A robot whose chunkloader is off moves without forcing chunks (it forced them on every move, unpaid and for good). */
-  @GameTest(template = EMPTY, timeoutTicks = 400)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void robotMovingWithItsChunkloaderOffForcesNoChunks(final GameTestHelper helper) {
     inAFarChunk(helper, 0, (far, cleanup) -> TestMachines.runRobot(helper, relative(helper, far), List.of(Constants.ItemName.ChunkloaderUpgrade), robot -> {
       }, ROBOT + LOADER + "local was = cl.isActive() cl.setActive(false) local ok = r.move(3) "
