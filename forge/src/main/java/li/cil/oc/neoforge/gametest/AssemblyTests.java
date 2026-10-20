@@ -63,16 +63,22 @@ public final class AssemblyTests {
     helper.succeed();
   }
 
-  /** Disassembling a server gives its parts (it threw, and the server was gone with them). */
+  /**
+   * Disassembling a server gives its parts (it threw, and the server was gone with them) and its own materials (a
+   * configured one, carrying data, had none).
+   */
   @GameTest(template = EMPTY)
   public static void serverDisassemblyGivesItsParts(final GameTestHelper helper) {
     final ItemStack server = item(Constants.ItemName.ServerTier1);
     final var inventory = new li.cil.oc.core.impl.common.inventory.ItemServerInventory(server);
     inventory.setItem(0, item(Constants.ItemName.CPUTier1));
     inventory.setChanged(null);
-    final Object[] result = ServerTemplate.disassemble(server, new ItemStack[0]);
+    final Object[] result = ServerTemplate.disassemble(server, li.cil.oc.core.impl.util.ItemUtils.getIngredients(server));
     final Object[] drops = (Object[]) result[1];
     helper.assertTrue(drops != null && count(drops, Constants.ItemName.CPUTier1) == 1, "a server with a CPU disassembled into " + java.util.Arrays.toString(drops));
+    final Object[] parts = (Object[]) result[0];
+    helper.assertTrue(parts != null && java.util.Arrays.stream(parts).anyMatch(p -> p instanceof ItemStack s && s.is(net.minecraft.world.item.Items.OBSIDIAN)),
+      "a configured server's own materials: " + java.util.Arrays.toString(parts));
     helper.succeed();
   }
 

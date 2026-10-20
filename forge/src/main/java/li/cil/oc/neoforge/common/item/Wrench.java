@@ -8,7 +8,13 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.LevelReader;
+import net.minecraft.world.level.block.DoorBlock;
 import net.minecraft.world.level.block.Rotation;
+import net.minecraft.world.level.block.piston.MovingPistonBlock;
+import net.minecraft.world.level.block.piston.PistonHeadBlock;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.block.state.properties.ChestType;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import org.jetbrains.annotations.NotNull;
 
@@ -40,7 +46,7 @@ public class Wrench extends li.cil.oc.core.impl.common.item.Wrench {
         case WEST -> Rotation.NONE;
         case EAST -> Rotation.CLOCKWISE_180;
       };
-      var newState = state.rotate(world, pos, rotation);
+      var newState = isPart(state) ? state : state.rotate(world, pos, rotation);
       if (newState != state) {
         world.setBlock(pos, newState, 3);
         world.blockUpdated(pos, state.getBlock());
@@ -60,5 +66,15 @@ public class Wrench extends li.cil.oc.core.impl.common.item.Wrench {
       }
     }
     return InteractionResult.PASS;
+  }
+
+  // one part of a block made of several (OC's Block.rotateBlock refused these): turned alone it no longer fits the rest
+  // (a bed's other half turned to air without a drop); a door's halves follow each other
+  private static boolean isPart(BlockState state) {
+    return state.hasProperty(BlockStateProperties.BED_PART)
+      || state.hasProperty(BlockStateProperties.DOUBLE_BLOCK_HALF) && !(state.getBlock() instanceof DoorBlock)
+      || state.hasProperty(BlockStateProperties.CHEST_TYPE) && state.getValue(BlockStateProperties.CHEST_TYPE) != ChestType.SINGLE
+      || state.hasProperty(BlockStateProperties.EXTENDED) && state.getValue(BlockStateProperties.EXTENDED)
+      || state.getBlock() instanceof PistonHeadBlock || state.getBlock() instanceof MovingPistonBlock;
   }
 }

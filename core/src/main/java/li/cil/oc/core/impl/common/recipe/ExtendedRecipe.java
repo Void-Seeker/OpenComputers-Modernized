@@ -106,7 +106,8 @@ public final class ExtendedRecipe {
         for (var stack : getItems(inventory)) {
           if (stack.getItem() == net.minecraft.world.item.Items.FILLED_MAP) {
             var nbt = driver.dataTag(craftedStack);
-            ExtendedNBT.setNewCompoundTag(nbt, OCSettings.namespace + "map", t -> t.merge((CompoundTag) stack.save(new CompoundTag())));
+            // one map (a stack of them was kept whole, and recrafting gave the stack back)
+            ExtendedNBT.setNewCompoundTag(nbt, OCSettings.namespace + "map", t -> t.merge(stack.copyWithCount(1).save(new CompoundTag())));
           }
         }
       }
@@ -257,7 +258,7 @@ public final class ExtendedRecipe {
         if (tag != null && tag.contains(OCSettings.namespace + "map")) {
           var server = SideTracker.getCurrentServer();
           if (server != null) {
-            var oldMap = ItemStack.of(tag.getCompound(OCSettings.namespace + "map"));
+            var oldMap = ItemStack.of(tag.getCompound(OCSettings.namespace + "map")).copyWithCount(1); // (upgrades made before kept a stack)
             if (!oldMap.isEmpty()) {
               for (int i = 0; i < inventory.getContainerSize(); i++) {
                 if (inventory.getItem(i) == oldNavi) {

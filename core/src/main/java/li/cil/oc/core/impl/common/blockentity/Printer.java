@@ -264,7 +264,9 @@ public class Printer extends BlockEntity implements li.cil.oc.api.network.Enviro
   @Callback(doc = "function(minX:number, minY:number, minZ:number, maxX:number, maxY:number, maxZ:number, texture:string[, state:boolean=false][,tint:number]) -- Adds a shape to the printers configuration, optionally specifying whether it is for the off or on state.")
   public Object[] addShape(Context context, Arguments args) {
     markChanged(); // the job is saved
-    if (data.stateOff.size() >= OCSettings.get().maxPrintComplexity || data.stateOn.size() >= OCSettings.get().maxPrintComplexity) {
+    boolean state = args.isBoolean(7) && args.checkBoolean(7);
+    // the state added to (a full off state refused shapes for the on state too)
+    if ((state ? data.stateOn : data.stateOff).size() >= OCSettings.get().maxPrintComplexity) {
       return result(null, "model too complex");
     }
     float minX = MathCompat.clamp(args.checkInteger(0), 0, 16) / 16f;
@@ -274,7 +276,6 @@ public class Printer extends BlockEntity implements li.cil.oc.api.network.Enviro
     float maxY = MathCompat.clamp(args.checkInteger(4), 0, 16) / 16f;
     float maxZ = (16 - MathCompat.clamp(args.checkInteger(5), 0, 16)) / 16f;
     var texture = args.checkString(6).substring(0, Math.min(64, args.checkString(6).length()));
-    boolean state = args.isBoolean(7) && args.checkBoolean(7);
     Integer tint = null;
     if (args.isInteger(7)) {
       tint = args.checkInteger(7);

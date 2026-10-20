@@ -195,13 +195,18 @@ public final class Audit3RobotTests {
   @GameTest(template = EMPTY, timeoutTicks = 300)
   public static void robotInstallUpgradeLeavingNoInventoryDropsTheOldUpgrade(final GameTestHelper helper) {
     floor(helper);
+    // this run's upgrade (the test world is kept: one dropped here by an earlier run loaded late, past the clearing, and
+    // the drop merged with it)
+    final String run = UUID.randomUUID().toString();
     TestMachines.runRobot(helper, AT, List.of(Constants.ItemName.UpgradeContainerTier3), List.of(Constants.ItemName.InventoryControllerUpgrade), robot -> {
-        robot.setItem(1, item(Constants.ItemName.InventoryUpgrade));
+        final ItemStack old = item(Constants.ItemName.InventoryUpgrade);
+        old.getOrCreateTag().putString("oc-test-run", run);
+        robot.setItem(1, old);
         robot.mainInventory().setItem(2, item(Constants.ItemName.AngelUpgrade));
       }, ROBOT + CONTROLLER + "r.select(3) local ok, why = ic.installUpgrade(1) "
         + "error('done:' .. tostring(ok) .. ',' .. tostring(why) .. ',' .. r.inventorySize())", 60, (robot, result) -> {
         final var angel = (java.util.function.Predicate<ItemStack>) s -> isOC(s, Constants.ItemName.AngelUpgrade);
-        final var inventory = (java.util.function.Predicate<ItemStack>) s -> isOC(s, Constants.ItemName.InventoryUpgrade);
+        final var inventory = (java.util.function.Predicate<ItemStack>) s -> isOC(s, Constants.ItemName.InventoryUpgrade) && s.getTag() != null && run.equals(s.getTag().getString("oc-test-run"));
         helper.assertTrue("true,nil,0".equals(result), "installUpgrade, inventory size: " + result);
         helper.assertTrue(isOC(robot.getItem(1), Constants.ItemName.AngelUpgrade) && loose(helper, angel) == 0,
           "installed " + robot.getItem(1) + "; " + loose(helper, angel) + " angel upgrades dropped");

@@ -28,11 +28,6 @@ public class Database extends li.cil.oc.core.impl.common.container.Player {
   }
 
   @Override
-  public boolean stillValid(net.minecraft.world.entity.player.@NotNull Player player) {
-    return player == playerInventory.player;
-  }
-
-  @Override
   public void clicked(int slotId, int button, @NotNull ClickType clickType, net.minecraft.world.entity.player.@NotNull Player player) {
     if (slotId >= 0 && slotId < databaseSize) {
       Slot ghostSlot = getSlot(slotId);

@@ -306,7 +306,7 @@ public final class ModOpenComputers implements ModProxy {
 
     li.cil.oc.api.Driver.add(new EnvironmentProviderBlocks());
 
-    li.cil.oc.api.Driver.add(new InventoryProviderDatabase());
+    // (none for the database: its entries are ghosts, real items once sucked out in OC; its inventory threw here)
     li.cil.oc.api.Driver.add(new InventoryProviderServer());
     blacklistHost(li.cil.oc.api.internal.Adapter.class,
       Constants.BlockName.Geolyzer,

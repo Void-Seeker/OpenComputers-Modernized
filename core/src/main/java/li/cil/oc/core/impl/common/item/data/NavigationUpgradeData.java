@@ -64,7 +64,7 @@ public class NavigationUpgradeData extends ItemData {
   @Override
   public void load(CompoundTag nbt, HolderLookup.Provider provider) {
     if (nbt.contains(OCSettings.namespace + "map")) {
-      map = ItemStack.of(nbt.getCompound(OCSettings.namespace + "map"));
+      map = ItemStack.of(nbt.getCompound(OCSettings.namespace + "map")).copyWithCount(1); // one map (upgrades made before kept a stack)
     }
   }
 

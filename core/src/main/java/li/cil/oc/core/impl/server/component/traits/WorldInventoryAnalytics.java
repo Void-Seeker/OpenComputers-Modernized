@@ -160,7 +160,7 @@ public interface WorldInventoryAnalytics extends WorldAware, SideRestricted, Net
       ItemStack stack = inventory.getStackInSlot(ExtendedArguments.checkSlot(args, inventory, 1));
       return DatabaseAccess.withDatabase(node(), dbAddress, database -> {
         int dbSlot = ExtendedArguments.checkSlot(args, database.data(), 3);
-        boolean nonEmpty = database.getStackInSlot(dbSlot) != null;
+        boolean nonEmpty = !database.getStackInSlot(dbSlot).isEmpty(); // (an empty entry is EMPTY, not null: always true)
         database.setStackInSlot(dbSlot, stack.copy());
         return result(nonEmpty);
       });

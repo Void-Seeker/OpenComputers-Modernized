@@ -103,7 +103,10 @@ public final class OpenComputers {
       }
 
       @Override
-      public void openMenu(Player player, int guiType, Level world, int x, int y, int z) {
+      public void openMenu(Player player, int guiType, Level world, int x0, int y, int z) {
+        // an item's menu: x is its hotbar slot, the client builds the menu from that slot (from its main hand it was
+        // none or another item's, after a scroll before the packet came: the screen crashed)
+        final int x = GuiType.Categories.get(guiType) == GuiType.Category.Item ? player.getInventory().selected : x0;
         if (player instanceof ServerPlayer serverPlayer) {
           net.minecraftforge.network.NetworkHooks.openScreen(serverPlayer, getContainerProvider(guiType, world, x, y, z), buf -> {
             buf.writeInt(guiType);

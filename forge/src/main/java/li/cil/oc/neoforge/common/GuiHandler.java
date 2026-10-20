@@ -143,7 +143,7 @@ public final class GuiHandler {
           return new li.cil.oc.core.impl.common.container.Drone(Menus.DRONE.get(), containerId, player.getInventory(), (li.cil.oc.core.impl.common.entity.Drone) entity);
       }
       case Item -> {
-        ItemStack heldItem = player.getMainHandItem();
+        ItemStack heldItem = net.minecraft.world.entity.player.Inventory.isHotbarSlot(x) ? player.getInventory().getItem(x) : player.getMainHandItem(); // (x: the slot)
         var item = heldItem.getItem();
         if (item instanceof li.cil.oc.core.impl.common.item.UpgradeDatabase upgradeDatabase && (id == GuiType.Database)) {
           var provider = player.level().registryAccess();

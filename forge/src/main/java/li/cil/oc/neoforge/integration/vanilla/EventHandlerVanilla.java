@@ -102,7 +102,7 @@ public final class EventHandlerVanilla {
       int age = state.getValue(net.minecraft.world.level.block.StemBlock.AGE);
       growth = MathCompat.clamp(age / 7f, 0, 1);
     } else if (block instanceof CocoaBlock) {
-      growth = MathCompat.clamp((state.getValue(CocoaBlock.AGE) >> 2) / 2f, 0, 1);
+      growth = MathCompat.clamp(state.getValue(CocoaBlock.AGE) / (float) CocoaBlock.MAX_AGE, 0, 1); // (age is 0 to 2 now, no longer in the upper bits)
     } else if (block instanceof NetherWartBlock) {
       growth = MathCompat.clamp(state.getValue(NetherWartBlock.AGE) / 3f, 0, 1);
     } else if (block instanceof ChorusFlowerBlock) {

@@ -36,7 +36,7 @@ public interface WorldFluidContainerAnalytics extends WorldAware, SideRestricted
       Direction facing = checkSideForAction(args, 0);
       return withInventory(facing, inventory -> {
         ItemStack stack = inventory.getStackInSlot(ExtendedArguments.checkSlot(args, inventory, 1));
-        return withFluidInfo(stack, (fluid, capacity) -> result(fluid.amount()));
+        return withFluidInfo(stack, (fluid, capacity) -> result(fluid != null ? fluid.amount() : 0)); // (an empty one threw)
       });
     }
     return result(null, "not enabled in config");

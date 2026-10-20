@@ -143,6 +143,7 @@ public class Waypoint extends BlockEntity implements Environment, Rotatable, Red
   public Object[] setLabel(Context context, Arguments args) {
     label = args.checkString(0).substring(0, Math.min(32, args.checkString(0).length()));
     setChanged();
+    li.cil.oc.core.impl.common.PacketSender.sendWaypointLabel(this); // clients learn it (only the GUI's change was sent)
     context.pause(0.5);
     return null;
   }

@@ -114,7 +114,7 @@ public class LootDiskCyclingRecipe extends CustomRecipe {
     for (int i = 0; i < input.getContainerSize(); i++) {
       var stack = input.getItem(i);
       if (Wrench.isWrench(stack)) {
-        remaining.set(i, stack.copy());
+        remaining.set(i, stack.copyWithCount(1)); // the one used (a stack came back whole, grown by the rest)
       }
     }
     return remaining;
