@@ -36,7 +36,8 @@ public final class ScreenBufferTextRenderer {
     false,
     RenderType.CompositeState.builder()
       .setShaderState(RenderStateShard.POSITION_COLOR_SHADER)
-      .setTransparencyState(RenderStateShard.NO_TRANSPARENCY)
+      // fades with the text past screenTextFadeStartDistance (it stayed solid, then vanished at the end), as OC 1.12's
+      .setTransparencyState(RenderStateShard.TRANSLUCENT_TRANSPARENCY)
       .setDepthTestState(RenderStateShard.LEQUAL_DEPTH_TEST)
       .setCullState(RenderStateShard.NO_CULL)
       .setWriteMaskState(RenderStateShard.COLOR_DEPTH_WRITE)

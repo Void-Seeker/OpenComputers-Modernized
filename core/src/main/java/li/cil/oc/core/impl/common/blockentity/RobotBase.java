@@ -1185,8 +1185,9 @@ public abstract class RobotBase extends BlockEntity implements li.cil.oc.core.im
       inventory[slot] = stack;
     }
     setChanged();
-    // an inventory upgrade put into or taken out of a container while the robot stands (not while it loads)
-    if (isContainerSlot(slot) && getLevel() != null && isServer()) updateInventorySize();
+    // an inventory upgrade put into or taken out of a container while the robot stands (not while it loads); on the
+    // client too, as OC 1.12's markDirty: the menu's slot update comes there, and its GUI kept the old slots
+    if (isContainerSlot(slot) && getLevel() != null) updateInventorySize();
   }
 
   @Override

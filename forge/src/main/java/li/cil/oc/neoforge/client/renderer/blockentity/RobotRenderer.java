@@ -228,12 +228,11 @@ public class RobotRenderer implements BlockEntityRenderer<RobotProxy> {
       tintB = 0.5f;
     }
 
-    float saveR = tintR, saveG = tintG, saveB = tintB;
     int lightColor = robot != null ? robot.info.lightColor : 0xF23030;
     renderChassis(poseStack, buffer, packedLight, packedOverlay, offset, isRunning, lightColor);
 
+    // the experience tint is the chassis' only: OC 1.12 drew the tool and upgrades white (they were grey below level 10)
     if (robot != null && !robot.renderingErrored) {
-      li.cil.oc.neoforge.client.renderer.item.UpgradeRenderer.setModelTint(saveR, saveG, saveB);
       renderTool(robot, proxy, partialTick, poseStack, buffer, packedLight, packedOverlay);
 
       if (Minecraft.getInstance().level != null) {

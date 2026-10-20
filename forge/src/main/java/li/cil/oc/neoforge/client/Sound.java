@@ -68,7 +68,16 @@ public final class Sound {
     }
   }
 
+  /**
+   * A robot's sound is its own, as OC 1.12's, not its block's: its block is replaced by each move (the one left behind
+   * is never removed on the client, so its loop played on, and moves started more), and the renderer updates the robot.
+   */
+  private static BlockEntity owner(BlockEntity blockEntity) {
+    return blockEntity instanceof li.cil.oc.core.impl.common.blockentity.RobotProxy proxy && proxy.robot != null ? proxy.robot : blockEntity;
+  }
+
   public static void startLoop(BlockEntity blockEntity, String name, float volume, long delay) {
+    blockEntity = owner(blockEntity);
     if (blockEntity == null) return;
     if (OCSettings.get().soundVolume > 0 && Minecraft.getInstance().level != null) {
       synchronized (commandQueue) {
@@ -78,6 +87,7 @@ public final class Sound {
   }
 
   public static void stopLoop(BlockEntity blockEntity) {
+    blockEntity = owner(blockEntity);
     if (blockEntity == null) return;
     if (OCSettings.get().soundVolume > 0 && Minecraft.getInstance().level != null) {
       synchronized (commandQueue) {
@@ -87,6 +97,7 @@ public final class Sound {
   }
 
   public static void updatePosition(BlockEntity blockEntity) {
+    blockEntity = owner(blockEntity);
     if (blockEntity == null) return;
     if (OCSettings.get().soundVolume > 0 && Minecraft.getInstance().level != null) {
       synchronized (commandQueue) {
@@ -102,12 +113,13 @@ public final class Sound {
     manager();
     if (Minecraft.getInstance().level != null && OCSettings.get().soundVolume > 0) {
       tickCount++;
-      if (tickCount % 10 == 0) {
-        synchronized (sources) {
+      synchronized (sources) {
+        if (tickCount % 10 == 0) {
           sources.entrySet().removeIf(entry -> entry.getKey() == null || entry.getKey().isRemoved());
-          updateVolume();
-          processQueue();
         }
+        // each tick, as OC 1.12's 50 ms timer (every 10 ticks, starts, stops and moves came up to half a second late)
+        updateVolume();
+        processQueue();
       }
     }
   }

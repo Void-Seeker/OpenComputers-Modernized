@@ -116,6 +116,13 @@ public final class BufferRenderer {
     final int charHeight = renderer.charRenderHeight() * 2;
     final PackedColor.ColorFormat format = data.format();
 
+    // the glyphs of what changed, as OC 1.12's drawText (renderText): only world screens in view made them, and
+    // robots', tablets' and terminals' screens showed '?' for anything past CP437
+    if (screen instanceof li.cil.oc.core.impl.common.component.TextBufferBase base && base.isBufferDirty()) {
+      for (int[] line : data.buffer) renderer.generateChars(line);
+      base.clearBufferDirty();
+    }
+
     final Matrix4f localTransform = new Matrix4f(transform);
     localTransform.scale(0.5f, 0.5f, 1.0f);
 

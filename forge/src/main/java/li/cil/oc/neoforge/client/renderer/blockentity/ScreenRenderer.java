@@ -14,15 +14,11 @@ import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
-import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.InventoryMenu;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.LightLayer;
-import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.NotNull;
 import org.joml.Matrix4f;
@@ -34,21 +30,12 @@ public class ScreenRenderer implements BlockEntityRenderer<Screen> {
   public ScreenRenderer(BlockEntityRendererProvider.Context ignoredCtx) {
   }
 
+  // what the display shows, drawn from its origin (each block's frame is its block model)
   @Override
   public void render(Screen screen, float partialTick, @NotNull PoseStack poseStack,
                      @NotNull MultiBufferSource buffers, int packedLight, int packedOverlay) {
     if (screen.getLevel() == null) return;
     if (!screen.isOrigin()) return;
-
-    for (Screen s : screen.screens) {
-      poseStack.pushPose();
-      double dx = s.getBlockPos().getX() - screen.getBlockPos().getX();
-      double dy = s.getBlockPos().getY() - screen.getBlockPos().getY();
-      double dz = s.getBlockPos().getZ() - screen.getBlockPos().getZ();
-      poseStack.translate(dx, dy, dz);
-      renderFrame(s, poseStack, buffers, packedLight);
-      poseStack.popPose();
-    }
 
     renderScreenContent(screen, partialTick, poseStack, buffers, packedLight);
 
@@ -64,6 +51,20 @@ public class ScreenRenderer implements BlockEntityRenderer<Screen> {
         }
       }
     }
+  }
+
+  // as far as text is drawn (maxScreenTextRenderDistance per block of the display's smaller side), not vanilla's 64
+  @Override
+  public int getViewDistance() {
+    var settings = OCSettings.get();
+    double text = settings.maxScreenTextRenderDistance * Math.min(settings.maxScreenWidth, settings.maxScreenHeight);
+    return Math.max(64, (int) Math.ceil(text) + 2);
+  }
+
+  // a display beyond its origin's block is drawn while any of it is in view (not only while its origin's section is)
+  @Override
+  public boolean shouldRenderOffScreen(@NotNull Screen screen) {
+    return screen.isOrigin() && (screen.width > 1 || screen.height > 1);
   }
 
   private void drawOverlay(Screen screen, PoseStack poseStack, MultiBufferSource buffers) {
@@ -96,126 +97,6 @@ public class ScreenRenderer implements BlockEntityRenderer<Screen> {
     vc.vertex(m, 0, 0, 0).color(1.0f, 1.0f, 1.0f, 1.0f).uv(u0, v0).uv2(0xF000F0).normal(normal.normal(), 0, 0, 1).endVertex();
 
     poseStack.popPose();
-  }
-
-  private void renderFrame(Screen screen, PoseStack poseStack, MultiBufferSource buffers, int ignoredPackedLight) {
-    if (screen.getLevel() == null) return;
-    Screen origin = screen.origin;
-    boolean isReady = origin != null;
-
-    int[] local = screen.localPosition();
-    int lx = local[0];
-    int ly = local[1];
-
-    for (Direction side : Direction.values()) {
-      Level w = screen.getLevel();
-      if (w == null) return;
-
-      BlockPos adj = screen.getBlockPos().relative(side);
-      BlockEntity neighborBE = w.getBlockEntity(adj);
-      if (neighborBE instanceof Screen neighbor) {
-        if (neighbor.origin == screen.origin) {
-          continue;
-        }
-      }
-
-      boolean isFront = screen.toLocal(side) == Direction.SOUTH;
-
-      String textureName;
-      if (!isReady) {
-        textureName = isFront ? "screen/f" : "screen/b";
-      } else {
-        textureName = isFront
-          ? getFrontTexture(screen, lx, ly)
-          : getSideTexture(screen, lx, ly, screen.toLocal(side), side);
-      }
-
-      int rotation = 0;
-      if (side == Direction.UP) {
-        rotation = screen.yaw().get2DDataValue();
-      } else if (side == Direction.DOWN) {
-        rotation = (6 - screen.yaw().get2DDataValue()) % 4;
-      }
-
-      TextureAtlasSprite sprite = Minecraft.getInstance()
-        .getTextureAtlas(InventoryMenu.BLOCK_ATLAS)
-        .apply(new ResourceLocation("opencomputers", "block/" + textureName));
-
-      if (sprite != null) {
-        int adjBlock = w.getBrightness(LightLayer.BLOCK, adj);
-        int adjSky = w.getBrightness(LightLayer.SKY, adj);
-        int faceLight = adjBlock << 4 | adjSky << 20;
-
-        renderFace(poseStack, buffers.getBuffer(RenderType.cutout()), side, sprite,
-          screen.color, rotation, faceLight);
-      }
-    }
-  }
-
-  private String getFrontTexture(Screen screen, int lx, int ly) {
-    Direction facing = screen.facing();
-
-    int px = xy2part(lx, screen.width - 1);
-    int py = xy2part(ly, screen.height - 1);
-
-    int screenY;
-    int screenX;
-    int variant;
-    if (facing == Direction.UP) {
-      screenY = py;
-      screenX = px;
-      variant = 1;
-    } else if (facing == Direction.DOWN) {
-      screenY = 2 - py;
-      screenX = 2 - px;
-      variant = 0;
-    } else {
-      screenY = py;
-      screenX = px;
-      variant = screen.pitch() == Direction.UP || screen.pitch() == Direction.DOWN ? 1 : 0;
-    }
-
-    if (screen.width == 1 && screen.height == 1)
-      return facing == Direction.DOWN ? "screen/f2" : "screen/f";
-    if (screen.width == 1) return VERTICAL_FRONT[variant][screenY];
-    if (screen.height == 1) return HORIZONTAL_FRONT[variant][screenX];
-    return MULTI_FRONT[variant][screenY][screenX];
-  }
-
-  private String getSideTexture(Screen screen, int lx, int ly,
-                                Direction localSide, Direction worldSide) {
-    Direction facing = screen.facing();
-    int pitch = screen.pitch() == Direction.UP || screen.pitch() == Direction.DOWN ? 1 : 0;
-
-    int px = xy2part(lx, screen.width - 1);
-    int py = xy2part(ly, screen.height - 1);
-
-    if (facing == Direction.UP) {
-      px = 2 - px;
-      py = 2 - py;
-    }
-
-    int finalPx = px;
-    int finalPy = py;
-    if (facing == Direction.DOWN && localSide == Direction.NORTH) finalPx = 2 - px;
-    if (facing == Direction.UP && localSide == Direction.NORTH) finalPx = 2 - px;
-    if (facing == Direction.DOWN && localSide == Direction.NORTH) finalPy = 2 - py;
-    if (facing == Direction.UP && localSide == Direction.NORTH) finalPy = 2 - py;
-    int sideOrd = localSide.ordinal();
-    if ((facing == Direction.UP || facing == Direction.DOWN) &&
-      (localSide == Direction.EAST || localSide == Direction.WEST)) {
-      sideOrd = localSide == Direction.EAST ? Direction.WEST.ordinal() : Direction.EAST.ordinal();
-    }
-    if ((facing == Direction.UP || facing == Direction.DOWN) &&
-      (localSide == Direction.UP || localSide == Direction.DOWN)) {
-      finalPx = 2 - px;
-    }
-
-    if (screen.width == 1 && screen.height == 1)
-      return worldSide.getAxis() == Direction.Axis.Y ? "screen/b" : "screen/b2";
-    if (screen.width == 1) return VERTICAL[pitch][finalPy][sideOrd];
-    if (screen.height == 1) return HORIZONTAL[pitch][finalPx][sideOrd];
-    return MULTI[pitch][finalPy][finalPx][sideOrd];
   }
 
   private void renderScreenContent(Screen screen, float partialTick, PoseStack poseStack,
@@ -314,146 +195,4 @@ public class ScreenRenderer implements BlockEntityRenderer<Screen> {
     stack.translate(0, screen.height, 0);
     stack.scale(1, -1, 1);
   }
-
-  private static int xy2part(int value, int max) {
-    if (max <= 0) return 0;
-    if (value == 0) return 2;
-    if (value == max) return 0;
-    return 1;
-  }
-
-  private void renderFace(PoseStack poseStack, VertexConsumer vc, Direction face,
-                          TextureAtlasSprite sprite, int color, int rotation, int packedLight) {
-    Matrix4f m = poseStack.last().pose();
-    float r = ((color >> 16) & 0xFF) / 255f;
-    float g = ((color >> 8) & 0xFF) / 255f;
-    float b = (color & 0xFF) / 255f;
-
-    float u0 = sprite.getU0(), u1 = sprite.getU1();
-    float v0 = sprite.getV0(), v1 = sprite.getV1();
-
-    float[] us = {u0, u1, u1, u0};
-    float[] vs = {v1, v1, v0, v0};
-
-    int rot = ((rotation % 4) + 4) % 4;
-    for (int i = 0; i < rot; i++) {
-      float tu = us[0], tv = vs[0];
-      us[0] = us[1];
-      us[1] = us[2];
-      us[2] = us[3];
-      us[3] = tu;
-      vs[0] = vs[1];
-      vs[1] = vs[2];
-      vs[2] = vs[3];
-      vs[3] = tv;
-    }
-
-    float[][] pos = getFloats(face);
-
-    for (int i = 0; i < 4; i++) {
-      vc.vertex(m, pos[i][0], pos[i][1], pos[i][2])
-        .color(r, g, b, 1.0f)
-        .uv(us[i], vs[i])
-        .uv2(packedLight)
-        .normal(poseStack.last().normal(), face.getStepX(), face.getStepY(), face.getStepZ()).endVertex();
-    }
-  }
-
-  private static float @NotNull [][] getFloats(Direction face) {
-    float e = 0f;
-    return switch (face) {
-      case SOUTH -> new float[][]{{-e, -e, 1 + e}, {1 + e, -e, 1 + e}, {1 + e, 1 + e, 1 + e}, {-e, 1 + e, 1 + e}};
-      case NORTH -> new float[][]{{1 + e, -e, -e}, {-e, -e, -e}, {-e, 1 + e, -e}, {1 + e, 1 + e, -e}};
-      case EAST -> new float[][]{{1 + e, -e, 1 + e}, {1 + e, -e, -e}, {1 + e, 1 + e, -e}, {1 + e, 1 + e, 1 + e}};
-      case WEST -> new float[][]{{-e, -e, -e}, {-e, -e, 1 + e}, {-e, 1 + e, 1 + e}, {-e, 1 + e, -e}};
-      case UP -> new float[][]{{-e, 1 + e, 1 + e}, {1 + e, 1 + e, 1 + e}, {1 + e, 1 + e, -e}, {-e, 1 + e, -e}};
-      case DOWN -> new float[][]{{-e, -e, -e}, {1 + e, -e, -e}, {1 + e, -e, 1 + e}, {-e, -e, 1 + e}};
-    };
-  }
-
-  private static final String[][][] HORIZONTAL = {
-    {
-      {"screen/bht", "screen/bhb", "screen/bht", "screen/bht", "screen/b2", "screen/b2"},
-      {"screen/bhm", "screen/bhm", "screen/bhm2", "screen/bhm2", "screen/b", "screen/b"},
-      {"screen/bhb", "screen/bht", "screen/bhb2", "screen/bhb2", "screen/b2", "screen/b2"}
-    },
-    {
-      {"screen/bhb2", "screen/bht2", "screen/bht", "screen/bhb", "screen/b2", "screen/b2"},
-      {"screen/bhm2", "screen/bhm2", "screen/bhm", "screen/bhm", "screen/b", "screen/b"},
-      {"screen/bht2", "screen/bhb2", "screen/bhb", "screen/bht", "screen/b2", "screen/b2"}
-    }
-  };
-
-  private static final String[][] HORIZONTAL_FRONT = {
-    {"screen/fhb2", "screen/fhm2", "screen/fht2"},
-    {"screen/fhb", "screen/fhm", "screen/fht"}
-  };
-
-  private static final String[][][] VERTICAL = {
-    {
-      {"screen/b", "screen/b", "screen/bvt", "screen/bvt", "screen/bvt", "screen/bvt"},
-      {"screen/b", "screen/b", "screen/bvm", "screen/bvm", "screen/bvm", "screen/bvm"},
-      {"screen/b", "screen/b", "screen/bvb2", "screen/bvb2", "screen/bvb2", "screen/bvb2"}
-    },
-    {
-      {"screen/b2", "screen/b2", "screen/bvt", "screen/bvt", "screen/bht2", "screen/bhb2"},
-      {"screen/b", "screen/b", "screen/bvm", "screen/bvm", "screen/bhm2", "screen/bhm2"},
-      {"screen/b2", "screen/b2", "screen/bvb", "screen/bvb", "screen/bhb2", "screen/bht2"}
-    }
-  };
-
-  private static final String[][] VERTICAL_FRONT = {
-    {"screen/fvt", "screen/fvm", "screen/fvb2"},
-    {"screen/fvt", "screen/fvm", "screen/fvb"}
-  };
-
-  private static final String[][][][] MULTI = {
-    {
-      {
-        {"screen/bht", "screen/bhb", "screen/btl", "screen/btr", "screen/bvb", "screen/bvt"},
-        {"screen/bhm", "screen/bhm", "screen/btm", "screen/btm", "screen/b", "screen/b"},
-        {"screen/bhb", "screen/bht", "screen/btr", "screen/btl", "screen/bvt", "screen/bvb"}
-      },
-      {
-        {"screen/b", "screen/b", "screen/bml", "screen/bmr", "screen/bvm", "screen/bvm"},
-        {"screen/b", "screen/b", "screen/bmm", "screen/bmm", "screen/b", "screen/b"},
-        {"screen/b", "screen/b", "screen/bmr", "screen/bml", "screen/bvm", "screen/bvt"}
-      },
-      {
-        {"screen/bht", "screen/bhb", "screen/bbl2", "screen/bbr2", "screen/bvt", "screen/bvb2"},
-        {"screen/bhm", "screen/bhm", "screen/bbm2", "screen/bbm2", "screen/b", "screen/b"},
-        {"screen/bhb", "screen/bht", "screen/bbr2", "screen/bbl2", "screen/bvb2", "screen/bvt"}
-      }
-    },
-    {
-      {
-        {"screen/bhb2", "screen/bht2", "screen/btl", "screen/btr", "screen/bht2", "screen/bhb2"},
-        {"screen/bhm2", "screen/bhm2", "screen/btm", "screen/btm", "screen/b", "screen/b"},
-        {"screen/bht2", "screen/bhb2", "screen/btr", "screen/btl", "screen/bht2", "screen/bhb2"}
-      },
-      {
-        {"screen/b", "screen/b", "screen/bml", "screen/bml", "screen/bhm2", "screen/bhm2"},
-        {"screen/b", "screen/b", "screen/bmm", "screen/bmm", "screen/b", "screen/b"},
-        {"screen/b", "screen/b", "screen/bmr", "screen/bmr", "screen/bhm2", "screen/bhm2"}
-      },
-      {
-        {"screen/bhb2", "screen/bht2", "screen/bbl", "screen/bbr", "screen/bhb2", "screen/bht2"},
-        {"screen/bhm2", "screen/bhm2", "screen/bbm", "screen/bbm", "screen/b", "screen/b"},
-        {"screen/bht2", "screen/bhb2", "screen/bbr", "screen/bbl", "screen/bhb2", "screen/bht2"}
-      }
-    }
-  };
-
-  private static final String[][][] MULTI_FRONT = {
-    {
-      {"screen/ftr", "screen/ftm", "screen/ftl"},
-      {"screen/fmr", "screen/fmm", "screen/fml"},
-      {"screen/fbr2", "screen/fbm2", "screen/fbl2"}
-    },
-    {
-      {"screen/ftr", "screen/ftm", "screen/ftl"},
-      {"screen/fmr", "screen/fmm", "screen/fml"},
-      {"screen/fbr", "screen/fbm", "screen/fbl"}
-    }
-  };
 }

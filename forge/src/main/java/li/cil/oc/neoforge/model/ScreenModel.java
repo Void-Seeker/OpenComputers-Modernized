@@ -3,6 +3,10 @@ package li.cil.oc.neoforge.model;
 import com.mojang.blaze3d.vertex.PoseStack;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import li.cil.oc.core.impl.client.renderer.ScreenFrameTextures;
+import li.cil.oc.core.impl.common.blockentity.Screen;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.RenderType;
@@ -15,6 +19,7 @@ import net.minecraft.client.renderer.block.model.ItemTransform;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.client.resources.model.BlockModelRotation;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.RandomSource;
@@ -22,18 +27,37 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.inventory.InventoryMenu;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.BlockAndTintGetter;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraftforge.client.ChunkRenderTypeSet;
 import net.minecraftforge.client.model.IDynamicBakedModel;
 import net.minecraftforge.client.model.data.ModelData;
+import net.minecraftforge.client.model.data.ModelProperty;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Vector3f;
 
+/**
+ * A screen, placed and as an item. Placed, each block's frame is part of the chunk, with the textures for where it sits
+ * in its display (as OC 1.12's ScreenModel; the block entity renderer drew every block's frame from the display's
+ * origin, so screens vanished with it: past 64 blocks, or when the origin's chunk section was culled). Its renderer
+ * draws only what the display shows.
+ */
 public class ScreenModel implements IDynamicBakedModel {
   private static final FaceBakery BAKERY = new FaceBakery();
+  private static final ResourceLocation MODEL = new ResourceLocation("opencomputers", "screen");
+  private static final Vector3f FROM = new Vector3f(0, 0, 0);
+  private static final Vector3f TO = new Vector3f(16, 16, 16);
+
+  /** A placed screen's frame: each world side's texture and quarter turns, read from its block entity. */
+  public static final ModelProperty<Frame> FRAME = new ModelProperty<>();
+
+  public record Frame(String[] textures, int[] rotations) {
+  }
 
   private final ItemOverrides overrides;
+  // baked once per texture, side and rotation (chunk builder threads fill it: a race bakes the same quad twice)
+  private final Map<String, BakedQuad[]> frameQuads = new ConcurrentHashMap<>();
 
   @SuppressWarnings("unused")
   public ScreenModel() {
@@ -46,7 +70,33 @@ public class ScreenModel implements IDynamicBakedModel {
   }
 
   @Override
+  public @NotNull ModelData getModelData(@NotNull BlockAndTintGetter level, @NotNull BlockPos pos, @NotNull BlockState state, @NotNull ModelData modelData) {
+    if (level.getBlockEntity(pos) instanceof Screen screen) {
+      var textures = new String[6];
+      var rotations = new int[6];
+      for (Direction side : Direction.values()) {
+        textures[side.get3DDataValue()] = ScreenFrameTextures.texture(screen, side);
+        rotations[side.get3DDataValue()] = ScreenFrameTextures.rotation(screen, side);
+      }
+      return ModelData.builder().with(FRAME, new Frame(textures, rotations)).build();
+    }
+    return modelData;
+  }
+
+  @Override
   public @NotNull List<BakedQuad> getQuads(@Nullable BlockState state, @Nullable Direction side, @NotNull RandomSource rand, @NotNull ModelData data, @Nullable RenderType renderType) {
+    if (state != null) {
+      // a full cube: each face once, as its side's quad, culled against its neighbours (other screens of the display too)
+      if (side == null) return List.of();
+      Frame frame = data.get(FRAME);
+      if (frame != null) {
+        return List.of(frameQuad(frame.textures()[side.get3DDataValue()], side, frame.rotations()[side.get3DDataValue()]));
+      }
+      // no screen to ask (the breaking overlay): a lone screen, facing as the block state
+      var facing = li.cil.oc.core.impl.common.block.Screen.FACING;
+      boolean front = state.hasProperty(facing) && state.getValue(facing) == side;
+      return List.of(frameQuad(ScreenFrameTextures.lone(side, front), side, 0));
+    }
     if (side != null) return List.of(); // (unculled: once, not once per face asked about as well)
     List<BakedQuad> quads = new ArrayList<>();
 
@@ -75,6 +125,19 @@ public class ScreenModel implements IDynamicBakedModel {
     }
 
     return quads;
+  }
+
+  private BakedQuad frameQuad(String texture, Direction side, int rotation) {
+    var quads = frameQuads.computeIfAbsent(texture, k -> new BakedQuad[6 * 4]);
+    int index = side.get3DDataValue() * 4 + rotation;
+    var quad = quads[index];
+    if (quad == null) {
+      // tinted with the screen's colour (the block colour handler); the full face's default UVs, turned as OC 1.12's
+      var face = new BlockElementFace(side, 0, "", new BlockFaceUV(new float[]{0, 0, 16, 16}, rotation * 90));
+      quad = BAKERY.bakeQuad(FROM, TO, face, sprite("opencomputers", "block/screen/" + texture), side, BlockModelRotation.X0_Y0, null, true, MODEL);
+      quads[index] = quad;
+    }
+    return quad;
   }
 
   @Override
@@ -139,7 +202,7 @@ public class ScreenModel implements IDynamicBakedModel {
 
   @Override
   public @NotNull ChunkRenderTypeSet getRenderTypes(@NotNull BlockState state, @NotNull RandomSource rand, @NotNull ModelData data) {
-    return ChunkRenderTypeSet.of(RenderType.cutout());
+    return ChunkRenderTypeSet.of(RenderType.solid()); // (opaque textures)
   }
 
   @Override

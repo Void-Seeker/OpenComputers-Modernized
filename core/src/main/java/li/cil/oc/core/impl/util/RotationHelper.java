@@ -1,13 +1,14 @@
 package li.cil.oc.core.impl.util;
 
-import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.core.Direction;
 
 public final class RotationHelper {
 
-  private static final Map<Direction, Map<Direction, Direction[]>> translationCache = new LinkedHashMap<>();
-  private static final Map<Direction, Map<Direction, Direction[]>> inverseTranslationCache = new LinkedHashMap<>();
+  // concurrent, as OC 1.12's were synchronized: chunk builder threads ask too (the screen model)
+  private static final Map<Direction, Map<Direction, Direction[]>> translationCache = new ConcurrentHashMap<>();
+  private static final Map<Direction, Map<Direction, Direction[]>> inverseTranslationCache = new ConcurrentHashMap<>();
   private static final Direction[][][] translations = {
     // Pitch = Down (0)
     {
@@ -75,12 +76,12 @@ public final class RotationHelper {
   }
 
   public static Direction[] translationFor(Direction pitch, Direction yaw) {
-    return translationCache.computeIfAbsent(pitch, k -> new LinkedHashMap<>())
+    return translationCache.computeIfAbsent(pitch, k -> new ConcurrentHashMap<>())
       .computeIfAbsent(yaw, k -> translations[pitch.get3DDataValue()][yaw.get3DDataValue() - 2]);
   }
 
   public static Direction[] inverseTranslationFor(Direction pitch, Direction yaw) {
-    return inverseTranslationCache.computeIfAbsent(pitch, k -> new LinkedHashMap<>())
+    return inverseTranslationCache.computeIfAbsent(pitch, k -> new ConcurrentHashMap<>())
       .computeIfAbsent(yaw, k -> {
         Direction[] t = translationFor(pitch, yaw);
         Direction[] result = new Direction[t.length];

@@ -1,5 +1,6 @@
 package li.cil.oc.neoforge.client;
 
+import java.util.List;
 import li.cil.oc.core.impl.client.renderer.blockentity.AdapterRenderer;
 import li.cil.oc.core.impl.client.renderer.blockentity.AssemblerRenderer;
 import li.cil.oc.core.impl.client.renderer.blockentity.CaseRenderer;
@@ -175,6 +176,17 @@ public class Proxy extends li.cil.oc.neoforge.common.Proxy {
     if (droneModel != null) {
       event.getModels().put(droneKey, new DroneModel());
     }
+
+    // placed screens: the frame (screen.json has no elements; the block entity renderer drew it and lost it with the
+    // display's origin)
+    var screenBlockModel = new ScreenModel();
+    var screenBlockIds = List.of(Blocks.SCREEN_TIER_1.getId(), Blocks.SCREEN_TIER_2.getId(), Blocks.SCREEN_TIER_3.getId());
+    event.getModels().replaceAll((key, model) -> {
+      if (screenBlockIds.stream().anyMatch(id -> id.equals(key)) && !"inventory".equals(key instanceof ModelResourceLocation mrl ? mrl.getVariant() : "")) {
+        return screenBlockModel;
+      }
+      return model;
+    });
 
     var screen1Key = new ModelResourceLocation(Items.SCREEN_TIER_1.getId(), "inventory");
     event.getModels().put(screen1Key, new ScreenModel());

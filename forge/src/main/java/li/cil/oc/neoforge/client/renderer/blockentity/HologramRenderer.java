@@ -13,6 +13,7 @@ import li.cil.oc.core.impl.OCSettings;
 import li.cil.oc.core.impl.client.ClientDistanceHelper;
 import li.cil.oc.core.impl.client.Textures;
 import li.cil.oc.core.impl.common.blockentity.Hologram;
+import li.cil.oc.neoforge.client.renderer.IrisCompat;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderStateShard;
@@ -60,14 +61,16 @@ public class HologramRenderer implements BlockEntityRenderer<Hologram> {
       .createCompositeState(true)
   );
 
-  @SuppressWarnings("unused")
-  private record CachedData(float[] vertexData, int quadCount) {
+  /** A projector's quads, rebuilt into the same array while it is big enough (each rebuild made a new 64 MB one). */
+  private static final class CachedData {
+    float[] vertexData = new float[0];
+    int quadCount;
   }
 
+  // the quads as they are this frame: they are only rebuilt in render, before the frame's draw (no copy each frame)
   private record PendingDraw(org.joml.Matrix4f matrix, float[] verts, int quadCount,
                              int alphaInt, int packedOverlay) {
     PendingDraw {
-      verts = verts.clone();
       matrix = new org.joml.Matrix4f(matrix);
     }
   }
@@ -75,7 +78,8 @@ public class HologramRenderer implements BlockEntityRenderer<Hologram> {
   private static final java.util.List<PendingDraw> pendingDraws = new java.util.ArrayList<>();
 
   public static void drawPending(MultiBufferSource.BufferSource bufferSource) {
-    if (pendingDraws.isEmpty()) return;
+    // Oculus's shadow pass draws translucent terrain too (this event): the main pass's holograms wait for their own
+    if (pendingDraws.isEmpty() || IrisCompat.isRenderingShadowPass()) return;
     var draws = java.util.List.copyOf(pendingDraws);
     pendingDraws.clear();
     for (var holo : draws) {
@@ -129,6 +133,8 @@ public class HologramRenderer implements BlockEntityRenderer<Hologram> {
   @Override
   public void render(@NotNull Hologram hologram, float partialTick, @NotNull PoseStack poseStack, @NotNull MultiBufferSource bufferSource, int packedLight, int packedOverlay) {
     if (!hologram.hasPower) return;
+    // not from Oculus's shadow pass: queued with the shadow camera's matrix, it was drawn in the main pass (a ghost)
+    if (IrisCompat.isRenderingShadowPass()) return;
 
     var level = hologram.getLevel();
     if (level == null) return;
@@ -153,12 +159,15 @@ public class HologramRenderer implements BlockEntityRenderer<Hologram> {
     var pos = hologram.getBlockPos();
     var data = cache.getIfPresent(pos);
     if (data == null || hologram.needsRendering) {
-      data = rebuildQuads(hologram);
-      cache.put(pos, data);
+      if (data == null) {
+        data = new CachedData();
+        cache.put(pos, data);
+      }
+      rebuildQuads(hologram, data);
       hologram.needsRendering = false;
     }
 
-    if (data.quadCount() == 0) return;
+    if (data.quadCount == 0) return;
     poseStack.pushPose();
     poseStack.translate(0.5, 0.5, 0.5);
 
@@ -202,20 +211,18 @@ public class HologramRenderer implements BlockEntityRenderer<Hologram> {
     if (alphaInt < 0) alphaInt = 0;
 
     var matrix = poseStack.last().pose();
-    var verts = data.vertexData();
-    int quadCount = data.quadCount();
+    var verts = data.vertexData;
+    int quadCount = data.quadCount;
 
     pendingDraws.add(new PendingDraw(matrix, verts, quadCount, alphaInt, packedOverlay));
 
     poseStack.popPose();
   }
 
-  private CachedData rebuildQuads(Hologram hologram) {
+  private static void rebuildQuads(Hologram hologram, CachedData data) {
     int w = Hologram.WIDTH;
     int h = Hologram.HEIGHT;
-    int maxQuads = w * w * h * 6;
-    int maxFloats = maxQuads * FLOATS_PER_QUAD;
-    float[] newData = new float[maxFloats];
+    float[] newData = data.vertexData;
     int q = 0;
 
     for (int x = 0; x < w; x++) {
@@ -229,6 +236,9 @@ public class HologramRenderer implements BlockEntityRenderer<Hologram> {
           float g = (color >> 8) & 0xFF;
           float b = color & 0xFF;
 
+          if ((q + 6) * FLOATS_PER_QUAD > newData.length) {
+            newData = Arrays.copyOf(newData, Math.max((q + 6) * FLOATS_PER_QUAD, newData.length / 2 * 3));
+          }
           if (isExposed(hologram, x, y, z + 1)) {
             addQuad(newData, q++, x + 1, y + 1, z + 1, x, y + 1, z + 1, x, y, z + 1, x + 1, y, z + 1, 0, 0, 1, r, g, b);
           }
@@ -251,10 +261,15 @@ public class HologramRenderer implements BlockEntityRenderer<Hologram> {
       }
     }
 
-    return new CachedData(Arrays.copyOf(newData, q * FLOATS_PER_QUAD), q);
+    // one that shrank a lot gives back what it no longer uses
+    if (newData.length > (1 << 16) && newData.length > 4 * q * FLOATS_PER_QUAD) {
+      newData = Arrays.copyOf(newData, 2 * q * FLOATS_PER_QUAD);
+    }
+    data.vertexData = newData;
+    data.quadCount = q;
   }
 
-  private void addQuad(float[] data, int quadIndex,
+  private static void addQuad(float[] data, int quadIndex,
                        float x0, float y0, float z0,
                        float x1, float y1, float z1,
                        float x2, float y2, float z2,
@@ -268,7 +283,7 @@ public class HologramRenderer implements BlockEntityRenderer<Hologram> {
     putVertex(data, base + STRIDE * 3, x3, y3, z3, nx, ny, nz, r, g, b);
   }
 
-  private void putVertex(float[] data, int offset,
+  private static void putVertex(float[] data, int offset,
                          float x, float y, float z,
                          float nx, float ny, float nz,
                          float r, float g, float b) {

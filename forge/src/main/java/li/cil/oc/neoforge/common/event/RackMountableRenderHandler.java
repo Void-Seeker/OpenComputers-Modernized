@@ -124,8 +124,7 @@ public final class RackMountableRenderHandler {
     consumer.vertex(m, u1, e.v1, 0).uv(su0 + u1 * (su1 - su0), mv1).endVertex();
     consumer.vertex(m, u1, e.v0, 0).uv(su0 + u1 * (su1 - su0), mv0).endVertex();
     consumer.vertex(m, u0, e.v0, 0).uv(su0 + u0 * (su1 - su0), mv0).endVertex();
-    if (bufferSource instanceof MultiBufferSource.BufferSource bs) {
-      bs.endBatch();
-    }
+    // drawn with the other block entities (this flushed every buffer, up to 16 times a rack and frame: entity
+    // translucents went before translucent terrain, and under Oculus it was its whole batch each time)
   }
 }

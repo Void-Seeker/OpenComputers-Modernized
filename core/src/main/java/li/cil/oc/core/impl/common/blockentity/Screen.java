@@ -351,6 +351,8 @@ public class Screen extends BlockEntity implements TextBufferHost, SidedEnvironm
   public void dispose() {
     super.dispose();
     if (isServer() && node != null) node.remove();
+    // the client's buffer goes with the block (each chunk reload kept the old screen and its buffer until the world was left)
+    if (isClient()) li.cil.oc.core.impl.common.component.TextBuffer.removeClientBuffer(buffer);
     for (var s : new HashSet<>(screens)) s.checkMultiBlock();
   }
 
@@ -536,11 +538,11 @@ public class Screen extends BlockEntity implements TextBufferHost, SidedEnvironm
       while (current.tryMerge()) {
       }
       if (isClient()) {
-        var bounds = current.origin.getRenderBoundingBox();
-        var level = getLevel();
-        if (level != null) {
-          level.blockUpdated(BlockPos.containing(bounds.minX, bounds.minY, bounds.minZ), getBlockState().getBlock());
-          level.blockUpdated(BlockPos.containing(bounds.maxX, bounds.maxY, bounds.maxZ), getBlockState().getBlock());
+        // their frames are in the chunk meshes: those are built again (as OC 1.12 marked the display for a render
+        // update; this told the blocks at two corners about a neighbour change)
+        for (var screen : current.screens) {
+          var level = screen.getLevel();
+          if (level != null) level.sendBlockUpdated(screen.getBlockPos(), screen.getBlockState(), screen.getBlockState(), 0);
         }
       }
       for (var screen : current.screens) {

@@ -58,9 +58,12 @@ public final class ClientPacketHandler extends PacketHandler {
     onPacketData(payload, Minecraft.getInstance().player);
   }
 
+  // only the player's own (OC 1.12 dropped packets for another dimension: one in flight across a portal reached a block
+  // entity of the same kind at the same coordinates, and beeps played in the new dimension)
   @Override
-  public Level world(Player player, int ignoredDimension) {
-    return player.level();
+  public Level world(Player player, int dimension) {
+    var level = player.level();
+    return level.dimension().location().hashCode() == dimension ? level : null;
   }
 
   @Override
@@ -311,7 +314,7 @@ public final class ClientPacketHandler extends PacketHandler {
         double x = p.readDouble();
         double y = p.readDouble();
         double z = p.readDouble();
-        net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(new FileSystemAccessEvent.Client(sound, w, x, y, z, data));
+        if (w != null) net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(new FileSystemAccessEvent.Client(sound, w, x, y, z, data));
       }
     } catch (IOException e) {
       throw new RuntimeException(e);
@@ -331,7 +334,7 @@ public final class ClientPacketHandler extends PacketHandler {
         double x = p.readDouble();
         double y = p.readDouble();
         double z = p.readDouble();
-        net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(new NetworkActivityEvent.Client(w, x, y, z, data));
+        if (w != null) net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(new NetworkActivityEvent.Client(w, x, y, z, data));
       }
     } catch (IOException e) {
       throw new RuntimeException(e);
@@ -573,6 +576,7 @@ public final class ClientPacketHandler extends PacketHandler {
     try {
       int dimension = p.readInt();
       Level w = world(p.player, dimension);
+      if (w == null) return;
       int x = p.readInt();
       int y = p.readInt();
       int z = p.readInt();
@@ -863,7 +867,7 @@ public final class ClientPacketHandler extends PacketHandler {
       var t = p.getBlockEntity(dimension, x, y, z, li.cil.oc.neoforge.common.blockentity.RobotProxy.class);
       if (t != null && direction != null) {
         t.move(direction);
-      } else if (direction != null) {
+      } else if (direction != null && world(p.player, dimension) != null) {
         var oldPos = new net.minecraft.core.BlockPos(x, y, z);
         var newPos = oldPos.relative(direction);
         var newProxy = p.getBlockEntity(dimension, newPos.getX(), newPos.getY(), newPos.getZ(), li.cil.oc.neoforge.common.blockentity.RobotProxy.class);
@@ -947,13 +951,8 @@ public final class ClientPacketHandler extends PacketHandler {
       if (env instanceof li.cil.oc.core.impl.common.component.TextBuffer buffer) {
         if (buffer.proxy.nodeAddress.isEmpty() && !address.isEmpty()) {
           buffer.proxy.nodeAddress = address;
-          var level = buffer.host().level();
-          if (level != null) {
-            li.cil.oc.core.impl.client.ClientComponentTracker.INSTANCE.add(level, address, buffer);
-          }
-          if (!li.cil.oc.core.impl.common.component.TextBuffer.clientBuffers.contains(buffer)) {
-            li.cil.oc.core.impl.common.component.TextBuffer.clientBuffers.add(buffer);
-          }
+          // in place of the buffer of the tablet opened before (each one was kept)
+          if (buffer.host().level() != null) li.cil.oc.core.impl.common.component.TextBuffer.addClientBuffer(buffer);
           li.cil.oc.neoforge.client.PacketSender.sendTextBufferInit(address);
         }
         break;
@@ -1340,7 +1339,7 @@ public final class ClientPacketHandler extends PacketHandler {
   private void onSound(PacketParser p) {
     try {
       int dimension = p.readInt();
-      world(p.player, dimension);
+      if (world(p.player, dimension) == null) return;
       int x = p.readInt();
       int y = p.readInt();
       int z = p.readInt();
@@ -1355,7 +1354,7 @@ public final class ClientPacketHandler extends PacketHandler {
   private void onSoundPattern(PacketParser p) {
     try {
       int dimension = p.readInt();
-      world(p.player, dimension);
+      if (world(p.player, dimension) == null) return;
       int x = p.readInt();
       int y = p.readInt();
       int z = p.readInt();

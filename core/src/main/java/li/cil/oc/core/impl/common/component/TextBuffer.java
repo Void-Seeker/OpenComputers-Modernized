@@ -55,8 +55,34 @@ public class TextBuffer extends TextBufferBase {
 
   public static void registerClientBuffer(TextBuffer t) {
     ClientPacketSenderDelegate.get().sendTextBufferInit(t.proxy.nodeAddress);
-    ClientComponentTracker.INSTANCE.add(t.host().level(), t.proxy.nodeAddress, t);
+    addClientBuffer(t);
+  }
+
+  /**
+   * The client's buffer for its address; one it replaces goes (a tablet made a new buffer each time it was opened, and
+   * every one stayed, with its whole tablet, until the world was left).
+   */
+  public static void addClientBuffer(TextBuffer t) {
+    var address = t.proxy.nodeAddress;
+    if (!address.isEmpty()) clientBuffers.removeIf(other -> other != t && address.equals(other.proxy.nodeAddress) && forgetClientBuffer(other));
+    ClientComponentTracker.INSTANCE.add(t.host().level(), address, t);
     if (!clientBuffers.contains(t)) clientBuffers.add(t);
+  }
+
+  /** A client buffer whose host is gone (a screen removed or unloaded): it was kept, with its host, until the world was left. */
+  public static void removeClientBuffer(TextBuffer t) {
+    if (clientBuffers.remove(t)) forgetClientBuffer(t);
+  }
+
+  /** The client buffers of a host that is gone (a robot's screen is one of its components). */
+  public static void removeClientBuffersOf(EnvironmentHost host) {
+    clientBuffers.removeIf(t -> t.host() == host && forgetClientBuffer(t));
+  }
+
+  private static boolean forgetClientBuffer(TextBuffer t) {
+    var level = t.host() != null ? t.host().level() : null;
+    if (level != null) ClientComponentTracker.INSTANCE.remove(level, t);
+    return true;
   }
 
   private PacketBuilderBase<?> pendingCommands = null;

@@ -192,80 +192,73 @@ public final class HighlightRenderer {
 
   @SuppressWarnings("unused")
   private static void drawCableOverlay(VertexConsumer consumer, com.mojang.blaze3d.vertex.PoseStack pose, int mask) {
-    var matrix = pose.last().pose();
-    float r = 0, g = 0, b = 0, a = 0.4f;
+    var last = pose.last();
 
     for (Direction side : Direction.values()) {
       if ((mask & (1 << side.get3DDataValue())) != 0) {
         double offset = side.getAxisDirection() == net.minecraft.core.Direction.AxisDirection.NEGATIVE ? -CABLE_EXPAND : 1 + CABLE_EXPAND;
         double centre = side.getAxisDirection() == net.minecraft.core.Direction.AxisDirection.NEGATIVE ? CABLE_MIN : CABLE_MAX;
 
-        drawLineAdjacent(consumer, matrix, side.getAxis(), offset, CABLE_MIN, CABLE_MIN, CABLE_MIN, CABLE_MAX);
-        drawLineAdjacent(consumer, matrix, side.getAxis(), offset, CABLE_MIN, CABLE_MAX, CABLE_MAX, CABLE_MAX);
-        drawLineAdjacent(consumer, matrix, side.getAxis(), offset, CABLE_MAX, CABLE_MAX, CABLE_MAX, CABLE_MIN);
-        drawLineAdjacent(consumer, matrix, side.getAxis(), offset, CABLE_MAX, CABLE_MIN, CABLE_MIN, CABLE_MIN);
+        drawLineAdjacent(consumer, last, side.getAxis(), offset, CABLE_MIN, CABLE_MIN, CABLE_MIN, CABLE_MAX);
+        drawLineAdjacent(consumer, last, side.getAxis(), offset, CABLE_MIN, CABLE_MAX, CABLE_MAX, CABLE_MAX);
+        drawLineAdjacent(consumer, last, side.getAxis(), offset, CABLE_MAX, CABLE_MAX, CABLE_MAX, CABLE_MIN);
+        drawLineAdjacent(consumer, last, side.getAxis(), offset, CABLE_MAX, CABLE_MIN, CABLE_MIN, CABLE_MIN);
 
-        drawLineAlong(consumer, matrix, side.getAxis(), CABLE_MIN, CABLE_MIN, offset, centre);
-        drawLineAlong(consumer, matrix, side.getAxis(), CABLE_MAX, CABLE_MIN, offset, centre);
-        drawLineAlong(consumer, matrix, side.getAxis(), CABLE_MAX, CABLE_MAX, offset, centre);
-        drawLineAlong(consumer, matrix, side.getAxis(), CABLE_MIN, CABLE_MAX, offset, centre);
+        drawLineAlong(consumer, last, side.getAxis(), CABLE_MIN, CABLE_MIN, offset, centre);
+        drawLineAlong(consumer, last, side.getAxis(), CABLE_MAX, CABLE_MIN, offset, centre);
+        drawLineAlong(consumer, last, side.getAxis(), CABLE_MAX, CABLE_MAX, offset, centre);
+        drawLineAlong(consumer, last, side.getAxis(), CABLE_MIN, CABLE_MAX, offset, centre);
       }
     }
 
-    drawCore(consumer, matrix, mask, Direction.WEST, Direction.DOWN, Direction.Axis.Z);
-    drawCore(consumer, matrix, mask, Direction.WEST, Direction.UP, Direction.Axis.Z);
-    drawCore(consumer, matrix, mask, Direction.EAST, Direction.DOWN, Direction.Axis.Z);
-    drawCore(consumer, matrix, mask, Direction.EAST, Direction.UP, Direction.Axis.Z);
-    drawCore(consumer, matrix, mask, Direction.WEST, Direction.NORTH, Direction.Axis.Y);
-    drawCore(consumer, matrix, mask, Direction.WEST, Direction.SOUTH, Direction.Axis.Y);
-    drawCore(consumer, matrix, mask, Direction.EAST, Direction.NORTH, Direction.Axis.Y);
-    drawCore(consumer, matrix, mask, Direction.EAST, Direction.SOUTH, Direction.Axis.Y);
-    drawCore(consumer, matrix, mask, Direction.DOWN, Direction.NORTH, Direction.Axis.X);
-    drawCore(consumer, matrix, mask, Direction.DOWN, Direction.SOUTH, Direction.Axis.X);
-    drawCore(consumer, matrix, mask, Direction.UP, Direction.NORTH, Direction.Axis.X);
-    drawCore(consumer, matrix, mask, Direction.UP, Direction.SOUTH, Direction.Axis.X);
+    drawCore(consumer, last, mask, Direction.WEST, Direction.DOWN, Direction.Axis.Z);
+    drawCore(consumer, last, mask, Direction.WEST, Direction.UP, Direction.Axis.Z);
+    drawCore(consumer, last, mask, Direction.EAST, Direction.DOWN, Direction.Axis.Z);
+    drawCore(consumer, last, mask, Direction.EAST, Direction.UP, Direction.Axis.Z);
+    drawCore(consumer, last, mask, Direction.WEST, Direction.NORTH, Direction.Axis.Y);
+    drawCore(consumer, last, mask, Direction.WEST, Direction.SOUTH, Direction.Axis.Y);
+    drawCore(consumer, last, mask, Direction.EAST, Direction.NORTH, Direction.Axis.Y);
+    drawCore(consumer, last, mask, Direction.EAST, Direction.SOUTH, Direction.Axis.Y);
+    drawCore(consumer, last, mask, Direction.DOWN, Direction.NORTH, Direction.Axis.X);
+    drawCore(consumer, last, mask, Direction.DOWN, Direction.SOUTH, Direction.Axis.X);
+    drawCore(consumer, last, mask, Direction.UP, Direction.NORTH, Direction.Axis.X);
+    drawCore(consumer, last, mask, Direction.UP, Direction.SOUTH, Direction.Axis.X);
   }
 
-  private static void drawCore(VertexConsumer consumer, org.joml.Matrix4f matrix, int mask, Direction a, Direction b, Direction.Axis other) {
+  private static void drawCore(VertexConsumer consumer, com.mojang.blaze3d.vertex.PoseStack.Pose pose, int mask, Direction a, Direction b, Direction.Axis other) {
     if (((mask >> a.get3DDataValue()) & 1) != ((mask >> b.get3DDataValue()) & 1)) return;
     double offA = a.getAxisDirection() == net.minecraft.core.Direction.AxisDirection.NEGATIVE ? CABLE_MIN : CABLE_MAX;
     double offB = b.getAxisDirection() == net.minecraft.core.Direction.AxisDirection.NEGATIVE ? CABLE_MIN : CABLE_MAX;
-    drawLineAlong(consumer, matrix, other, offA, offB, CABLE_MIN, CABLE_MAX);
+    drawLineAlong(consumer, pose, other, offA, offB, CABLE_MIN, CABLE_MAX);
   }
 
-  private static void drawLineAlong(VertexConsumer consumer, org.joml.Matrix4f matrix, Direction.Axis axis, double offA, double offB, double start, double end) {
-    float r = 0, g = 0, b = 0, a = 0.4f;
+  private static void drawLineAlong(VertexConsumer consumer, com.mojang.blaze3d.vertex.PoseStack.Pose pose, Direction.Axis axis, double offA, double offB, double start, double end) {
     switch (axis) {
-      case X -> {
-        consumer.vertex(matrix, (float) start, (float) offA, (float) offB).color(r, g, b, a).normal(0, 1, 0).endVertex();
-        consumer.vertex(matrix, (float) end, (float) offA, (float) offB).color(r, g, b, a).normal(0, 1, 0).endVertex();
-      }
-      case Y -> {
-        consumer.vertex(matrix, (float) offA, (float) start, (float) offB).color(r, g, b, a).normal(0, 1, 0).endVertex();
-        consumer.vertex(matrix, (float) offA, (float) end, (float) offB).color(r, g, b, a).normal(0, 1, 0).endVertex();
-      }
-      case Z -> {
-        consumer.vertex(matrix, (float) offA, (float) offB, (float) start).color(r, g, b, a).normal(0, 1, 0).endVertex();
-        consumer.vertex(matrix, (float) offA, (float) offB, (float) end).color(r, g, b, a).normal(0, 1, 0).endVertex();
-      }
+      case X -> line(consumer, pose, start, offA, offB, end, offA, offB);
+      case Y -> line(consumer, pose, offA, start, offB, offA, end, offB);
+      case Z -> line(consumer, pose, offA, offB, start, offA, offB, end);
     }
   }
 
-  private static void drawLineAdjacent(VertexConsumer consumer, org.joml.Matrix4f matrix, Direction.Axis axis, double offset, double startA, double startB, double endA, double endB) {
-    float r = 0, g = 0, b = 0, a = 0.4f;
+  private static void drawLineAdjacent(VertexConsumer consumer, com.mojang.blaze3d.vertex.PoseStack.Pose pose, Direction.Axis axis, double offset, double startA, double startB, double endA, double endB) {
     switch (axis) {
-      case X -> {
-        consumer.vertex(matrix, (float) offset, (float) startA, (float) startB).color(r, g, b, a).normal(0, 1, 0).endVertex();
-        consumer.vertex(matrix, (float) offset, (float) endA, (float) endB).color(r, g, b, a).normal(0, 1, 0).endVertex();
-      }
-      case Y -> {
-        consumer.vertex(matrix, (float) startA, (float) offset, (float) startB).color(r, g, b, a).normal(0, 1, 0).endVertex();
-        consumer.vertex(matrix, (float) endA, (float) offset, (float) endB).color(r, g, b, a).normal(0, 1, 0).endVertex();
-      }
-      case Z -> {
-        consumer.vertex(matrix, (float) startA, (float) startB, (float) offset).color(r, g, b, a).normal(0, 1, 0).endVertex();
-        consumer.vertex(matrix, (float) endA, (float) endB, (float) offset).color(r, g, b, a).normal(0, 1, 0).endVertex();
-      }
+      case X -> line(consumer, pose, offset, startA, startB, offset, endA, endB);
+      case Y -> line(consumer, pose, startA, offset, startB, endA, offset, endB);
+      case Z -> line(consumer, pose, startA, startB, offset, endA, endB, offset);
     }
+  }
+
+  // as LevelRenderer.renderShape: the lines shader widens each line across its direction, given as the normal (one
+  // fixed normal for all made every line along it a zero-width line: the selection box lost its horizontal edges)
+  private static void line(VertexConsumer consumer, com.mojang.blaze3d.vertex.PoseStack.Pose pose, double x0, double y0, double z0, double x1, double y1, double z1) {
+    float dx = (float) (x1 - x0);
+    float dy = (float) (y1 - y0);
+    float dz = (float) (z1 - z0);
+    float length = net.minecraft.util.Mth.sqrt(dx * dx + dy * dy + dz * dz);
+    dx /= length;
+    dy /= length;
+    dz /= length;
+    consumer.vertex(pose.pose(), (float) x0, (float) y0, (float) z0).color(0, 0, 0, 0.4f).normal(pose.normal(), dx, dy, dz).endVertex();
+    consumer.vertex(pose.pose(), (float) x1, (float) y1, (float) z1).color(0, 0, 0, 0.4f).normal(pose.normal(), dx, dy, dz).endVertex();
   }
 }

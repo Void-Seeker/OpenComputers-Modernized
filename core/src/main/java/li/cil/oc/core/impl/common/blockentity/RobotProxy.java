@@ -304,6 +304,8 @@ public class RobotProxy extends BlockEntity implements Computer, PowerInformatio
     if (node != null) node.remove();
     if (level != null && level.isClientSide) {
       ClientRobotTracker.INSTANCE.remove(level, robot);
+      // its screen's buffer (kept, with the robot, until the world was left)
+      li.cil.oc.core.impl.common.component.TextBuffer.removeClientBuffersOf(robot);
     }
     robot.setRemoved();
   }
