@@ -506,7 +506,8 @@ public final class Audit3HostTests {
       try {
         final UUID id = UUID.randomUUID();
         final var link = testLink(id, false);
-        linkCache("load", appeng.api.networking.crafting.ICraftingLink.class).invoke(null, link); // shared, persisted
+        linkCache("load", appeng.api.networking.crafting.ICraftingLink.class).invoke(null, link); // shared
+        linkCache("persisted", UUID.class).invoke(null, id); // persisted, not over
         final var over = testLink(UUID.randomUUID(), true);
         linkCache("persisted", UUID.class).invoke(null, over.getCraftingID());
         linkCache("over", appeng.api.networking.crafting.ICraftingLink.class).invoke(null, over); // a job over
@@ -518,6 +519,11 @@ public final class Audit3HostTests {
         saved.fail("test");
         linkCache("computed", statusClass, appeng.api.networking.crafting.ICraftingLink.class).invoke(null, saved, null); // what came of one
         helper.assertTrue(linkCache("current", UUID.class).invoke(null, id) == link, "the link was not shared");
+        for (final var field : running.keySet()) { // (each holds something of this test's, whatever the others left)
+          final Object value = field.get(null);
+          final int held = value instanceof Map<?, ?> map ? map.size() : ((java.util.Collection<?>) value).size();
+          helper.assertTrue(held > 0, "before the server stopped LinkCache." + field.getName() + " held nothing");
+        }
         linkCache("onServerStopped").invoke(null);
         for (final var field : running.keySet()) {
           final Object value = field.get(null);
