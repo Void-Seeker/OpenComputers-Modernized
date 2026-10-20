@@ -821,6 +821,7 @@ public class Rack extends HubBlockEntity implements PowerAcceptor, PowerBalancer
   @Override
   public void updateEntity() {
     super.updateEntity();
+    balancePower(getLevel()); // energy that comes in at one side reaches the networks at the others, as OC
     if (isServer()) {
       if (isConnected()) {
         var connectors = new Connector[Direction.values().length];

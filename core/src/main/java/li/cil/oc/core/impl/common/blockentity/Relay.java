@@ -364,13 +364,22 @@ public class Relay extends HubBlockEntity implements ComponentInventory, PowerAc
 
   @Override
   public void onItemAdded(int slot, ItemStack stack) {
+    // its environment made for this stack (only the first plug's connect made them, never again: the next item put in
+    // the slot was saved with the one taken out's state - a linked card's tunnel, a drive's address)
+    ComponentInventory.super.onItemAdded(slot, stack);
     updateLimits(slot, stack);
     // a wireless card put in sends at its range until told otherwise (the strength stayed 0: wired-to-wireless relaying
-    // silently did nothing until a program set it)
-    if (maxWirelessRange() > 0 && strength <= 0) {
+    // silently did nothing until a program set it); only the card itself (any part put in undid a strength set to 0)
+    if (isWirelessCard(stack) && maxWirelessRange() > 0 && strength <= 0) {
       strength = maxWirelessRange();
       setChanged();
     }
+  }
+
+  private static boolean isWirelessCard(ItemStack stack) {
+    var descriptor = li.cil.oc.api.Items.get(stack);
+    return descriptor != null && (descriptor == li.cil.oc.api.Items.get(Constants.ItemName.WirelessNetworkCardTier1)
+      || descriptor == li.cil.oc.api.Items.get(Constants.ItemName.WirelessNetworkCardTier2));
   }
 
   private void updateLimits(int ignoredSlot, ItemStack stack) {
@@ -407,6 +416,7 @@ public class Relay extends HubBlockEntity implements ComponentInventory, PowerAc
 
   @Override
   public void onItemRemoved(int slot, ItemStack stack) {
+    ComponentInventory.super.onItemRemoved(slot, stack); // its environment let go, saved into the stack taken out (as OC)
     var driver = li.cil.oc.api.API.driver.driverFor(stack, getClass());
     if (driver != null) {
       if (driver.slot(stack).equals(Slot.CPU)) relayDelay = relayBaseDelay;

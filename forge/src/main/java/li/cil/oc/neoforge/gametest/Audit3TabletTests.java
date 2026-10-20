@@ -246,6 +246,13 @@ public final class Audit3TabletTests {
    */
   @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void tabletsBackFromAChestAreOffWithTheirEnergy(final GameTestHelper helper) {
+    backFromAChest(helper, 3);
+  }
+
+  // A server stall past the tablet cache's ten seconds (other tests load chunks, the GC) drops the cached machine,
+  // stopped, and the next get makes a new one: then it runs again with a new tablet (it waited for the dropped one to
+  // start, and failed with "did not start: null")
+  private static void backFromAChest(final GameTestHelper helper, final int tries) {
     final Player player = FakePlayerFactory.get(helper.getLevel(), new GameProfile(UUID.randomUUID(), "oc-tablet"));
     final ItemStack stack = tablet(item(Constants.ItemName.CPUTier1), item(Constants.ItemName.RAMTier1), item(Constants.ItemName.RAMTier1), eeprom(COUNTER));
     final var host = li.cil.oc.core.impl.common.item.Tablet.get(stack, player);
@@ -255,7 +262,15 @@ public final class Audit3TabletTests {
       return carried[0];
     });
     host.startMachine();
-    within(helper, 30, () -> sleeping(host), () -> {
+    final java.util.function.BooleanSupplier cached = () -> li.cil.oc.core.impl.common.item.Tablet.get(stack, player) == host;
+    within(helper, 30, () -> sleeping(host) || !cached.getAsBoolean(), () -> {
+      if (!cached.getAsBoolean() && tries > 1) {
+        carried[0] = false;
+        TabletCache.get().invalidate(stack);
+        backFromAChest(helper, tries - 1);
+        return;
+      }
+      helper.assertTrue(cached.getAsBoolean(), "the tablet's machine was dropped from the cache in every try (server stalls)");
       helper.assertTrue(sleeping(host), "the tablet's program did not start: " + host.machine().lastError());
       TabletCache.get().saveAll(helper.getLevel()); // a world save while it runs
       ((li.cil.oc.api.network.Connector) host.serverComponent().node).changeBuffer(-1000);

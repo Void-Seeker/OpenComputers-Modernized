@@ -12,7 +12,6 @@ import li.cil.oc.core.impl.OCSettings;
 import li.cil.oc.core.impl.common.blockentity.traits.power.AE2PowerDelegate;
 import li.cil.oc.core.impl.common.blockentity.traits.power.Common;
 import li.cil.oc.core.impl.integration.util.Power;
-import li.cil.oc.core.impl.util.EventHandlerDelegate;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -89,17 +88,10 @@ public final class AE2GridDelegate implements AE2PowerDelegate {
     scheduleCreate(block);
   }
 
+  // At its first tick in a ticking chunk, as AE2's own block entities: making the node looks at the blocks at its sides,
+  // and at the edge of the loaded area (a chunk loaded, not ticking) that loaded the next chunk there and then.
   private void scheduleCreate(Common tile) {
-    var scheduler = EventHandlerDelegate.get();
-    if (scheduler == null) {
-      doCreate(tile);
-      return;
-    }
-    scheduler.scheduleServer(() -> {
-      var node = nodes.get(tile);
-      if (node == null) return;
-      doCreate(tile);
-    });
+    GridHelper.onFirstTick(asBE(tile), be -> doCreate(tile));
   }
 
   private void doCreate(Common tile) {
@@ -128,9 +120,7 @@ public final class AE2GridDelegate implements AE2PowerDelegate {
     if (node.isReady() && node.getNode() != null) {
       node.setExposedOnSides(EnumSet.noneOf(Direction.class));
       node.setExposedOnSides(computeExposedSides(block));
-    } else {
-      doCreate(block);
-    }
+    } // (not made yet: its first tick makes it)
   }
 
   @Override

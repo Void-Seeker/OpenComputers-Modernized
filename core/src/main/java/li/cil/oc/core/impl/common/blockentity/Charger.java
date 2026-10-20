@@ -264,7 +264,8 @@ public class Charger extends BlockEntity implements li.cil.oc.api.network.Enviro
 
   @Override
   public double globalDemand(Direction side) {
-    if (node instanceof li.cil.oc.api.network.Connector c) {
+    // none at its front, where it takes nothing in (AE2 drew energy for that side too, and it was lost)
+    if (node instanceof li.cil.oc.api.network.Connector c && hasConnector(side)) {
       return MathCompat.clamp(c.globalBufferSize() - c.globalBuffer(), 0, energyThroughput());
     }
     return 0;
@@ -401,12 +402,12 @@ public class Charger extends BlockEntity implements li.cil.oc.api.network.Enviro
     if (getLevel() == null) return;
     for (var side : Direction.values()) {
       try {
-        var signal = Math.max(getLevel().getSignal(worldPosition, side), getLevel().getBestNeighborSignal(worldPosition));
-        setInput(side, signal);
+        var signal = signalAt(side);
+        if (signal >= 0) setInput(side, signal);
       } catch (Exception ignored) {
       }
     }
-    var signal = java.util.Arrays.stream(input()).max().orElse(0);
+    var signal = Math.max(0, java.util.Arrays.stream(input()).max().orElse(0)); // (-1: not read yet)
     chargeSpeed = invertSignal ? (15 - signal) / 15.0 : signal / 15.0;
     if (isServer()) {
       PacketSender.sendChargerState(this, chargeSpeed, hasPower);
@@ -538,16 +539,20 @@ public class Charger extends BlockEntity implements li.cil.oc.api.network.Enviro
   @Override
   public void updateRedstoneInput(Direction side) {
     if (getLevel() == null) return;
-    int oldValue = _input[side.ordinal()];
-    int newValue = Math.max(getLevel().getSignal(worldPosition, side), getLevel().getBestNeighborSignal(worldPosition));
-    if (oldValue != newValue) {
-      _input[side.ordinal()] = newValue;
-    }
-    int signal = java.util.Arrays.stream(input()).max().orElse(0);
+    int newValue = signalAt(side);
+    if (newValue >= 0) _input[side.ordinal()] = newValue;
+    int signal = Math.max(0, java.util.Arrays.stream(input()).max().orElse(0)); // (-1: not read yet)
     chargeSpeed = invertSignal ? (15 - signal) / 15.0 : signal / 15.0;
     if (isServer()) {
       PacketSender.sendChargerState(this, chargeSpeed, hasPower);
     }
+  }
+
+  // The signal coming in at a side, or -1 while what is beyond it cannot be read (it keeps what it had). Each side read
+  // the best of all sides: a neighbour in a chunk not loaded was loaded there and then, beyond the loaded area.
+  private int signalAt(Direction side) {
+    if (!li.cil.oc.core.impl.integration.util.BundledRedstone.canRead(position(), side)) return -1;
+    return getLevel().getSignal(worldPosition.relative(side), side);
   }
 
   public void onNeighborChanged() {
@@ -561,7 +566,7 @@ public class Charger extends BlockEntity implements li.cil.oc.api.network.Enviro
     for (var side : Direction.values()) {
       var offsetPos = BlockPosition.apply(this).offset(side);
       var blockPos = new BlockPos(offsetPos.x(), offsetPos.y(), offsetPos.z());
-      if (level().hasChunk(blockPos.getX() >> 4, blockPos.getZ() >> 4)) {
+      if (li.cil.oc.core.impl.util.LoadedChunks.isReady(level(), blockPos)) { // (loaded, not only on its way)
         var te = level().getBlockEntity(blockPos);
         var rc = RobotChargeableFactory.get() != null ? (Chargeable) RobotChargeableFactory.get().tryCreate(te) : null;
         if (rc != null) robots.add(rc);

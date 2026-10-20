@@ -104,7 +104,9 @@ public abstract class BlockEntity extends net.minecraft.world.level.block.entity
   }
 
   public void initialize() {
-    if (this instanceof AppliedEnergistics2 ae2) {
+    // not for one removed before this ran (its chunk unloaded again at once): its AE2 node was made after its dispose,
+    // and never destroyed
+    if (this instanceof AppliedEnergistics2 ae2 && !isRemoved()) {
       ae2.ae2Validate();
     }
   }

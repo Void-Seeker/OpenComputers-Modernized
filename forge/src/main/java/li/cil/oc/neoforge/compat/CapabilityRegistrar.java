@@ -96,7 +96,9 @@ public final class CapabilityRegistrar {
       final List<BlockRegistration<?>> registrations = new java.util.ArrayList<>();
       if (byBlock != null) registrations.addAll(byBlock);
       if (byType != null) registrations.addAll(byType);
-      event.addCapability(PROVIDER_ID, new BlockEntityCapabilityProvider(blockEntity, registrations));
+      final BlockEntityCapabilityProvider provider = new BlockEntityCapabilityProvider(blockEntity, registrations);
+      event.addCapability(PROVIDER_ID, provider);
+      event.addListener(provider::invalidate); // (Forge calls it when the block entity is removed or its chunk unloads)
     }
   }
 
@@ -107,18 +109,63 @@ public final class CapabilityRegistrar {
     }
   }
 
-  private record BlockEntityCapabilityProvider(BlockEntity blockEntity, List<BlockRegistration<?>> registrations) implements ICapabilityProvider {
+  /**
+   * Hands out one optional per capability and side, invalidated when the block entity goes (a new one per lookup was
+   * never invalidated: pipes and Create funnels that keep theirs went on putting items and energy into a removed or
+   * unloaded block, and the items were lost). The providers are still asked on every lookup; one that no longer gives
+   * the capability (a side turned to the front) has its optional invalidated. A different answer for the same side is
+   * not: the answers are wrappers around the block entity and its side, equal in use.
+   */
+  private static final class BlockEntityCapabilityProvider implements ICapabilityProvider {
+    private final BlockEntity blockEntity;
+    private final List<BlockRegistration<?>> registrations;
+    private final Map<Capability<?>, LazyOptional<?>[]> handedOut = new java.util.HashMap<>(); // by side, null last
+
+    BlockEntityCapabilityProvider(final BlockEntity blockEntity, final List<BlockRegistration<?>> registrations) {
+      this.blockEntity = blockEntity;
+      this.registrations = registrations;
+    }
+
     @Override
     public <T> @NotNull LazyOptional<T> getCapability(final @NotNull Capability<T> capability, final @Nullable Direction side) {
       final Level level = blockEntity.getLevel();
       if (level == null) return LazyOptional.empty();
+      Object value = null;
       for (final BlockRegistration<?> registration : registrations) {
         if (registration.capability() == capability) {
-          final Object value = registration.provider().getCapability(level, blockEntity.getBlockPos(), blockEntity.getBlockState(), blockEntity, side);
-          if (value != null) return LazyOptional.of(() -> value).cast();
+          value = registration.provider().getCapability(level, blockEntity.getBlockPos(), blockEntity.getBlockState(), blockEntity, side);
+          if (value != null) break;
         }
       }
+      final int index = side == null ? Direction.values().length : side.ordinal();
+      final LazyOptional<?> invalid;
+      synchronized (this) {
+        final LazyOptional<?>[] bySide = handedOut.get(capability);
+        final LazyOptional<?> known = bySide != null ? bySide[index] : null;
+        if (value != null) {
+          if (known != null && known.isPresent()) return known.cast();
+          final Object given = value;
+          final LazyOptional<?> optional = LazyOptional.of(() -> given);
+          handedOut.computeIfAbsent(capability, c -> new LazyOptional<?>[Direction.values().length + 1])[index] = optional;
+          return optional.cast();
+        }
+        if (known == null) return LazyOptional.empty();
+        bySide[index] = null;
+        invalid = known;
+      }
+      invalid.invalidate(); // (outside the lock: its listeners may look again)
       return LazyOptional.empty();
+    }
+
+    void invalidate() {
+      final List<LazyOptional<?>> given = new java.util.ArrayList<>();
+      synchronized (this) {
+        for (final LazyOptional<?>[] bySide : handedOut.values()) {
+          for (final LazyOptional<?> optional : bySide) if (optional != null) given.add(optional);
+        }
+        handedOut.clear();
+      }
+      given.forEach(LazyOptional::invalidate);
     }
   }
 

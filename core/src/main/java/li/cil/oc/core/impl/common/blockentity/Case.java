@@ -519,7 +519,8 @@ public class Case extends BlockEntity implements PowerAcceptor, Computer, Colore
 
   @Override
   public double globalDemand(Direction side) {
-    if (node() instanceof Connector c) {
+    // none at its front, where it takes nothing in (AE2 drew energy for that side too, and it was lost)
+    if (node() instanceof Connector c && hasConnector(side)) {
       return MathCompat.clamp(c.globalBufferSize() - c.globalBuffer(), 0, energyThroughput());
     }
     return 0;

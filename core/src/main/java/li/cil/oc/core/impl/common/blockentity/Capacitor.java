@@ -123,7 +123,7 @@ public class Capacitor extends BlockEntity implements Environment, DeviceInfo {
         var ny = coord[1];
         var nz = coord[2];
         var capPos = new BlockPos(nx, ny, nz);
-        if (level().hasChunk(capPos.getX() >> 4, capPos.getZ() >> 4)) {
+        if (li.cil.oc.core.impl.util.LoadedChunks.isReady(level(), capPos)) {
           var te = level().getBlockEntity(capPos);
           if (te instanceof Capacitor cap) cap.recomputeCapacity(false);
         }
@@ -131,6 +131,8 @@ public class Capacitor extends BlockEntity implements Environment, DeviceInfo {
     }
   }
 
+  // neighbours in loaded chunks only (hasChunk asks the ticket level: a chunk still loading was loaded there and then,
+  // the server thread waiting for it)
   public void recomputeCapacity(boolean updateSecondGradeNeighbors) {
     var bonus = 0;
     for (var side : Direction.values()) {
@@ -138,7 +140,7 @@ public class Capacitor extends BlockEntity implements Environment, DeviceInfo {
       var ny = worldPosition.getY() + side.getStepY();
       var nz = worldPosition.getZ() + side.getStepZ();
       var capPos = new BlockPos(nx, ny, nz);
-      if (level().hasChunk(capPos.getX() >> 4, capPos.getZ() >> 4)) {
+      if (li.cil.oc.core.impl.util.LoadedChunks.isReady(level(), capPos)) {
         var te = level().getBlockEntity(capPos);
         if (te instanceof Capacitor) bonus++;
       }
@@ -149,7 +151,7 @@ public class Capacitor extends BlockEntity implements Environment, DeviceInfo {
       var ny = coord[1];
       var nz = coord[2];
       var capPos = new BlockPos(nx, ny, nz);
-      if (level().hasChunk(capPos.getX() >> 4, capPos.getZ() >> 4)) {
+      if (li.cil.oc.core.impl.util.LoadedChunks.isReady(level(), capPos)) {
         var te = level().getBlockEntity(new BlockPos(nx, ny, nz));
         if (te instanceof Capacitor cap) {
           if (updateSecondGradeNeighbors) cap.recomputeCapacity(false);

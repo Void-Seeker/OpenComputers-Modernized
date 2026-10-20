@@ -102,7 +102,8 @@ public class Disassembler extends BlockEntity implements li.cil.oc.api.network.E
 
   @Override
   public double globalDemand(Direction side) {
-    if (node instanceof li.cil.oc.api.network.Connector c) {
+    // none at its top, where it takes nothing in (AE2 drew energy for that side too, and it was lost)
+    if (node instanceof li.cil.oc.api.network.Connector c && hasConnector(side)) {
       return MathCompat.clamp(c.globalBufferSize() - c.globalBuffer(), 0, energyThroughput());
     }
     return 0;
