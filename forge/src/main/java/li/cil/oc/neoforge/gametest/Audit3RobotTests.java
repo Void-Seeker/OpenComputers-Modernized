@@ -3,6 +3,9 @@ package li.cil.oc.neoforge.gametest;
 import static li.cil.oc.neoforge.gametest.TestMachines.when;
 
 import com.mojang.authlib.GameProfile;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+import it.unimi.dsi.fastutil.longs.LongSet;
+import java.lang.reflect.Field;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -27,11 +30,13 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.ForcedChunksSavedData;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.AABB;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.common.util.FakePlayer;
 import net.minecraftforge.common.util.FakePlayerFactory;
+import net.minecraftforge.common.world.ForgeChunkManager;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.event.level.BlockEvent;
 import net.minecraftforge.event.server.ServerStoppedEvent;
@@ -305,8 +310,13 @@ public final class Audit3RobotTests {
    * framework and must stay so), ticking through a ticket of the test's, on stone. The cleanup lets go of all of it.
    */
   private static void inAFarChunk(final GameTestHelper helper, final int slot, final BiConsumer<BlockPos, Runnable> then) {
+    inAFarChunk(helper, slot, 8, then);
+  }
+
+  /** The same, the robot at the given z in its chunk (15: a move south takes it into the next chunk). */
+  private static void inAFarChunk(final GameTestHelper helper, final int slot, final int z, final BiConsumer<BlockPos, Runnable> then) {
     final ServerLevel level = helper.getLevel();
-    final BlockPos far = new BlockPos(-40000 - level.random.nextInt(64) * 64 + 8, 100, 40000 + slot * 64 + 8);
+    final BlockPos far = new BlockPos(-40000 - level.random.nextInt(64) * 64 + 8, 100, 40000 + slot * 64 + z);
     final ChunkPos chunk = new ChunkPos(far);
     level.getChunkSource().addRegionTicket(TICKING, chunk, 2, chunk);
     final Runnable cleanup = () -> {
@@ -318,9 +328,7 @@ public final class Audit3RobotTests {
         }
       }
       level.getEntitiesOfClass(ItemEntity.class, new AABB(far).inflate(8)).forEach(Entity::discard);
-      for (int dx = -1; dx <= 1; dx++) {
-        for (int dz = -1; dz <= 1; dz++) level.setChunkForced(chunk.x + dx, chunk.z + dz, false);
-      }
+      releaseNear(level, chunk);
       level.getChunkSource().removeRegionTicket(TICKING, chunk, 2, chunk);
     };
     when(helper, () -> level.getChunkSource().getChunkNow(chunk.x, chunk.z) != null && level.shouldTickBlocksAt(chunk.toLong()), 200, () -> {
@@ -342,16 +350,50 @@ public final class Audit3RobotTests {
     return abs.subtract(helper.absolutePos(BlockPos.ZERO));
   }
 
-  /** How many of the 3x3 chunks around the position are forced. */
+  /** OC's forced chunks (Forge tickets), by owner. */
+  private static Map<UUID, LongSet> tickets(final ServerLevel level) {
+    final Map<UUID, LongSet> tickets = new HashMap<>();
+    final var data = level.getDataStorage().get(ForcedChunksSavedData::load, "chunks");
+    if (data == null) return tickets;
+    try {
+      final Field mod = ForgeChunkManager.TicketOwner.class.getDeclaredField("modId");
+      final Field owner = ForgeChunkManager.TicketOwner.class.getDeclaredField("owner");
+      mod.setAccessible(true);
+      owner.setAccessible(true);
+      for (final var entry : data.getEntityForcedChunks().getChunks().entrySet()) {
+        if (OpenComputers.ID.equals(mod.get(entry.getKey()))) tickets.put((UUID) owner.get(entry.getKey()), new LongOpenHashSet(entry.getValue()));
+      }
+    } catch (ReflectiveOperationException e) {
+      throw new IllegalStateException(e);
+    }
+    return tickets;
+  }
+
+  /** How many of the 3x3 chunks around the position OC forces. */
   private static int forced(final ServerLevel level, final BlockPos pos) {
     final ChunkPos center = new ChunkPos(pos);
+    final var tickets = tickets(level).values();
     int n = 0;
     for (int dx = -1; dx <= 1; dx++) {
       for (int dz = -1; dz <= 1; dz++) {
-        if (level.getForcedChunks().contains(ChunkPos.asLong(center.x + dx, center.z + dz))) n++;
+        final long chunk = ChunkPos.asLong(center.x + dx, center.z + dz);
+        if (tickets.stream().anyMatch(chunks -> chunks.contains(chunk))) n++;
       }
     }
     return n;
+  }
+
+  /** Lets go of OC's tickets with chunks within two of the chunk. */
+  private static void releaseNear(final ServerLevel level, final ChunkPos center) {
+    tickets(level).forEach((owner, chunks) -> {
+      if (chunks.longStream().anyMatch(c -> Math.abs(ChunkPos.getX(c) - center.x) <= 2 && Math.abs(ChunkPos.getZ(c) - center.z) <= 2)) {
+        chunks.forEach((long c) -> ForgeChunkManager.forceChunk(level, OpenComputers.ID, owner, ChunkPos.getX(c), ChunkPos.getZ(c), false, false));
+      }
+    });
+  }
+
+  private static UUID owner(final UpgradeChunkloaderBase loader) {
+    return UUID.fromString(loader.node.address());
   }
 
   private static UpgradeChunkloaderBase loader(final Robot robot) {
@@ -439,26 +481,152 @@ public final class Audit3RobotTests {
       })));
   }
 
+  /**
+   * Chunks forced by anything else (/forceload) stay forced when a loader passing over them, or let go, unforces its
+   * own: the loader cleared vanilla's forced flag, one per chunk for everyone.
+   */
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
+  public static void chunkloaderLeavesOtherForcedChunksForced(final GameTestHelper helper) {
+    final ServerLevel level = helper.getLevel();
+    inAFarChunk(helper, 3, 15, (far, cleanup) -> {
+      final ChunkPos start = new ChunkPos(far);
+      final List<ChunkPos> others = List.of(new ChunkPos(start.x, start.z - 1), new ChunkPos(start.x + 1, start.z)); // left behind by the move, kept
+      final var server = level.getServer();
+      for (final ChunkPos chunk : others) {
+        server.getCommands().performPrefixedCommand(server.createCommandSourceStack().withLevel(level).withSuppressedOutput(), "forceload add " + chunk.getMinBlockX() + " " + chunk.getMinBlockZ());
+      }
+      final Runnable done = () -> {
+        for (final ChunkPos chunk : others) level.setChunkForced(chunk.x, chunk.z, false);
+        cleanup.run();
+      };
+      final java.util.function.Supplier<String> unforced = () -> others.stream().filter(c -> !level.getForcedChunks().contains(c.toLong())).toList().toString();
+      try {
+        helper.assertTrue("[]".equals(unforced.get()), "/forceload did not force " + unforced.get());
+        TestMachines.runRobot(helper, relative(helper, far), List.of(Constants.ItemName.ChunkloaderUpgrade), robot -> {
+          }, ROBOT + "r.move(3) " + IDLE, 20, (robot, ignored) -> TestMachines.whenWithin(helper, () -> forced(level, far.south()) == 9 && forced(level, far) == 6, 200, 10, () -> {
+            try {
+              helper.assertTrue(level.getBlockEntity(far.south()) instanceof li.cil.oc.core.impl.common.blockentity.RobotProxy && forced(level, far.south()) == 9,
+                "the robot moved into the next chunk, its loader forcing " + forced(level, far.south()) + " chunks around it");
+              helper.assertTrue("[]".equals(unforced.get()), "the loader moving on let go of the chunks " + unforced.get() + " forced by /forceload");
+              robot.machine().stop();
+            } catch (RuntimeException e) {
+              done.run();
+              throw e;
+            }
+            when(helper, () -> forced(level, far.south()) == 0, 100, () -> {
+              try {
+                helper.assertTrue(forced(level, far.south()) == 0, "the stopped robot's loader left " + forced(level, far.south()) + " chunks forced");
+                helper.assertTrue("[]".equals(unforced.get()), "the loader letting go let go of the chunks " + unforced.get() + " forced by /forceload");
+              } finally {
+                done.run();
+              }
+              helper.succeed();
+            });
+          }));
+      } catch (RuntimeException e) {
+        done.run();
+        throw e;
+      }
+    });
+  }
+
+  /**
+   * A level's saved tickets (as at its load) go back to their loader, as the robot comes back; those of a loader that
+   * is gone are let go once the chunk it was in has loaded (they stayed forced for good, owned by nothing).
+   */
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
+  public static void restoredChunkloaderTicketsGoBackOrAreLetGo(final GameTestHelper helper) {
+    final ServerLevel level = helper.getLevel();
+    inAFarChunk(helper, 4, (far, cleanup) -> TestMachines.runRobot(helper, relative(helper, far), List.of(Constants.ItemName.ChunkloaderUpgrade), robot -> {
+      }, IDLE, 20, (robot, ignored) -> when(helper, () -> forced(level, far) == 9, 100, () -> {
+        final UUID gone = UUID.randomUUID();
+        final ChunkPos elsewhere = new ChunkPos(new BlockPos(far.getX(), 0, 40000 + 5 * 64 + 8)); // (a row no test uses)
+        final Runnable done = () -> {
+          releaseNear(level, elsewhere);
+          cleanup.run();
+        };
+        boolean handedOver = false;
+        try {
+          final UUID owner = owner(loader(robot));
+          helper.assertTrue(forced(level, far) == 9 && tickets(level).getOrDefault(owner, new LongOpenHashSet()).size() == 9,
+            "the running robot's loader forced " + forced(level, far) + " chunks");
+          // saved and gone, as at a quit: its tickets stay saved with the level, and so do a gone loader's
+          final var proxy = (li.cil.oc.core.impl.common.blockentity.RobotProxy) level.getBlockEntity(far);
+          proxy.markUnloading();
+          final var saved = proxy.saveWithFullMetadata();
+          level.removeBlockEntity(far);
+          helper.assertTrue(forced(level, far) == 0, "the removed robot left " + forced(level, far) + " chunks forced");
+          final ChunkPos start = new ChunkPos(far);
+          for (int dx = -1; dx <= 1; dx++) {
+            for (int dz = -1; dz <= 1; dz++) {
+              ForgeChunkManager.forceChunk(level, OpenComputers.ID, owner, start.x + dx, start.z + dz, true, false);
+              ForgeChunkManager.forceChunk(level, OpenComputers.ID, gone, elsewhere.x + dx, elsewhere.z + dz, true, false);
+            }
+          }
+          // the level loads: its tickets are validated, then its chunks load, the robot's too
+          ForgeChunkManager.reinstatePersistentChunks(level, level.getDataStorage().get(ForcedChunksSavedData::load, "chunks"));
+          final var loaded = (li.cil.oc.core.impl.common.blockentity.RobotProxy) net.minecraft.world.level.block.entity.BlockEntity.loadStatic(far, level.getBlockState(far), saved);
+          level.getChunkAt(far).addAndRegisterBlockEntity(loaded);
+          loaded.updateEntity();
+          final Robot again = loaded.robot;
+          // (once the gone loader's are let go, the robot's would have been too, had it not taken them back)
+          final java.util.function.BooleanSupplier back = () -> again.machine().isRunning() && loader(again) != null && loader(again).active()
+            && forced(level, far) == 9 && tickets(level).getOrDefault(owner, new LongOpenHashSet()).size() == 9;
+          TestMachines.whenWithin(helper, () -> !tickets(level).containsKey(gone), 1000, 10, () -> helper.runAfterDelay(ChunkloaderUpgradeHandler.RECLAIM_TICKS + 20, () -> TestMachines.whenWithin(helper, back, 100, 5, () -> {
+            try {
+              helper.assertTrue(!tickets(level).containsKey(gone), "the gone loader's tickets were kept: " + tickets(level).get(gone));
+              final var cl = loader(again);
+              helper.assertTrue(back.getAsBoolean(), "reloaded: running " + again.machine().isRunning() + ", loader active " + (cl != null && cl.active()) + ", "
+                + forced(level, far) + " chunks forced, " + tickets(level).getOrDefault(owner, new LongOpenHashSet()).size() + " of its own");
+              again.machine().stop();
+            } catch (RuntimeException e) {
+              done.run();
+              throw e;
+            }
+            when(helper, () -> forced(level, far) == 0, 100, () -> {
+              try {
+                helper.assertTrue(forced(level, far) == 0, "the stopped robot left " + forced(level, far) + " chunks forced");
+              } finally {
+                done.run();
+              }
+              helper.succeed();
+            });
+          })));
+          handedOver = true;
+        } finally {
+          if (!handedOver) done.run();
+        }
+      })));
+  }
+
   /** The loaders' chunks of a stopped server's levels are let go (they kept those levels, a whole world, for good). */
   @GameTest(template = EMPTY)
   @SuppressWarnings("unchecked")
   public static void chunkloadersForgetAStoppedServer(final GameTestHelper helper) {
-    final Map<Object, Object> chunks;
+    final Map<Object, Object> chunks, restored;
     try {
       final var field = ChunkloaderUpgradeHandler.class.getDeclaredField("worldChunks");
       field.setAccessible(true);
       chunks = (Map<Object, Object>) field.get(null);
+      final var restoredField = ChunkloaderUpgradeHandler.class.getDeclaredField("restoredTickets");
+      restoredField.setAccessible(true);
+      restored = (Map<Object, Object>) restoredField.get(null);
     } catch (ReflectiveOperationException e) {
       throw new IllegalStateException(e);
     }
     final var running = new HashMap<>(chunks); // what the other tests' loaders hold, put back (all on the server thread)
+    final var waiting = new HashMap<>(restored);
     chunks.put(new Object(), new HashMap<>());
+    restored.put(new Object(), new HashMap<>());
     try {
       ChunkloaderUpgradeHandler.onServerStopped(new ServerStoppedEvent(helper.getLevel().getServer()));
-      helper.assertTrue(chunks.isEmpty(), "after the server stopped the loaders still hold " + chunks.size() + " levels");
+      helper.assertTrue(chunks.isEmpty() && restored.isEmpty(), "after the server stopped the loaders still hold " + chunks.size() + " levels, "
+        + restored.size() + " with restored tickets");
     } finally {
       chunks.clear();
       chunks.putAll(running);
+      restored.clear();
+      restored.putAll(waiting);
     }
     helper.succeed();
   }

@@ -153,6 +153,16 @@ final class TestMachines {
   }
 
   /**
+   * A stone roof over the area (at y 4): gravel of the terrain above the test grid (cleared 20 blocks up) falls in at
+   * times, onto what a test placed or into where it drops or places things.
+   */
+  static void roof(final GameTestHelper helper) {
+    for (int x = 0; x < 5; x++) {
+      for (int z = 0; z < 5; z++) helper.setBlock(new BlockPos(x, 4, z), net.minecraft.world.level.block.Blocks.STONE);
+    }
+  }
+
+  /**
    * Runs then once ready holds, checking each tick, or after max ticks: the test server ticks far faster than 20 a
    * second while the machines run in real time (a program had not reported yet within 40 ticks while many booted).
    */

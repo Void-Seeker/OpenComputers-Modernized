@@ -34,7 +34,6 @@ import li.cil.oc.core.impl.OCSettings;
 import li.cil.oc.core.util.ResultWrapper;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
-import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.io.output.ByteArrayOutputStream;
 
 public abstract class DataCard extends AbstractManagedEnvironment implements DeviceInfo {
@@ -102,12 +101,27 @@ public abstract class DataCard extends AbstractManagedEnvironment implements Dev
 
     @Callback(direct = true, limit = 32, doc = "function(data:string):string -- Applies base64 encoding to the data.")
     public Object[] encode64(Context context, Arguments args) {
-      return ResultWrapper.result((Object) Base64.encodeBase64(trivialCost(context, args)));
+      return ResultWrapper.result((Object) java.util.Base64.getEncoder().encode(trivialCost(context, args)));
     }
 
     @Callback(direct = true, limit = 32, doc = "function(data:string):string -- Applies base64 decoding to the data.")
     public Object[] decode64(Context context, Arguments args) {
-      return ResultWrapper.result((Object) Base64.decodeBase64(trivialCost(context, args)));
+      return ResultWrapper.result((Object) decodeBase64(trivialCost(context, args)));
+    }
+
+    // as commons-codec's decodeBase64 (OC's; dedicated servers have no commons-codec): either alphabet, anything else
+    // skipped, the end at the first '=', bits short of a byte dropped
+    static byte[] decodeBase64(byte[] data) {
+      byte[] clean = new byte[data.length];
+      int n = 0;
+      for (byte b : data) {
+        if (b == '=') break;
+        if (b == '-') b = '+';
+        else if (b == '_') b = '/';
+        if (b >= 'A' && b <= 'Z' || b >= 'a' && b <= 'z' || b >= '0' && b <= '9' || b == '+' || b == '/') clean[n++] = b;
+      }
+      if (n % 4 == 1) n--;
+      return java.util.Base64.getDecoder().decode(java.util.Arrays.copyOf(clean, n));
     }
 
     @Callback(direct = true, limit = 4, doc = "function(data:string):string -- Applies deflate compression to the data.")

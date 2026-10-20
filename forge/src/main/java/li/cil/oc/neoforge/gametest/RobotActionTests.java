@@ -78,9 +78,7 @@ public final class RobotActionTests {
    * at times, and landing in the mob's block it was what the robot used its tool on (and the mob suffocated).
    */
   private static <T extends Mob> T mob(final GameTestHelper helper, final EntityType<T> type, final BlockPos pos) {
-    for (int x = 0; x < 5; x++) {
-      for (int z = 0; z < 5; z++) helper.setBlock(new BlockPos(x, 4, z), Blocks.STONE);
-    }
+    TestMachines.roof(helper);
     final T mob = helper.spawnWithNoFreeWill(type, pos);
     mob.setPersistenceRequired();
     return mob;

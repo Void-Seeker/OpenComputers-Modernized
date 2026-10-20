@@ -360,6 +360,8 @@ public final class OpenComputers {
     proxy.init(e);
     proxy.postInit();
     Registrar.lock();
+    // the chunkloaders' tickets saved with a level, kept for their loaders to take back
+    e.enqueueWork(() -> net.minecraftforge.common.world.ForgeChunkManager.setForcedChunkLoadingCallback(ID, li.cil.oc.neoforge.common.event.ChunkloaderUpgradeHandler::validateTickets));
     log().info("Done with pre init phase.");
   }
 

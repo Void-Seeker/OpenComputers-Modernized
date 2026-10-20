@@ -168,10 +168,16 @@ public final class TransposerTests {
     });
   }
 
-  @GameTest(template = EMPTY, timeoutTicks = 300)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void transposerDropsItemsPlacesBlocksAndMovesWorldFluid(final GameTestHelper helper) {
     final BlockPos pos = new BlockPos(2, 2, 2);
     final BlockPos chest = pos.north(), stone = pos.above(), drop = pos.east(), place = pos.west(), water = pos.below(), pour = pos.south();
+    TestMachines.roof(helper); // (gravel falling in filled where it drops and places)
+    // the water goes into a pocket: poured into the open it flowed while it stood, and was still on the floor when the
+    // items dropped (after two seconds), its current carrying them off
+    for (final BlockPos wall : List.of(pour.below(), pour.east(), pour.west(), pour.south())) {
+      helper.setBlock(wall, net.minecraft.world.level.block.Blocks.STONE);
+    }
     helper.setBlock(chest, net.minecraft.world.level.block.Blocks.CHEST);
     final Container box = (Container) helper.getBlockEntity(chest);
     box.setItem(0, new ItemStack(Items.STONE, 2));
@@ -181,12 +187,10 @@ public final class TransposerTests {
     // sides: down 0, up 1, north 2, south 3, west 4, east 5
     final String program = "local tp = component.proxy(component.list(\"transposer\")())\n"
       + "local function expect(what, want, got, why) if got ~= want then error(what .. \": \" .. tostring(got) .. \" \" .. tostring(why), 0) end end\n"
-      // the water first: its current would carry the dropped items off
       + "local _, moved = tp.transferFluid(0, 3)\n"
       + "expect(\"pour water\", 1000, moved)\n"
       + "_, moved = tp.transferFluid(3, 0)\n"
       + "expect(\"suck water\", 1000, moved)\n"
-      + "computer.pullSignal(2)\n"
       + "expect(\"drop 2 bone meal\", 2, tp.dropItem(2, 5, 2, 2))\n"
       + "local n, why = tp.dropItem(2, 1)\n"
       + "expect(\"drop into stone\", \"blocked\", why, n)\n"
@@ -196,7 +200,7 @@ public final class TransposerTests {
       + "ok, why = tp.placeBlock(2, 3, 2)\n"
       + "expect(\"place bone meal\", \"not a block\", why, ok)\n"
       + "error('done:all', 0)\n"; // every step passed
-    TestMachines.runMicrocontroller(helper, pos, List.of(Constants.ItemName.CPUTier1, Constants.ItemName.RAMTier2, Constants.BlockName.Transposer), program, mc -> TestMachines.when(helper, () -> !mc.machine().isRunning(), 100, () -> {
+    TestMachines.runMicrocontroller(helper, pos, List.of(Constants.ItemName.CPUTier1, Constants.ItemName.RAMTier2, Constants.BlockName.Transposer), program, mc -> TestMachines.whenWithin(helper, () -> !mc.machine().isRunning(), 100, 10, () -> {
       helper.assertTrue(String.valueOf(mc.machine().lastError()).contains("done:all"), "the program did not get through: " + mc.machine().lastError());
       helper.assertTrue(state(helper, place).is(net.minecraft.world.level.block.Blocks.STONE), "no stone was placed: " + state(helper, place));
       helper.assertTrue(box.getItem(0).is(Items.STONE) && box.getItem(0).getCount() == 1, "stone slot holds " + box.getItem(0));

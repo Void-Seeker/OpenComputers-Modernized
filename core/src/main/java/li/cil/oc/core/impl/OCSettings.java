@@ -25,7 +25,6 @@ import li.cil.repack.com.typesafe.config.ConfigFactory;
 import li.cil.repack.com.typesafe.config.ConfigRenderOptions;
 import li.cil.repack.com.typesafe.config.ConfigValue;
 import li.cil.repack.com.typesafe.config.ConfigValueFactory;
-import org.apache.commons.codec.binary.Hex;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -1109,7 +1108,7 @@ public class OCSettings {
       private String generateNonce() {
         byte[] buf = new byte[16];
         rng.nextBytes(buf);
-        return new String(Hex.encodeHex(buf, true));
+        return java.util.HexFormat.of().formatHex(buf); // (commons-codec is on clients only)
       }
 
       public String nonce(String player) {

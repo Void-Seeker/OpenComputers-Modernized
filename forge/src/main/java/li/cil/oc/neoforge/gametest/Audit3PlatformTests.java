@@ -173,6 +173,38 @@ public final class Audit3PlatformTests {
     helper.succeed();
   }
 
+  /**
+   * The debug card whitelist gives a player 32 lower case hex digits as a nonce, as OC (made with commons-codec, which a
+   * dedicated server has not: adding a player threw NoClassDefFoundError there), and a new one when invalidated.
+   */
+  @GameTest(template = EMPTY)
+  public static void debugCardWhitelistMakesNoncesOnADedicatedServer(final GameTestHelper helper) {
+    final File configDir;
+    try {
+      configDir = Files.createTempDirectory("oc-test-nonces").toFile();
+    } catch (IOException e) {
+      throw new IllegalStateException(e);
+    }
+    try {
+      final File list = new File(configDir, "debug_card_whitelist.txt");
+      final var whitelist = new OCSettings.DebugCardAccess.Whitelist(list);
+      whitelist.add("OC-Tester");
+      final String nonce = whitelist.nonce("oc-tester");
+      helper.assertTrue(nonce != null && nonce.matches("[0-9a-f]{32}"), "the nonce is " + nonce);
+      helper.assertTrue(whitelist.checkAccess(new OCSettings.AccessContext("OC-Tester", nonce)) == null, "the nonce gives no access");
+      whitelist.invalidate("OC-Tester");
+      final String renewed = whitelist.nonce("oc-tester");
+      helper.assertTrue(renewed != null && renewed.matches("[0-9a-f]{32}") && !renewed.equals(nonce), "the invalidated nonce " + nonce + " became " + renewed);
+      final String saved = Files.readString(list.toPath(), StandardCharsets.UTF_8).trim();
+      helper.assertTrue(("oc-tester " + renewed).equals(saved), "the whitelist file holds '" + saved + "'");
+    } catch (IOException e) {
+      throw new IllegalStateException(e);
+    } finally {
+      org.apache.commons.io.FileUtils.deleteQuietly(configDir);
+    }
+    helper.succeed();
+  }
+
   /** The debug card's world time is the time of day, as OC (getWorldTime) and what setTime sets: it was the game's age. */
   @GameTest(template = EMPTY)
   public static void debugCardTimeIsTheTimeOfDay(final GameTestHelper helper) {

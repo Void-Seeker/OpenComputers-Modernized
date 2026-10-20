@@ -239,7 +239,7 @@ public final class DropTests {
    * The full brew setup in miniature: a microcontroller boots from a swapped-in EEPROM, and the program's redstone
    * card powers the block above it (where the dropper sits).
    */
-  @GameTest(template = EMPTY, timeoutTicks = 200)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void microcontrollerRunsEepromAndPowersRedstone(final GameTestHelper helper) {
     final var data = new MicrocontrollerData();
     for (final String part : List.of(Constants.ItemName.CPUTier1, Constants.ItemName.RAMTier2, Constants.ItemName.RedstoneCardTier1)) {
@@ -258,7 +258,8 @@ public final class DropTests {
       mc.changeEEPROM(li.cil.oc.api.Items.registerEEPROM("redstone test", code, null, false));
       ((li.cil.oc.api.network.Connector) mc.snooperNode).changeBuffer(1000);
       helper.assertTrue(mc.machine().start(), "machine did not start");
-      helper.runAfterDelay(60, () -> {
+      // (as long as it takes: a fixed 60 ticks were a fifth of a second at times, too short while many machines booted)
+      TestMachines.whenWithin(helper, () -> helper.getLevel().getBestNeighborSignal(abs.above()) == 15, 60, 10, () -> {
         final int signal = helper.getLevel().getBestNeighborSignal(abs.above());
         helper.assertTrue(signal == 15, "block above the microcontroller receives redstone " + signal + " instead of 15; machine running: "
           + mc.machine().isRunning() + ", last error: " + mc.machine().lastError() + "; " + networkOf(mc));

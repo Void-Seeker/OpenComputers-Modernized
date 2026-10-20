@@ -558,6 +558,38 @@ public final class Audit3TabletTests {
     helper.succeed();
   }
 
+  /**
+   * The data card's base64 is OC's (commons-codec's, which a dedicated server has not: the card threw
+   * NoClassDefFoundError there): padded, and decoding either alphabet, skipping anything else, up to a '=', dropping
+   * bits short of a byte.
+   */
+  @GameTest(template = EMPTY)
+  public static void dataCardBase64WorksOnADedicatedServer(final GameTestHelper helper) {
+    final var card = new li.cil.oc.core.impl.server.component.DataCard.Tier1();
+    final var battery = new Battery();
+    li.cil.oc.api.Network.joinNewNetwork(battery.node);
+    try {
+      battery.node.connect(card.node);
+      ((li.cil.oc.api.network.Connector) battery.node).changeBuffer(1e9);
+      final java.util.function.Function<Object[], String> text = result -> result[0] instanceof byte[] b ? new String(b, StandardCharsets.ISO_8859_1) : String.valueOf(result[0]);
+      final java.util.function.Function<String, ArgumentsImpl> bytes = data -> new ArgumentsImpl(new Object[]{data.getBytes(StandardCharsets.ISO_8859_1)});
+      final String encoded = text.apply(card.encode64(context(), bytes.apply("hello\u00fb")));
+      helper.assertTrue("aGVsbG/7".equals(encoded), "'hello\\xfb' encoded to " + encoded);
+      final String padded = text.apply(card.encode64(context(), bytes.apply("hi")));
+      helper.assertTrue("aGk=".equals(padded), "'hi' encoded to " + padded);
+      final String[][] decodes = {{"aGVsbG/7", "hello\u00fb"}, {"aGVsbG_7", "hello\u00fb"}, {"aGk=", "hi"}, {"aGk", "hi"}, {"aG\nk *", "hi"},
+        {"aGk=aGk=", "hi"}, {"QUJDR", "ABC"}, {"QUI", "AB"}, {"", ""}};
+      for (final String[] decode : decodes) {
+        final String decoded = text.apply(card.decode64(context(), bytes.apply(decode[0])));
+        helper.assertTrue(decode[1].equals(decoded), "'" + decode[0] + "' decoded to '" + decoded + "' instead of '" + decode[1] + "'");
+      }
+    } finally {
+      battery.node.remove();
+      card.node.remove();
+    }
+    helper.succeed();
+  }
+
   /** A linked card's channel, as an item (in an inventory read by a transposer), is its own (always "creative"). */
   @GameTest(template = EMPTY)
   public static void linkedCardItemsShowTheirChannel(final GameTestHelper helper) {
