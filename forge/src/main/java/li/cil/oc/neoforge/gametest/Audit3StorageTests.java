@@ -355,54 +355,6 @@ public final class Audit3StorageTests {
   }
 
   /**
-   * A status restored after a restart whose job no craftable came back with follows the job while AE2 still runs it (AE2
-   * cancels a job with no requester after its grace ticks, unless it ends first): it said cancelled at once, and a job
-   * done meanwhile was reported cancelled. How it ended is kept for the session (the CPU lets go of a job over).
-   */
-  @GameTest(template = EMPTY, timeoutTicks = 600)
-  public static void aRestoredStatusFollowsItsJobStillOnItsCpu(final GameTestHelper helper) {
-    craftingGrid(helper, grid -> runningJob(helper, grid, (craftable, status) -> {
-      final UUID id = craftable.getRequestedJobs().iterator().next().getCraftingID();
-      final var registries = helper.getLevel().registryAccess();
-      final CompoundTag statusTag = new CompoundTag();
-      statusTag.putBoolean("computing", false);
-      statusTag.putString("link", id.toString());
-      statusTag.putString("session", UUID.randomUUID().toString()); // (saved by the last server)
-      final var restored = loadedStatus(statusTag, registries);
-      TestMachines.later(helper, 30, () -> { // (past the wait for the grids)
-        helper.assertTrue(cpuBusy(grid), "the job stopped by itself");
-        helper.assertTrue(java.util.Arrays.equals(restored.isCanceled(null, NO_ARGS), new Object[]{false}), "a restored status of a job on its CPU says "
-          + java.util.Arrays.toString(restored.isCanceled(null, NO_ARGS)));
-        final CompoundTag hereTag = statusTag.copy();
-        hereTag.putString("session", session().toString());
-        final var here = loadedStatus(hereTag, registries); // (a copy loaded again this session: it looks on no CPU)
-        helper.assertTrue(java.util.Arrays.equals(here.isCanceled(null, NO_ARGS), new Object[]{false}), "a status loaded again of a job found on its CPU says "
-          + java.util.Arrays.toString(here.isCanceled(null, NO_ARGS)));
-        helper.assertTrue(java.util.Arrays.equals(restored.cancel(null, NO_ARGS), new Object[]{true}), "the restored status could not cancel its job");
-        when(helper, () -> !cpuBusy(grid), 100, () -> {
-          helper.assertTrue(!cpuBusy(grid), "the restored status did not cancel its job");
-          helper.assertTrue(java.util.Arrays.equals(restored.isCanceled(null, NO_ARGS), new Object[]{true}), "the restored status does not report the cancel");
-          statusTag.putString("session", session().toString());
-          final var again = loadedStatus(statusTag, registries); // (saved before the end, loaded again this session)
-          helper.assertTrue(java.util.Arrays.equals(again.isCanceled(null, NO_ARGS), new Object[]{true}), "a status loaded again after the job ended says "
-            + java.util.Arrays.toString(again.isCanceled(null, NO_ARGS)));
-          helper.succeed();
-        });
-      });
-    }));
-  }
-
-  private static UUID session() {
-    try {
-      final var method = Class.forName("li.cil.oc.neoforge.integration.appeng.NetworkControl$LinkCache").getDeclaredMethod("session");
-      method.setAccessible(true);
-      return (UUID) method.invoke(null);
-    } catch (ReflectiveOperationException e) {
-      throw new IllegalStateException(e);
-    }
-  }
-
-  /**
    * A craftable and its status restored (the computer's chunk loaded again) follow the job still running: the status
    * cancels it (AE2 was never told of the restored link: it reported nothing, cancelled nothing, and after a reload of the
    * grid the job was cancelled for want of a requester).
@@ -997,7 +949,6 @@ public final class Audit3StorageTests {
       final CompoundTag statusTag = new CompoundTag();
       statusTag.putBoolean("computing", false);
       statusTag.putString("link", id.toString());
-      statusTag.putString("session", session().toString()); // (this server's: only its craftable tells it the job's end)
       statuses.add(loadedStatus(statusTag, registries));
       craftables.add(loadedCraftable(craftableTag, registries));
     }

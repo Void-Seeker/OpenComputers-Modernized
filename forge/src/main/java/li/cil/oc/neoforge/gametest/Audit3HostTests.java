@@ -452,11 +452,10 @@ public final class Audit3HostTests {
 
   /**
    * A status restored after a restart whose job no craftable came back with (the craftable was not kept, or the job was
-   * the old machine's), nor is on a CPU once the grids are up, says cancelled, as AE2 cancels a job with no requester: it
-   * said "no link" for good, and a program waiting for done or cancelled hung. Within a session it still waits, a job
-   * done stays done, and a craftable back with the job is followed.
+   * the old machine's) says cancelled, as AE2 cancels a job with no requester: it said "no link" for good, and a program
+   * waiting for done or cancelled hung. Within a session it still waits, and a craftable back with the job is followed.
    */
-  @GameTest(template = EMPTY, timeoutTicks = 100)
+  @GameTest(template = EMPTY)
   public static void aStatusWhoseJobDidNotComeBackFromARestartSaysCancelled(final GameTestHelper helper) {
     try {
       final var provider = helper.getLevel().registryAccess();
@@ -475,9 +474,16 @@ public final class Audit3HostTests {
       };
 
       final var lost = restored.apply(UUID.randomUUID(), UUID.randomUUID().toString()); // (saved by the last server)
+      helper.assertTrue(java.util.Arrays.equals(lost.isCanceled(null, args), new Object[]{true}), "a job lost in a restart is not cancelled: " + java.util.Arrays.toString(lost.isCanceled(null, args)));
+      helper.assertTrue(java.util.Arrays.equals(lost.isDone(null, args), new Object[]{false}), "a job lost in a restart is done: " + java.util.Arrays.toString(lost.isDone(null, args)));
+      final CompoundTag again = new CompoundTag();
+      lost.save(again, provider);
+      final var lostAgain = new li.cil.oc.neoforge.integration.appeng.NetworkControl.CraftingStatus();
+      lostAgain.load(again, provider); // (saved under this server: it is not restored)
+      helper.assertTrue(java.util.Arrays.equals(lostAgain.isCanceled(null, args), new Object[]{true}), "a job lost in a restart is not cancelled when loaded again: " + java.util.Arrays.toString(lostAgain.isCanceled(null, args)));
+
       final var older = restored.apply(UUID.randomUUID(), null); // (an older OC saved no session)
-      helper.assertTrue(java.util.Arrays.equals(lost.isCanceled(null, args), new Object[]{false, "no link"}), "a job lost in a restart is over before the grids are up: " + java.util.Arrays.toString(lost.isCanceled(null, args)));
-      helper.assertTrue(java.util.Arrays.equals(older.isCanceled(null, args), new Object[]{false, "no link"}), "a job lost in an update is over before the grids are up: " + java.util.Arrays.toString(older.isCanceled(null, args)));
+      helper.assertTrue(java.util.Arrays.equals(older.isCanceled(null, args), new Object[]{true}), "a job lost in an update is not cancelled: " + java.util.Arrays.toString(older.isCanceled(null, args)));
 
       final var waiting = restored.apply(UUID.randomUUID(), session.toString()); // (its craftable lives on, not kept)
       helper.assertTrue(java.util.Arrays.equals(waiting.isCanceled(null, args), new Object[]{false, "no link"}), "a job in this session is cancelled: " + java.util.Arrays.toString(waiting.isCanceled(null, args)));
@@ -485,6 +491,7 @@ public final class Audit3HostTests {
       waiting.save(waited, provider);
       final var waitingAgain = new li.cil.oc.neoforge.integration.appeng.NetworkControl.CraftingStatus();
       waitingAgain.load(waited, provider); // (saved under this server)
+      helper.assertTrue(java.util.Arrays.equals(waitingAgain.isCanceled(null, args), new Object[]{false, "no link"}), "a job in this session is cancelled when loaded again: " + java.util.Arrays.toString(waitingAgain.isCanceled(null, args)));
 
       final CompoundTag doneNbt = new CompoundTag(); // (saved done by the last server)
       doneNbt.putBoolean("computing", false);
@@ -494,6 +501,8 @@ public final class Audit3HostTests {
       doneNbt.putString("session", UUID.randomUUID().toString());
       final var done = new li.cil.oc.neoforge.integration.appeng.NetworkControl.CraftingStatus();
       done.load(doneNbt, provider);
+      helper.assertTrue(java.util.Arrays.equals(done.isDone(null, args), new Object[]{true}), "a job done before a restart is not done: " + java.util.Arrays.toString(done.isDone(null, args)));
+      helper.assertTrue(java.util.Arrays.equals(done.isCanceled(null, args), new Object[]{false}), "a job done before a restart is cancelled: " + java.util.Arrays.toString(done.isCanceled(null, args)));
 
       final UUID kept = UUID.randomUUID();
       final var link = testLink(kept, false);
@@ -501,65 +510,6 @@ public final class Audit3HostTests {
       final var following = restored.apply(kept, UUID.randomUUID().toString());
       helper.assertTrue(java.util.Arrays.equals(following.isCanceled(null, args), new Object[]{false}), "a job back from a restart is not followed: " + java.util.Arrays.toString(following.isCanceled(null, args)));
       helper.assertTrue(linkCache("current", UUID.class).invoke(null, kept) == link, "the link was not shared");
-
-      TestMachines.later(helper, 25, () -> { // (the grids up)
-        helper.assertTrue(java.util.Arrays.equals(lost.isCanceled(null, args), new Object[]{true}), "a job lost in a restart is not cancelled: " + java.util.Arrays.toString(lost.isCanceled(null, args)));
-        helper.assertTrue(java.util.Arrays.equals(lost.isDone(null, args), new Object[]{false}), "a job lost in a restart is done: " + java.util.Arrays.toString(lost.isDone(null, args)));
-        final CompoundTag again = new CompoundTag();
-        lost.save(again, provider);
-        final var lostAgain = new li.cil.oc.neoforge.integration.appeng.NetworkControl.CraftingStatus();
-        lostAgain.load(again, provider); // (saved under this server: it is not restored)
-        helper.assertTrue(java.util.Arrays.equals(lostAgain.isCanceled(null, args), new Object[]{true}), "a job lost in a restart is not cancelled when loaded again: " + java.util.Arrays.toString(lostAgain.isCanceled(null, args)));
-        helper.assertTrue(java.util.Arrays.equals(older.isCanceled(null, args), new Object[]{true}), "a job lost in an update is not cancelled: " + java.util.Arrays.toString(older.isCanceled(null, args)));
-        helper.assertTrue(java.util.Arrays.equals(waiting.isCanceled(null, args), new Object[]{false, "no link"}), "a job in this session is cancelled: " + java.util.Arrays.toString(waiting.isCanceled(null, args)));
-        helper.assertTrue(java.util.Arrays.equals(waitingAgain.isCanceled(null, args), new Object[]{false, "no link"}), "a job in this session is cancelled when loaded again: " + java.util.Arrays.toString(waitingAgain.isCanceled(null, args)));
-        helper.assertTrue(java.util.Arrays.equals(done.isDone(null, args), new Object[]{true}), "a job done before a restart is not done: " + java.util.Arrays.toString(done.isDone(null, args)));
-        helper.assertTrue(java.util.Arrays.equals(done.isCanceled(null, args), new Object[]{false}), "a job done before a restart is cancelled: " + java.util.Arrays.toString(done.isCanceled(null, args)));
-        helper.succeed();
-      });
-    } catch (ReflectiveOperationException e) {
-      throw new IllegalStateException(e);
-    }
-  }
-
-  /**
-   * A job a restored status found on a CPU with no requester is kept to its end, then as it ended, for the statuses of it
-   * loaded again this session (no craftable tells of its end, and the CPU lets go of a job over).
-   */
-  @GameTest(template = EMPTY)
-  public static void jobsWithNoRequesterAreKeptAsTheyEnded(final GameTestHelper helper) {
-    try {
-      final var provider = helper.getLevel().registryAccess();
-      final var args = new ArgumentsImpl(new Object[0]);
-      final UUID id = UUID.randomUUID();
-      final boolean[] canceled = {false};
-      final var link = (appeng.api.networking.crafting.ICraftingLink) java.lang.reflect.Proxy.newProxyInstance(
-        appeng.api.networking.crafting.ICraftingLink.class.getClassLoader(), new Class<?>[]{appeng.api.networking.crafting.ICraftingLink.class},
-        (proxy, method, arguments) -> switch (method.getName()) {
-          case "getCraftingID" -> id;
-          case "isCanceled" -> canceled[0];
-          case "hashCode" -> System.identityHashCode(proxy);
-          case "equals" -> proxy == arguments[0];
-          case "toString" -> "test link";
-          default -> method.getReturnType() == boolean.class ? false : null;
-        });
-      linkCache("orphan", appeng.api.networking.crafting.ICraftingLink.class).invoke(null, link); // (as found on its CPU)
-      final UUID session = (UUID) linkCache("session").invoke(null);
-      final java.util.function.Supplier<li.cil.oc.neoforge.integration.appeng.NetworkControl.CraftingStatus> loaded = () -> {
-        final CompoundTag nbt = new CompoundTag();
-        nbt.putBoolean("computing", false);
-        nbt.putString("link", id.toString());
-        nbt.putString("session", session.toString());
-        final var status = new li.cil.oc.neoforge.integration.appeng.NetworkControl.CraftingStatus();
-        status.load(nbt, provider);
-        return status;
-      };
-      final var running = loaded.get();
-      helper.assertTrue(java.util.Arrays.equals(running.isCanceled(null, args), new Object[]{false}), "a status of a job with no requester says " + java.util.Arrays.toString(running.isCanceled(null, args)));
-      canceled[0] = true; // (AE2's grace ticks over)
-      helper.assertTrue(java.util.Arrays.equals(running.isCanceled(null, args), new Object[]{true}), "a status of a job with no requester does not see it cancelled: " + java.util.Arrays.toString(running.isCanceled(null, args)));
-      final var after = loaded.get();
-      helper.assertTrue(java.util.Arrays.equals(after.isCanceled(null, args), new Object[]{true}), "a status loaded after a job with no requester ended says " + java.util.Arrays.toString(after.isCanceled(null, args)));
     } catch (ReflectiveOperationException e) {
       throw new IllegalStateException(e);
     }
@@ -630,7 +580,6 @@ public final class Audit3HostTests {
         final var over = testLink(UUID.randomUUID(), true);
         linkCache("persisted", UUID.class).invoke(null, over.getCraftingID());
         linkCache("over", appeng.api.networking.crafting.ICraftingLink.class).invoke(null, over); // a job over
-        linkCache("orphan", appeng.api.networking.crafting.ICraftingLink.class).invoke(null, testLink(UUID.randomUUID(), false)); // a job with no requester
         final var statusClass = li.cil.oc.neoforge.integration.appeng.NetworkControl.CraftingStatus.class;
         linkCache("computing", statusClass).invoke(null, new li.cil.oc.neoforge.integration.appeng.NetworkControl.CraftingStatus()); // computing
         final var saved = new li.cil.oc.neoforge.integration.appeng.NetworkControl.CraftingStatus();
