@@ -553,7 +553,10 @@ public final class ScreenTests {
     });
   }
 
-  /** A far chunk kept loaded at the border (no ticking), with a spot in its middle; the ticket is removed by the cleanup. */
+  /**
+   * A far chunk kept loaded at the border (no ticking), with a spot in its middle; the ticket is removed by the cleanup,
+   * at the test's end anyway.
+   */
   private static void inAChunkThatDoesNotTick(final GameTestHelper helper, final int slot, final java.util.function.BiConsumer<BlockPos, Runnable> then) {
     final var level = helper.getLevel();
     // a row of chunks of each test's own (tests run at the same time), its neighbours in its chunk
@@ -562,7 +565,7 @@ public final class ScreenTests {
     final var type = net.minecraft.server.level.TicketType.<net.minecraft.world.level.ChunkPos>create("oc_test_border",
       java.util.Comparator.comparingLong(net.minecraft.world.level.ChunkPos::toLong));
     level.getChunkSource().addRegionTicket(type, chunk, 0, chunk); // loaded, at the border: no ticking
-    final Runnable cleanup = () -> {
+    final Runnable clear = () -> {
       for (int dx = -2; dx <= 7; dx++) { // (all in its chunk)
         for (int dy = -1; dy <= 2; dy++) {
           for (int dz = -1; dz <= 3; dz++) {
@@ -574,10 +577,12 @@ public final class ScreenTests {
       }
       level.getChunkSource().removeRegionTicket(type, chunk, 0, chunk);
     };
-    TestMachines.when(helper, () -> level.getChunkSource().getChunkNow(chunk.x, chunk.z) != null, 100, () -> {
+    final Runnable cleanup = TestMachines.atEnd(helper, clear);
+    // (generating it takes real time: 100 ticks were a quarter of a second at times)
+    TestMachines.whenWithin(helper, () -> level.getChunkSource().getChunkNow(chunk.x, chunk.z) != null, 100, 60, () -> {
       boolean handedOver = false;
       try {
-        cleanup.run(); // what a killed run may have left (the test world is kept)
+        clear.run(); // what a killed run may have left (the test world is kept)
         level.getChunkSource().addRegionTicket(type, chunk, 0, chunk);
         helper.assertTrue(level.getChunkSource().getChunkNow(chunk.x, chunk.z) != null, "the far chunk did not load");
         helper.assertTrue(!level.shouldTickBlocksAt(chunk.toLong()), "the far chunk ticks");
@@ -593,7 +598,7 @@ public final class ScreenTests {
    * A screen in a chunk that is loaded but does not tick (beyond the simulation distance, around forced chunks) follows
    * redstone (it waited for a tick to form its display and read its inputs, which never came: redstone was ignored).
    */
-  @GameTest(template = EMPTY, timeoutTicks = 200)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void screenInAChunkThatDoesNotTickFollowsRedstone(final GameTestHelper helper) {
     final var level = helper.getLevel();
     inAChunkThatDoesNotTick(helper, 0, (far, cleanup) -> {
@@ -617,7 +622,7 @@ public final class ScreenTests {
    * A display in a chunk that does not tick, back with power that came while it was away, toggles once without any
    * update next to it (nothing read its inputs until something changed next to the powered screen).
    */
-  @GameTest(template = EMPTY, timeoutTicks = 200)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void displayInAChunkThatDoesNotTickReloadsWithNewPower(final GameTestHelper helper) {
     final var level = helper.getLevel();
     inAChunkThatDoesNotTick(helper, 1, (far, cleanup) -> {
@@ -662,7 +667,7 @@ public final class ScreenTests {
    * Reading what powers a screen loads no chunk beyond the loaded area (a solid block's signal is read from its own
    * neighbours: one in the next chunk, not loaded, was loaded there and then, the server thread waiting).
    */
-  @GameTest(template = EMPTY, timeoutTicks = 200)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void screenReadingLoadsNoChunkBeyond(final GameTestHelper helper) {
     final var level = helper.getLevel();
     inAChunkThatDoesNotTick(helper, 2, (far, cleanup) -> {
@@ -689,7 +694,7 @@ public final class ScreenTests {
    * Reading through stone to powered dust at a chunk's edge loads no chunk beyond (dust's signal is read from what is
    * around it, in the next chunk), and a redstone block on a screen at the edge is read (it needs nothing beyond).
    */
-  @GameTest(template = EMPTY, timeoutTicks = 200)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void screenReadsAtTheChunkEdgeWithoutLoadingMore(final GameTestHelper helper) {
     final var level = helper.getLevel();
     inAChunkThatDoesNotTick(helper, 3, (far, cleanup) -> {
@@ -709,7 +714,8 @@ public final class ScreenTests {
         cleanup.run();
         throw e;
       }
-      TestMachines.when(helper, () -> level.getChunkSource().getChunkNow(next.x, next.z) == null, 60, () -> {
+      // (unloading it, saved first, takes real time)
+      TestMachines.whenWithin(helper, () -> level.getChunkSource().getChunkNow(next.x, next.z) == null, 60, 60, () -> {
         try {
           helper.assertTrue(level.getBlockState(dust).getValue(net.minecraft.world.level.block.RedStoneWireBlock.POWER) > 0, "the dust is not powered");
           helper.assertTrue(level.getChunkSource().getChunkNow(next.x, next.z) == null, "the next chunk stays loaded");

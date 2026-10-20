@@ -307,7 +307,8 @@ public final class Audit3RobotTests {
 
   /**
    * A robot in a far chunk row of its own (a loader forces the chunks around it; the test structures' are forced by the
-   * framework and must stay so), ticking through a ticket of the test's, on stone. The cleanup lets go of all of it.
+   * framework and must stay so), ticking through a ticket of the test's, on stone. The cleanup lets go of all of it; it
+   * runs at the test's end anyway (a robot that did not report left it all).
    */
   private static void inAFarChunk(final GameTestHelper helper, final int slot, final BiConsumer<BlockPos, Runnable> then) {
     inAFarChunk(helper, slot, 8, then);
@@ -319,7 +320,7 @@ public final class Audit3RobotTests {
     final BlockPos far = new BlockPos(-40000 - level.random.nextInt(64) * 64 + 8, 100, 40000 + slot * 64 + z);
     final ChunkPos chunk = new ChunkPos(far);
     level.getChunkSource().addRegionTicket(TICKING, chunk, 2, chunk);
-    final Runnable cleanup = () -> {
+    final Runnable cleanup = TestMachines.atEnd(helper, () -> {
       for (int dz = -1; dz <= 2; dz++) {
         for (int dy = -1; dy <= 0; dy++) {
           final BlockPos pos = far.offset(0, dy, dz);
@@ -330,8 +331,9 @@ public final class Audit3RobotTests {
       level.getEntitiesOfClass(ItemEntity.class, new AABB(far).inflate(8)).forEach(Entity::discard);
       releaseNear(level, chunk);
       level.getChunkSource().removeRegionTicket(TICKING, chunk, 2, chunk);
-    };
-    when(helper, () -> level.getChunkSource().getChunkNow(chunk.x, chunk.z) != null && level.shouldTickBlocksAt(chunk.toLong()), 200, () -> {
+    });
+    // (generating it takes real time: 200 ticks were half a second at times)
+    TestMachines.whenWithin(helper, () -> level.getChunkSource().getChunkNow(chunk.x, chunk.z) != null && level.shouldTickBlocksAt(chunk.toLong()), 200, 60, () -> {
       boolean handedOver = false;
       try {
         helper.assertTrue(level.shouldTickBlocksAt(chunk.toLong()), "the far chunk does not tick");
@@ -495,10 +497,10 @@ public final class Audit3RobotTests {
       for (final ChunkPos chunk : others) {
         server.getCommands().performPrefixedCommand(server.createCommandSourceStack().withLevel(level).withSuppressedOutput(), "forceload add " + chunk.getMinBlockX() + " " + chunk.getMinBlockZ());
       }
-      final Runnable done = () -> {
+      final Runnable done = TestMachines.atEnd(helper, () -> {
         for (final ChunkPos chunk : others) level.setChunkForced(chunk.x, chunk.z, false);
         cleanup.run();
-      };
+      });
       final java.util.function.Supplier<String> unforced = () -> others.stream().filter(c -> !level.getForcedChunks().contains(c.toLong())).toList().toString();
       try {
         helper.assertTrue("[]".equals(unforced.get()), "/forceload did not force " + unforced.get());
@@ -618,12 +620,17 @@ public final class Audit3RobotTests {
     final BlockPos there = new BlockPos(-40000 - level.random.nextInt(64) * 64 + 8, 100, -40000 - level.random.nextInt(64) * 64 + 8);
     final ChunkPos thereChunk = new ChunkPos(there);
     nether.getChunkSource().addRegionTicket(TICKING, thereChunk, 2, thereChunk); // (where the drone ticks)
-    final Runnable cleanup = () -> {
+    final Entity[] drones = new Entity[2]; // the drone, its copy in the Nether
+    // also when the drone did not start or report: its loader went on forcing chunks, the ticket stayed
+    final Runnable cleanup = TestMachines.atEnd(helper, () -> {
+      for (final Entity drone : drones) {
+        if (drone != null) drone.discard();
+      }
       releaseNear(nether, thereChunk);
       nether.getChunkSource().removeRegionTicket(TICKING, thereChunk, 2, thereChunk);
-    };
-    TestMachines.runDrone(helper, AT, List.of(Constants.ItemName.ChunkloaderUpgrade), drone -> {
-    }, IDLE, 20, (drone, ignored) -> TestMachines.whenWithin(helper, () -> forced(level, drone.blockPosition()) == 9
+    });
+    TestMachines.runDrone(helper, AT, List.of(Constants.ItemName.ChunkloaderUpgrade), drone -> drones[0] = drone,
+      IDLE, 20, (drone, ignored) -> TestMachines.whenWithin(helper, () -> forced(level, drone.blockPosition()) == 9
       && nether.getChunkSource().getChunkNow(thereChunk.x, thereChunk.z) != null && nether.isPositionEntityTicking(there), 1000, 30, () -> {
       Entity moved = null;
       boolean handedOver = false;
@@ -643,6 +650,7 @@ public final class Audit3RobotTests {
             return new net.minecraft.world.level.portal.PortalInfo(net.minecraft.world.phys.Vec3.atCenterOf(there), net.minecraft.world.phys.Vec3.ZERO, 0, 0);
           }
         });
+        drones[1] = moved;
         helper.assertTrue(moved instanceof li.cil.oc.core.impl.common.entity.Drone, "the drone did not reach the Nether: " + moved);
         final LongSet early = tickets(nether).get(owner);
         helper.assertTrue(early == null || early.longStream().noneMatch(c -> Math.abs(ChunkPos.getX(c) - was.x) <= 1 && Math.abs(ChunkPos.getZ(c) - was.z) <= 1),
@@ -657,18 +665,13 @@ public final class Audit3RobotTests {
               + ", ticks " + d.tickCount + ", removed " + d.isRemoved() + ", at " + d.blockPosition() + " ticking " + nether.isPositionEntityTicking(d.blockPosition())
               + ", its tickets " + tickets(nether).get(owner) + ", error " + d.machine().lastError() + ")");
           } finally {
-            copy.discard();
             cleanup.run();
           }
           helper.succeed();
         });
         handedOver = true;
       } finally {
-        if (!handedOver) {
-          if (moved != null) moved.discard();
-          else drone.discard();
-          cleanup.run();
-        }
+        if (!handedOver) cleanup.run();
       }
     }));
   }
@@ -679,6 +682,7 @@ public final class Audit3RobotTests {
    */
   @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void robotMovingOnTakesBackItsCapabilities(final GameTestHelper helper) {
+    TestMachines.roof(helper); // (gravel falling in took the place it moves up into)
     TestMachines.runRobot(helper, AT, List.of(Constants.ItemName.InventoryUpgrade), IDLE, 20, (robot, ignored) -> {
       final BlockPos abs = helper.absolutePos(AT);
       final var proxy = helper.getLevel().getBlockEntity(abs);

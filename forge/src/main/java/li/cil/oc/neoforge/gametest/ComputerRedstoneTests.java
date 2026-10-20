@@ -44,7 +44,7 @@ public final class ComputerRedstoneTests {
   }
 
   /** A microcontroller's redstone outputs go off when it stops (they stayed on: a door stayed open after a crash). */
-  @GameTest(template = EMPTY, timeoutTicks = 300)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void microcontrollerOutputsGoOffWhenItStops(final GameTestHelper helper) {
     TestMachines.runMicrocontroller(helper, AT, List.of(Constants.ItemName.CPUTier1, Constants.ItemName.RAMTier2, Constants.ItemName.RedstoneCardTier1),
       "component.proxy(component.list('redstone')()).setOutput(3, 15)\nwhile true do computer.pullSignal(1) end\n",
@@ -201,7 +201,7 @@ public final class ComputerRedstoneTests {
   }
 
   /** A running microcontroller reloaded with its chunk still drives its outputs (they came back switched off). */
-  @GameTest(template = EMPTY, timeoutTicks = 400)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void reloadedMicrocontrollerKeepsItsOutputs(final GameTestHelper helper) {
     TestMachines.runMicrocontroller(helper, AT, List.of(Constants.ItemName.CPUTier1, Constants.ItemName.RAMTier2, Constants.ItemName.RedstoneCardTier1),
       "component.proxy(component.list('redstone')()).setOutput(3, 15)\nwhile true do computer.pullSignal(1) end\n",
@@ -214,7 +214,7 @@ public final class ComputerRedstoneTests {
   }
 
   /** A stopped microcontroller saved with outputs on (before outputs followed the machine) has them cleared once loaded. */
-  @GameTest(template = EMPTY, timeoutTicks = 400)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void stuckMicrocontrollerOutputsAreClearedOnLoad(final GameTestHelper helper) {
     TestMachines.runMicrocontroller(helper, AT, List.of(Constants.ItemName.CPUTier1, Constants.ItemName.RAMTier2, Constants.ItemName.RedstoneCardTier1),
       "while true do computer.pullSignal(1) end\n",
@@ -594,7 +594,7 @@ public final class ComputerRedstoneTests {
   }
 
   /** A microcontroller saved before its machine was loaded is saved running, also when its machine was asked for meanwhile. */
-  @GameTest(template = EMPTY, timeoutTicks = 400)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void microcontrollerSavedBeforeItsMachineLoadedKeepsRunning(final GameTestHelper helper) {
     TestMachines.runMicrocontroller(helper, AT, List.of(Constants.ItemName.CPUTier1, Constants.ItemName.RAMTier2),
       "while true do computer.pullSignal(1) end\n", mc -> {

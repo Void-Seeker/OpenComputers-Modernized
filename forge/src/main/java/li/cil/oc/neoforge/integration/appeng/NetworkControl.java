@@ -392,6 +392,7 @@ public interface NetworkControl<AETile extends IActionHost> extends Persistable,
     @Override
     public void jobStateChange(ICraftingLink link) {
       links.remove(link);
+      tellers.computeIfPresent(link.getCraftingID(), (id, teller) -> teller.get() == this ? null : teller);
     }
 
     @Override
@@ -613,6 +614,13 @@ public interface NetworkControl<AETile extends IActionHost> extends Persistable,
     private IGrid linkedGrid;
     private boolean following;
 
+    // The craftable that last told AE2 of a job, by its crafting ID. A machine loaded again has its craftables back as
+    // new ones; the old ones live on until collected (the job's link held them) and followed the grid too: at a grid
+    // change both told AE2, the last one told had the job, and its end could go to the old one - the live one then
+    // followed it for good, and after a reload its status said cancelled. A craftable lets go of a job another told
+    // AE2 of after it.
+    private static final Map<java.util.UUID, java.lang.ref.WeakReference<Craftable>> tellers = new java.util.concurrent.ConcurrentHashMap<>();
+
     private void tell(IGrid grid) {
       if (grid.getCraftingService() instanceof CraftingService crafting) {
         for (var link : links) {
@@ -629,6 +637,9 @@ public interface NetworkControl<AETile extends IActionHost> extends Persistable,
     // jobs, they are told to the controller's grid each time it changes.
     private void follow(IGrid told) {
       linkedGrid = told;
+      tellers.values().removeIf(teller -> teller.get() == null);
+      var self = new java.lang.ref.WeakReference<>(this);
+      for (var link : links) tellers.put(link.getCraftingID(), self);
       if (following || links.isEmpty()) return;
       following = true;
       scheduleFollow(new java.lang.ref.WeakReference<>(this));
@@ -643,6 +654,11 @@ public interface NetworkControl<AETile extends IActionHost> extends Persistable,
 
     // whether to go on
     private boolean followGrid() {
+      links.removeIf(link -> {
+        var teller = tellers.get(link.getCraftingID());
+        var other = teller != null ? teller.get() : null;
+        return other != null && other != this; // (its own link is the one AE2 tells now)
+      });
       if (links.isEmpty()) {
         following = false;
         return false;

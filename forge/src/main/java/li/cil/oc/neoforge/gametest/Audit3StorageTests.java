@@ -473,6 +473,73 @@ public final class Audit3StorageTests {
     });
   }
 
+  // whether AE2 tells the craftable of the job's end: the requester of the job's link
+  private static boolean requesterOfTheJob(final IGrid grid, final NetworkControl.Craftable craftable) {
+    try {
+      final var links = appeng.me.service.CraftingService.class.getDeclaredField("craftingLinks");
+      links.setAccessible(true);
+      return ((java.util.Map<?, ?>) links.get(grid.getCraftingService())).values().stream()
+        .anyMatch(nexus -> ((appeng.crafting.CraftingLinkNexus) nexus).isRequester(craftable));
+    } catch (ReflectiveOperationException e) {
+      throw new IllegalStateException(e);
+    }
+  }
+
+  /**
+   * A craftable restored (its computer's chunk loaded again) takes its job over from the one left behind, which lives
+   * on until collected (the job's link holds it). Both followed the grid: at a grid change both told AE2, the last one
+   * had the job, and its end could go to the one left behind - the restored one then followed the job for good, and its
+   * status said cancelled after a later reload.
+   */
+  @GameTest(template = EMPTY, timeoutTicks = 1000)
+  public static void aRestoredCraftableTakesItsJobOver(final GameTestHelper helper) {
+    final var registries = helper.getLevel().registryAccess();
+    craftingGrid(helper, grid -> runningJob(helper, grid, (craftable, status) -> {
+      final CompoundTag craftableTag = new CompoundTag();
+      final CompoundTag statusTag = new CompoundTag();
+      craftable.save(craftableTag, registries);
+      status.save(statusTag, registries);
+      final var restoredStatus = new NetworkControl.CraftingStatus();
+      restoredStatus.load(statusTag, registries);
+      final var restored = new NetworkControl.Craftable();
+      restored.load(craftableTag, registries);
+      TestMachines.atEnd(helper, () -> status.cancel(null, NO_ARGS)); // (the job, whoever has it)
+      when(helper, () -> restored.requesting(null, NO_ARGS)[0] instanceof Number, 20, () -> {
+        helper.assertTrue(restored.requesting(null, NO_ARGS)[0] instanceof Number, "the restored craftable did not find its interface");
+        helper.runAfterDelay(2, () -> {
+          // a grid change, as each follower sees it: the restored one tells AE2, then the one left behind (their order
+          // within a tick is the scheduler's)
+          followGridChange(restored);
+          followGridChange(craftable);
+          helper.assertTrue(requesterOfTheJob(grid, restored), "after a grid change AE2 tells the craftable left behind of the job ("
+            + requesterOfTheJob(grid, craftable) + "), not the restored one");
+          grid.getCraftingService().getCpus().forEach(ICraftingCPU::cancelJob); // as from AE2's crafting status screen
+          when(helper, () -> !cpuBusy(grid), 20, () -> {
+            helper.assertTrue(!cpuBusy(grid), "the job was not cancelled");
+            helper.assertTrue(Boolean.TRUE.equals(restoredStatus.isCanceled(null, NO_ARGS)[0]), "the restored status does not report the cancel");
+            helper.assertTrue(restored.getRequestedJobs().isEmpty(), "the restored craftable was not told of the job's end: it follows it for good");
+            helper.assertTrue(craftable.getRequestedJobs().isEmpty(), "the craftable left behind still holds the job");
+            helper.succeed();
+          });
+        });
+      });
+    }));
+  }
+
+  // what the craftable's follower does on its next tick after its interface went to another grid
+  private static void followGridChange(final NetworkControl.Craftable craftable) {
+    try {
+      final var linked = NetworkControl.Craftable.class.getDeclaredField("linkedGrid");
+      linked.setAccessible(true);
+      linked.set(craftable, null);
+      final var follow = NetworkControl.Craftable.class.getDeclaredMethod("followGrid");
+      follow.setAccessible(true);
+      follow.invoke(craftable);
+    } catch (ReflectiveOperationException e) {
+      throw new IllegalStateException(e);
+    }
+  }
+
   /**
    * A restored craftable still waiting for its controller's chunk is saved with where it waits (saved without, it never
    * looked again: "no controller" for good, and AE2 cancelled its jobs).

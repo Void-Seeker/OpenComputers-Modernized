@@ -103,7 +103,7 @@ public final class Audit3LuaTests {
    * An empty slot and an empty database entry are nil, as OC 1.12 (they were "air" tables), and a label is the item's
    * name (it was the chat form, "[Diamond]").
    */
-  @GameTest(template = EMPTY, timeoutTicks = 300)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void emptySlotsAreNilAndLabelsPlain(final GameTestHelper helper) {
     helper.setBlock(AT.north(), net.minecraft.world.level.block.Blocks.CHEST);
     ((net.minecraft.world.Container) helper.getBlockEntity(AT.north())).setItem(0, new ItemStack(Items.DIAMOND));
@@ -350,7 +350,7 @@ public final class Audit3LuaTests {
   }
 
   /** The errors reach Lua as they read in OC 1.12. */
-  @GameTest(template = EMPTY, timeoutTicks = 300)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void argumentErrorsReachLua(final GameTestHelper helper) {
     helper.setBlock(AT.north(), net.minecraft.world.level.block.Blocks.CHEST);
     final var chest = (net.minecraft.world.Container) helper.getBlockEntity(AT.north());

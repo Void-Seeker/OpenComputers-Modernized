@@ -1,5 +1,7 @@
 package li.cil.oc.neoforge.gametest;
 
+import com.mojang.logging.LogUtils;
+import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.function.Consumer;
@@ -9,6 +11,8 @@ import li.cil.oc.core.impl.common.item.data.MicrocontrollerData;
 import li.cil.oc.neoforge.common.init.Blocks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.gametest.framework.GameTestInfo;
+import net.minecraft.gametest.framework.GameTestListener;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.common.util.FakePlayerFactory;
 
@@ -20,8 +24,11 @@ final class TestMachines {
   }
 
   /**
-   * Places a microcontroller built from the given parts, boots it with the program as its EEPROM and hands it to
-   * the check five seconds later (tests using it need a longer timeout than the default 100 ticks). The program should end in an endless loop or report (error("done:" ..)); any other error stops the machine and fails.
+   * Places a microcontroller built from the given parts, boots it with the program as its EEPROM and hands it to the
+   * check once the program has reported (error("done:" ..): the machine stops with that error) or waits for a signal
+   * with none queued (a program running on: its loop of computer.pullSignal), giving up once 100 ticks and 10 seconds
+   * have gone by (tests using it need a timeout past that). A program that waits for a signal before its work is done
+   * must report; any other error stops the machine and fails.
    */
   static void runMicrocontroller(final GameTestHelper helper, final BlockPos pos, final List<String> parts, final String program, final Consumer<Microcontroller> check) {
     runMicrocontroller(helper, pos, parts, mc -> program, check);
@@ -42,12 +49,21 @@ final class TestMachines {
       mc.changeEEPROM(li.cil.oc.api.Items.registerEEPROM("test", program.apply(mc).getBytes(StandardCharsets.UTF_8), null, false));
       ((li.cil.oc.api.network.Connector) mc.snooperNode).changeBuffer(1000);
       helper.assertTrue(mc.machine().start(), "machine did not start");
-      helper.runAfterDelay(100, () -> {
+      // (checked after 100 ticks, a quarter of a second at times, the boot and a few calls were not always through)
+      whenWithin(helper, () -> settled(mc.machine()), 100, 10, () -> {
         final String error = String.valueOf(mc.machine().lastError());
         helper.assertTrue(mc.machine().isRunning() || error.contains("done:"), "program stopped: " + error); // (or reported)
+        helper.assertTrue(settled(mc.machine()), "the program neither reported nor waited for a signal within 100 ticks and 10 seconds: "
+          + ((li.cil.oc.core.impl.server.machine.MachineBase) mc.machine()).state());
         check.accept(mc);
       });
     });
+  }
+
+  // stopped (reported), or waiting for a signal with none queued
+  private static boolean settled(final li.cil.oc.api.machine.Machine machine) {
+    return !machine.isRunning() || machine instanceof li.cil.oc.core.impl.server.machine.MachineBase m && !m.isExecuting()
+      && m.state().peek() == li.cil.oc.core.impl.server.machine.MachineBase.State.Sleeping;
   }
 
   /**
@@ -160,6 +176,60 @@ final class TestMachines {
     for (int x = 0; x < 5; x++) {
       for (int z = 0; z < 5; z++) helper.setBlock(new BlockPos(x, 4, z), net.minecraft.world.level.block.Blocks.STONE);
     }
+  }
+
+  /**
+   * Runs the cleanup once the test is over, passed or failed (a failed step ends the test without the steps after it,
+   * where it let go of tickets, listeners, registrations - and the server runs on with the other tests); returns the
+   * cleanup run once only, for the test to run itself.
+   */
+  static Runnable atEnd(final GameTestHelper helper, final Runnable cleanup) {
+    final boolean[] done = {false};
+    final Runnable once = () -> {
+      if (done[0]) return;
+      done[0] = true;
+      cleanup.run();
+    };
+    testInfo(helper).addListener(new GameTestListener() {
+      @Override
+      public void testStructureLoaded(final GameTestInfo test) {
+      }
+
+      @Override
+      public void testPassed(final GameTestInfo test) {
+        safely(once);
+      }
+
+      @Override
+      public void testFailed(final GameTestInfo test) {
+        safely(once);
+      }
+    });
+    return once;
+  }
+
+  // (thrown from a listener, it stopped the server's tick)
+  private static void safely(final Runnable cleanup) {
+    try {
+      cleanup.run();
+    } catch (RuntimeException e) {
+      LogUtils.getLogger().warn("A test's cleanup failed", e);
+    }
+  }
+
+  // the helper's test (found by type: the field is named differently outside the development environment)
+  private static GameTestInfo testInfo(final GameTestHelper helper) {
+    try {
+      for (final Field field : GameTestHelper.class.getDeclaredFields()) {
+        if (field.getType() == GameTestInfo.class) {
+          field.setAccessible(true);
+          return (GameTestInfo) field.get(helper);
+        }
+      }
+    } catch (ReflectiveOperationException e) {
+      throw new IllegalStateException(e);
+    }
+    throw new IllegalStateException("the test helper holds no test");
   }
 
   /**

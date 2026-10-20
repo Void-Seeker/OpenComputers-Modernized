@@ -118,14 +118,16 @@ public final class ComplicatedBeesTests {
     helper.succeed();
   }
 
-  @GameTest(template = EMPTY, timeoutTicks = 200)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void transposerReadsBeeGenomes(final GameTestHelper helper) throws ReflectiveOperationException {
-    // the integration only loads with the mod; register a converter for marked paper for this test
+    // the integration only loads with the mod; register a converter for marked paper for this test (until its end,
+    // passed or failed: the game tests ship in the jar)
     final var field = li.cil.oc.core.impl.server.driver.Registry.class.getDeclaredField("converters");
     field.setAccessible(true);
     @SuppressWarnings("unchecked") final List<li.cil.oc.api.driver.Converter> converters = (List<li.cil.oc.api.driver.Converter>) field.get(li.cil.oc.api.API.driver);
     final ConverterBee converter = new ConverterBee(stack -> stack.is(Items.PAPER) && stack.getTag() != null && stack.getTag().contains(MARK) ? stack.getTag().getString(MARK) : null);
     converters.add(converter);
+    TestMachines.atEnd(helper, () -> converters.remove(converter));
 
     final BlockPos pos = new BlockPos(2, 2, 2), chest = pos.north();
     helper.setBlock(chest, net.minecraft.world.level.block.Blocks.CHEST);
@@ -149,9 +151,9 @@ public final class ComplicatedBeesTests {
       + "expect(\"drone species\", \"complicated_bees:forest\", d.species)\n"
       + "expect(\"unanalyzed genes\", nil, d.active)\n"
       + "expect(\"plain paper\", nil, tp.getStackInSlot(2, 3).bee)\n"
-      + "while true do computer.pullSignal(1) end\n";
+      + "error(\"done:all\", 0)\n"; // every step passed
     TestMachines.runMicrocontroller(helper, pos, List.of(Constants.ItemName.CPUTier1, Constants.ItemName.RAMTier2, Constants.BlockName.Transposer), program, mc -> {
-      converters.remove(converter);
+      helper.assertTrue(String.valueOf(mc.machine().lastError()).contains("done:all"), "the program did not get through: " + mc.machine().lastError());
       helper.succeed();
     });
   }

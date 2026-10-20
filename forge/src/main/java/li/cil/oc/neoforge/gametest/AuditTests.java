@@ -103,7 +103,7 @@ public final class AuditTests {
   }
 
   /** What a program writes into its EEPROM (here the label) is in the saved microcontroller. */
-  @GameTest(template = EMPTY, timeoutTicks = 200)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void microcontrollerSavesItsEepromState(final GameTestHelper helper) {
     final BlockPos pos = new BlockPos(2, 2, 2);
     TestMachines.runMicrocontroller(helper, pos, List.of(Constants.ItemName.CPUTier1, Constants.ItemName.RAMTier2),
@@ -117,24 +117,24 @@ public final class AuditTests {
   }
 
   /** Hoppers use the item handler capability; it must honour the block's side rules (a microcontroller gives nothing). */
-  @GameTest(template = EMPTY, timeoutTicks = 200)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void hopperCannotStripAMicrocontroller(final GameTestHelper helper) {
     final BlockPos pos = new BlockPos(2, 2, 2);
     helper.setBlock(pos.below(), net.minecraft.world.level.block.Blocks.HOPPER.defaultBlockState().setValue(HopperBlock.FACING, net.minecraft.core.Direction.DOWN));
     TestMachines.runMicrocontroller(helper, pos, List.of(Constants.ItemName.CPUTier1, Constants.ItemName.RAMTier2, Constants.ItemName.RedstoneCardTier1),
       "while true do computer.pullSignal(1) end\n",
-      mc -> {
+      mc -> helper.runAfterDelay(40, () -> { // (the hopper tries every 8 ticks)
         final Container hopper = (Container) helper.getBlockEntity(pos.below());
         for (int i = 0; i < hopper.getContainerSize(); i++) {
           helper.assertTrue(hopper.getItem(i).isEmpty(), "the hopper pulled " + hopper.getItem(i) + " out of the microcontroller");
         }
         helper.assertTrue(!mc.info.components.get(0).isEmpty(), "the microcontroller lost its CPU");
         helper.succeed();
-      });
+      }));
   }
 
   /** A redstone change next to a microcontroller reaches its program as redstone_changed. */
-  @GameTest(template = EMPTY, timeoutTicks = 300)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void microcontrollerGetsRedstoneChangedEvents(final GameTestHelper helper) {
     final BlockPos pos = new BlockPos(2, 2, 2);
     TestMachines.runMicrocontroller(helper, pos, List.of(Constants.ItemName.CPUTier1, Constants.ItemName.RAMTier2, Constants.ItemName.RedstoneCardTier1),
@@ -147,7 +147,7 @@ public final class AuditTests {
         final BlockPos abs = helper.absolutePos(pos);
         helper.assertTrue(helper.getLevel().getBestNeighborSignal(abs.above()) == 0, "the output is on before any input change");
         helper.setBlock(pos.relative(mc.facing().getOpposite()), net.minecraft.world.level.block.Blocks.REDSTONE_BLOCK);
-        helper.runAfterDelay(60, () -> {
+        TestMachines.whenWithin(helper, () -> helper.getLevel().getBestNeighborSignal(abs.above()) == 15, 60, 10, () -> {
           final int signal = helper.getLevel().getBestNeighborSignal(abs.above());
           helper.assertTrue(signal == 15, "the program did not react to redstone_changed (output above is " + signal + "); running: " + mc.machine().isRunning() + " " + mc.machine().lastError());
           helper.succeed();
@@ -156,7 +156,7 @@ public final class AuditTests {
   }
 
   /** A microcontroller's sides are network plugs: it shares a network with a neighbouring OC block and draws its power. */
-  @GameTest(template = EMPTY, timeoutTicks = 300)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void microcontrollerPlugsJoinNetworksAndDrawPower(final GameTestHelper helper) {
     final BlockPos pos = new BlockPos(2, 2, 2);
     final li.cil.oc.api.network.Node[] capacitorNode = new li.cil.oc.api.network.Node[1];
@@ -239,7 +239,7 @@ public final class AuditTests {
    * The chunk unload sequence (event, save, remove) applied to a microcontroller next to a capacitor: its nodes leave
    * the capacitor's network and its machine stops; a block entity loaded from the saved data gets its addresses back.
    */
-  @GameTest(template = EMPTY, timeoutTicks = 400)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void unloadedBlocksLeaveTheNetworkAndKeepTheirAddresses(final GameTestHelper helper) {
     final BlockPos pos = new BlockPos(2, 2, 2);
     final BlockPos[] behind = new BlockPos[1];
@@ -320,7 +320,7 @@ public final class AuditTests {
    * The server thread never waits on a computer's execution lock. With the lock held by another thread (a program
    * stuck in a direct call), saving and pausing the machine return at once, and the program goes on afterwards.
    */
-  @GameTest(template = EMPTY, timeoutTicks = 400)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void serverThreadDoesNotWaitOnAStuckComputer(final GameTestHelper helper) {
     final BlockPos pos = new BlockPos(2, 2, 2);
     TestMachines.runMicrocontroller(helper, pos, List.of(Constants.ItemName.CPUTier1, Constants.ItemName.RAMTier2),
@@ -335,30 +335,37 @@ public final class AuditTests {
         } catch (ReflectiveOperationException e) {
           throw new RuntimeException(e);
         }
+        // held until the test lets go (held for 1.5 s, it was let go before the checks when the server stalled)
+        final java.util.concurrent.CountDownLatch held = new java.util.concurrent.CountDownLatch(1), release = new java.util.concurrent.CountDownLatch(1);
         final Thread holder = new Thread(() -> {
           lock.lock();
           try {
-            Thread.sleep(1500);
+            held.countDown();
+            release.await(30, java.util.concurrent.TimeUnit.SECONDS);
           } catch (InterruptedException ignored) {
           } finally {
             lock.unlock();
           }
         }, "stuck computer");
+        TestMachines.atEnd(helper, release::countDown);
         mc.saveWithoutMetadata();   // a save while it is free: what a save that cannot wait writes again
         holder.start();
-        helper.runAfterDelay(2, () -> {
-          helper.assertTrue(lock.isLocked(), "the test thread does not hold the execution lock");
-          final long start = System.nanoTime();
-          final var savedWhileBusy = mc.saveWithoutMetadata().getCompound(li.cil.oc.core.impl.OCSettings.namespace + "computer"); // machine.save
-          machine.pause(1);
-          final long ms = (System.nanoTime() - start) / 1_000_000;
-          helper.assertTrue(ms < 500, "the server thread waited " + ms + " ms on the computer's lock");
-          helper.assertTrue(savedWhileBusy.contains("state"), "a save while the computer was busy wrote no machine state (it would come back off): " + savedWhileBusy);
-          helper.runAfterDelay(60, () -> {
-            helper.assertTrue(!lock.isLocked() || lock.isHeldByCurrentThread() || mc.machine().isRunning(), "lock state unexpected");
-            helper.assertTrue(mc.machine().isRunning(), "the machine stopped: " + mc.machine().lastError());
-            helper.succeed();
-          });
+        try {
+          held.await(10, java.util.concurrent.TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+          throw new IllegalStateException(e);
+        }
+        helper.assertTrue(lock.isLocked(), "the test thread does not hold the execution lock");
+        final long start = System.nanoTime();
+        final var savedWhileBusy = mc.saveWithoutMetadata().getCompound(li.cil.oc.core.impl.OCSettings.namespace + "computer"); // machine.save
+        machine.pause(1);
+        final long ms = (System.nanoTime() - start) / 1_000_000;
+        release.countDown();
+        helper.assertTrue(ms < 500, "the server thread waited " + ms + " ms on the computer's lock");
+        helper.assertTrue(savedWhileBusy.contains("state"), "a save while the computer was busy wrote no machine state (it would come back off): " + savedWhileBusy);
+        helper.runAfterDelay(60, () -> {
+          helper.assertTrue(mc.machine().isRunning(), "the machine stopped: " + mc.machine().lastError());
+          helper.succeed();
         });
       });
   }

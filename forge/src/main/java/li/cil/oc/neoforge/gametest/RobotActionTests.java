@@ -434,6 +434,7 @@ public final class RobotActionTests {
   @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void robotPistonLeavesNoWaterBehind(final GameTestHelper helper) {
     floor(helper);
+    TestMachines.roof(helper); // (gravel falling in filled the place the slab was pushed from)
     helper.setBlock(AT.south(), Blocks.STONE_SLAB.defaultBlockState().setValue(BlockStateProperties.WATERLOGGED, true));
     TestMachines.runRobot(helper, AT, List.of(Constants.ItemName.PistonUpgrade),
       "local p = component.proxy(component.list('piston')()) local ok, why = p.push() error('done:' .. tostring(ok) .. ',' .. tostring(why))", 60, (robot, result) -> {

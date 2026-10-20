@@ -131,7 +131,7 @@ public final class TransposerTests {
     helper.succeed();
   }
 
-  @GameTest(template = EMPTY, timeoutTicks = 200)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void transposerUseCollectsWhatTheClickProduces(final GameTestHelper helper) {
     final BlockPos pos = new BlockPos(2, 2, 2);
     final BlockPos chest = pos.north(), lava = pos.east(), tank = pos.south(), composter = pos.west();
@@ -278,7 +278,7 @@ public final class TransposerTests {
     return counts;
   }
 
-  @GameTest(template = EMPTY, timeoutTicks = 200)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void transposerMovesItemsThroughItemHandlersByTheirRules(final GameTestHelper helper) {
     final BlockPos pos = new BlockPos(2, 2, 2);
     final BlockPos bore = pos.below(), aside = pos.east(), chest = pos.north(), bucketHolder = pos.above(), lava = pos.south();
@@ -316,8 +316,9 @@ public final class TransposerTests {
       + "expect(\"the drained cauldron\", 0, cauldron and cauldron.amount or 0)\n"
       + "_, moved = tp.transferFluidFromContainerToTank(1, 1, 3)\n"
       + "expect(\"lava out of the held bucket\", 1000, moved)\n"
-      + "while true do computer.pullSignal(1) end\n";
-    TestMachines.runMicrocontroller(helper, pos, List.of(Constants.ItemName.CPUTier1, Constants.ItemName.RAMTier2, Constants.BlockName.Transposer), program, mc -> {
+      + "error('done:all', 0)\n"; // every step passed (it waits halfway: handed over then, the check came too early)
+    TestMachines.runMicrocontroller(helper, pos, List.of(Constants.ItemName.CPUTier1, Constants.ItemName.RAMTier2, Constants.BlockName.Transposer), program, mc -> TestMachines.whenWithin(helper, () -> !mc.machine().isRunning(), 100, 10, () -> {
+      helper.assertTrue(String.valueOf(mc.machine().lastError()).contains("done:all"), "the program did not get through: " + mc.machine().lastError());
       helper.assertTrue(fuel.getStackInSlot(8).is(Items.LAVA_BUCKET), "the fuel slot holds " + fuel.getStackInSlot(8));
       for (int i = 0; i < 8; i++) helper.assertTrue(fuel.getStackInSlot(i).isEmpty(), "slot " + (i + 1) + " still holds " + fuel.getStackInSlot(i));
       helper.assertTrue(count(box).equals(Map.of("bucket", 1, "cobblestone", 3, "glowstone_dust", 5)), "the chest holds " + count(box));
@@ -325,10 +326,10 @@ public final class TransposerTests {
         "the bucket holder holds " + plain.getStackInSlot(0) + ", " + plain.getStackInSlot(1));
       helper.assertTrue(state(helper, lava).is(net.minecraft.world.level.block.Blocks.LAVA_CAULDRON), "the lava did not come back: " + state(helper, lava));
       helper.succeed();
-    });
+    }));
   }
 
-  @GameTest(template = EMPTY, timeoutTicks = 200)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void transposerKeepsItemsWithinOneInventoryFillsCompostersAndBuckets(final GameTestHelper helper) {
     // a plain vanilla container (no item capability, like a modded block entity that is only a Container)
     final var plain = new net.minecraft.world.SimpleContainer(4);

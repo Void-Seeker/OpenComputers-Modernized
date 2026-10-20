@@ -29,7 +29,7 @@ public final class RedstoneTests {
   private RedstoneTests() {
   }
 
-  @GameTest(template = EMPTY, timeoutTicks = 200)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void comparatorInputReadsContainersAndBlocks(final GameTestHelper helper) {
     final BlockPos pos = new BlockPos(2, 2, 2);
     // a hopper with one full stack of its five slots reads 3; it points sideways so it leaves the microcontroller alone
@@ -39,10 +39,12 @@ public final class RedstoneTests {
     // up and down are the same for the card's facing-relative sides and the world
     TestMachines.runMicrocontroller(helper, pos, List.of(Constants.ItemName.CPUTier1, Constants.ItemName.RAMTier2, Constants.ItemName.RedstoneCardTier1),
       "local rs = component.proxy(component.list(\"redstone\")())\n"
-        + "local hopper, composter = rs.getComparatorInput(1), rs.getComparatorInput(0)\n"
-        + "if hopper ~= 3 or composter ~= 8 then error(\"hopper reads \" .. tostring(hopper) .. \", composter \" .. tostring(composter), 0) end\n"
-        + "while true do computer.pullSignal(1) end\n",
-      mc -> helper.succeed());
+        + "error(\"done:\" .. string.format(\"%d,%d\", rs.getComparatorInput(1), rs.getComparatorInput(0)), 0)\n",
+      mc -> {
+        final String error = String.valueOf(mc.machine().lastError());
+        helper.assertTrue(error.contains("done:3,8"), "the hopper and the composter read (3,8): " + error);
+        helper.succeed();
+      });
   }
 
   @GameTest(template = EMPTY)
@@ -61,7 +63,7 @@ public final class RedstoneTests {
   }
 
   /** The front is closed to cables and power only: the redstone card and the transposer work through it. */
-  @GameTest(template = EMPTY, timeoutTicks = 200)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void microcontrollerUsesItsFront(final GameTestHelper helper) {
     final BlockPos pos = new BlockPos(2, 2, 2);
     final Direction[] front = new Direction[1];
@@ -105,7 +107,7 @@ public final class RedstoneTests {
   }
 
   /** setOutput with a table sets every listed side in one call (brew.lua pulses its dropper like that). */
-  @GameTest(template = EMPTY, timeoutTicks = 200)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void setOutputTakesATable(final GameTestHelper helper) {
     final BlockPos pos = new BlockPos(2, 2, 2);
     TestMachines.runMicrocontroller(helper, pos, List.of(Constants.ItemName.CPUTier1, Constants.ItemName.RAMTier2, Constants.ItemName.RedstoneCardTier1),

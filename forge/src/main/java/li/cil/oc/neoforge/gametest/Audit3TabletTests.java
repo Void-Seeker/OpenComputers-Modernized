@@ -49,19 +49,43 @@ public final class Audit3TabletTests {
   private static final String NS = OCSettings.namespace;
   private static final ArgumentsImpl NO_ARGS = new ArgumentsImpl(new Object[0]);
 
-  // counts 'tick' signals, works on 'busy' for a second of its uptime (20 updates; at most 4 s) adding 100, reports the
-  // count on 'report'
+  // counts 'tick' signals, on 'busy' adds 100 after a call held by the test (Hold), reports the count on 'report'
   private static final String COUNTER = """
     local n = 0
     while true do
       local s = computer.pullSignal()
       if s == "tick" then n = n + 1
       elseif s == "busy" then
-        local t, c = computer.uptime(), os.clock()
-        while computer.uptime() - t < 1 and os.clock() - c < 4 do end
+        component.invoke(component.list("oc_test_hold")(), "hold")
         n = n + 100
       elseif s == "report" then error("done:" .. n) end
     end""";
+
+  /**
+   * A component whose direct call holds the slice making it until the test lets go (at most 30 seconds): a slice the
+   * program kept busy for a while ended before the test saw it when the server stalled.
+   */
+  public static final class Hold extends li.cil.oc.api.prefab.AbstractManagedEnvironment {
+    public final li.cil.oc.api.network.Node node = li.cil.oc.api.Network.newNode(this, li.cil.oc.api.network.Visibility.Network)
+      .withComponent("oc_test_hold", li.cil.oc.api.network.Visibility.Network).create();
+    private final java.util.concurrent.CountDownLatch entered = new java.util.concurrent.CountDownLatch(1);
+    private final java.util.concurrent.CountDownLatch released = new java.util.concurrent.CountDownLatch(1);
+
+    @li.cil.oc.api.machine.Callback(direct = true)
+    public Object[] hold(final li.cil.oc.api.machine.Context context, final li.cil.oc.api.machine.Arguments args) throws InterruptedException {
+      entered.countDown();
+      released.await(30, TimeUnit.SECONDS);
+      return null;
+    }
+
+    boolean entered() {
+      return entered.getCount() == 0;
+    }
+
+    void release() {
+      released.countDown();
+    }
+  }
 
   private Audit3TabletTests() {
   }
@@ -208,36 +232,53 @@ public final class Audit3TabletTests {
       return carried[0];
     });
     final var before = li.cil.oc.core.impl.common.item.Tablet.get(stack, player);
+    final Hold hold = new Hold();
+    TestMachines.atEnd(helper, () -> { // (never leaving a computer thread waiting)
+      hold.release();
+      hold.node.remove();
+    });
     before.startMachine();
     within(helper, 30, () -> sleeping(before), () -> {
       helper.assertTrue(sleeping(before), "the tablet's program did not start: " + before.machine().lastError());
-      // signals waiting are saved with it; busy, it moves mid-slice
-      if (busy) before.machine().signal("busy");
-      else for (int i = 0; i < 3; i++) before.machine().signal("tick");
-      within(helper, 10, () -> !busy || ((MachineBase) before.machine()).isExecuting(), () -> {
-        helper.assertTrue(!busy || ((MachineBase) before.machine()).isExecuting(), "the tablet did not get busy");
-        player.setServerLevel(helper.getLevel().getServer().getLevel(Level.NETHER));
-        final boolean[] asked = {false};
-        within(helper, 20, () -> {
-          final var now = li.cil.oc.core.impl.common.item.Tablet.get(stack, player);
-          if (now != before && !asked[0]) {
-            asked[0] = true;
-            if (busy) for (int i = 0; i < 3; i++) now.machine().signal("tick");
-            now.machine().signal("report");
-          }
-          return now != before && reported(now);
-        }, () -> {
-          carried[0] = false;
-          final var after = li.cil.oc.core.impl.common.item.Tablet.get(stack, player);
-          try {
-            helper.assertTrue(after != before, "the tablet did not move to the other dimension");
-            final String expected = "done:" + (busy ? 103 : 3);
-            helper.assertTrue(String.valueOf(after.machine().lastError()).contains(expected), "after a dimension change the tablet "
-              + (String.valueOf(after.machine().lastError()).contains("done:") ? "reported " : "is off: ") + after.machine().lastError() + " (not " + expected + ")");
-          } finally {
-            TabletCache.get().invalidate(stack);
-          }
-          helper.succeed();
+      if (busy) before.machine().node().connect(hold.node);
+      within(helper, 10, () -> !busy || before.machine().components().containsKey(hold.node.address()), () -> {
+        helper.assertTrue(!busy || before.machine().components().containsKey(hold.node.address()), "the tablet does not see the test's component");
+        // signals waiting are saved with it; busy, it moves mid-slice
+        if (busy) before.machine().signal("busy");
+        else for (int i = 0; i < 3; i++) before.machine().signal("tick");
+        within(helper, 10, () -> !busy || hold.entered(), () -> {
+          helper.assertTrue(!busy || hold.entered() && ((MachineBase) before.machine()).isExecuting(), "the tablet did not get busy: " + before.machine().lastError());
+          player.setServerLevel(helper.getLevel().getServer().getLevel(Level.NETHER));
+          final Runnable moved = () -> {
+            hold.release();
+            final boolean[] asked = {false};
+            within(helper, 20, () -> {
+              final var now = li.cil.oc.core.impl.common.item.Tablet.get(stack, player);
+              if (now != before && !asked[0]) {
+                asked[0] = true;
+                if (busy) for (int i = 0; i < 3; i++) now.machine().signal("tick");
+                now.machine().signal("report");
+              }
+              return now != before && reported(now);
+            }, () -> {
+              carried[0] = false;
+              final var after = li.cil.oc.core.impl.common.item.Tablet.get(stack, player);
+              try {
+                helper.assertTrue(after != before, "the tablet did not move to the other dimension");
+                final String expected = "done:" + (busy ? 103 : 3);
+                helper.assertTrue(String.valueOf(after.machine().lastError()).contains(expected), "after a dimension change the tablet "
+                  + (String.valueOf(after.machine().lastError()).contains("done:") ? "reported " : "is off: ") + after.machine().lastError() + " (not " + expected + ")");
+              } finally {
+                TabletCache.get().invalidate(stack);
+              }
+              helper.succeed();
+            });
+          };
+          if (!busy) moved.run();
+          else helper.runAfterDelay(3, () -> { // ticks of the slice held: the tablet stays
+            helper.assertTrue(li.cil.oc.core.impl.common.item.Tablet.get(stack, player) == before, "the busy tablet moved mid-slice");
+            moved.run();
+          });
         });
       });
     });

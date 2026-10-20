@@ -450,7 +450,7 @@ public final class Audit3ItemTests {
   }
 
   /** store() says whether the database entry was taken (always true: an empty entry is no null). */
-  @GameTest(template = EMPTY, timeoutTicks = 300)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void storeSaysWhetherTheEntryWasTaken(final GameTestHelper helper) {
     final BlockPos pos = AT;
     helper.setBlock(pos.north(), net.minecraft.world.level.block.Blocks.CHEST);
@@ -470,7 +470,7 @@ public final class Audit3ItemTests {
   }
 
   /** The level of an empty fluid container is 0 (it threw). */
-  @GameTest(template = EMPTY, timeoutTicks = 300)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void emptyFluidContainerHoldsNothing(final GameTestHelper helper) {
     final BlockPos pos = AT;
     helper.setBlock(pos.north(), net.minecraft.world.level.block.Blocks.CHEST);
