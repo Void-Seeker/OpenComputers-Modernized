@@ -1,6 +1,5 @@
 package li.cil.oc.core.impl.server.command;
 
-import java.util.regex.Pattern;
 import li.cil.oc.api.Network;
 import li.cil.oc.api.network.Packet;
 import li.cil.oc.core.impl.common.command.SimpleCommand;
@@ -9,7 +8,6 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.network.chat.Component;
 
 public class SendDebugMessageCommand extends SimpleCommand {
-  private static final Pattern VALID_ADDRESS = Pattern.compile("^[a-f0-9]{32}$");
   public static final SendDebugMessageCommand INSTANCE = new SendDebugMessageCommand();
 
   private SendDebugMessageCommand() {
@@ -27,11 +25,7 @@ public class SendDebugMessageCommand extends SimpleCommand {
       source.sendFailure(Component.literal("no destination address specified."));
       return 0;
     }
-    String destination = args[0];
-    if (!VALID_ADDRESS.matcher(destination).matches()) {
-      source.sendFailure(Component.literal("invalid destination address."));
-      return 0;
-    }
+    String destination = args[0]; // (any address, as OC: a check for 32 hex digits refused every one, which have dashes)
     var endpoint = DebugNetwork.getEndpoint(destination);
     if (endpoint != null) {
       String[] rest = new String[args.length - 1];

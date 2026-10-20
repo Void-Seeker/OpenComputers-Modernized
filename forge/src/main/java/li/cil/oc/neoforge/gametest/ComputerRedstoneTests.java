@@ -232,7 +232,7 @@ public final class ComputerRedstoneTests {
   }
 
   /** A robot's outputs go off when it stops, and a placed robot reads what is powered (outputs stayed; inputs read 0). */
-  @GameTest(template = EMPTY, timeoutTicks = 300)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void robotRedstoneFollowsItsMachine(final GameTestHelper helper) {
     helper.setBlock(AT.east(), net.minecraft.world.level.block.Blocks.REDSTONE_BLOCK);
     TestMachines.runRobot(helper, AT, List.of(Constants.ItemName.RedstoneCardTier1),
@@ -271,7 +271,7 @@ public final class ComputerRedstoneTests {
    * A running robot reloaded with its chunk still drives its outputs (its first tick comes before its machine is loaded,
    * in initialize: it was not running yet, and the outputs were switched off for good).
    */
-  @GameTest(template = EMPTY, timeoutTicks = 400)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void reloadedRobotKeepsItsOutputs(final GameTestHelper helper) {
     TestMachines.runRobot(helper, AT, List.of(Constants.ItemName.RedstoneCardTier1),
       "component.proxy(component.list('redstone')()).setOutput(3, 15)\nwhile true do computer.pullSignal(1) end\n",
@@ -295,7 +295,7 @@ public final class ComputerRedstoneTests {
   }
 
   /** A stopped robot lets go of what it powers through a block, and of its bundled outputs (a lamp behind stayed lit; cables kept their colours). */
-  @GameTest(template = EMPTY, timeoutTicks = 300)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void stoppedRobotLetsGoOfWhatItPowers(final GameTestHelper helper) {
     // the robot faces south: its front (3) is south
     final BlockPos lamp = AT.south().south();
@@ -413,7 +413,7 @@ public final class ComputerRedstoneTests {
   }
 
   /** A robot saved in the tick between its chunk load and its machine's is saved running (it was saved stopped). */
-  @GameTest(template = EMPTY, timeoutTicks = 400)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void robotSavedBeforeItsMachineLoadedKeepsRunning(final GameTestHelper helper) {
     TestMachines.runRobot(helper, AT, List.of(Constants.ItemName.RedstoneCardTier1),
       "while true do computer.pullSignal(1) end\n", 40, (robot, result) -> {
@@ -430,7 +430,7 @@ public final class ComputerRedstoneTests {
   }
 
   /** A reloaded running robot hears of no component as added (each reload signalled all of its own: OpenOS mounted its drives again). */
-  @GameTest(template = EMPTY, timeoutTicks = 400)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void reloadedRobotHearsOfNoAddedComponents(final GameTestHelper helper) {
     TestMachines.runRobot(helper, AT, List.of(Constants.ItemName.RedstoneCardTier1),
       "local t0 = computer.uptime() while computer.uptime() - t0 < 1 do computer.pullSignal(0.1) end\n" // what came at boot
@@ -452,7 +452,7 @@ public final class ComputerRedstoneTests {
   }
 
   /** A running robot loaded over (/data merge, a restore) still follows its machine: stopped, its outputs go off (it stayed pending for good). */
-  @GameTest(template = EMPTY, timeoutTicks = 400)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void robotLoadedOverStillFollowsItsMachine(final GameTestHelper helper) {
     TestMachines.runRobot(helper, AT, List.of(Constants.ItemName.RedstoneCardTier1),
       "component.proxy(component.list('redstone')()).setOutput(3, 15)\nwhile true do computer.pullSignal(1) end\n",
@@ -475,7 +475,7 @@ public final class ComputerRedstoneTests {
    * A moving robot lets go of what it powered through a block and powers what is behind the block at its new place (a
    * lamp behind the old one stayed lit, one behind the new one stayed off).
    */
-  @GameTest(template = EMPTY, timeoutTicks = 300)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void robotMovingAwayLetsGoOfWhatItPowered(final GameTestHelper helper) {
     final BlockPos lamp = AT.south().south();
     final BlockPos newLamp = lamp.above();
@@ -571,7 +571,7 @@ public final class ComputerRedstoneTests {
    * A robot whose chunk unloads before its block entity's onLoad (a chunk loaded and unloaded at once: onLoad comes in
    * the block entity tick) stays gone: it linked its robot then, which loaded its machine and ran beside the real one.
    */
-  @GameTest(template = EMPTY, timeoutTicks = 400)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void robotRemovedBeforeItsOnLoadStaysGone(final GameTestHelper helper) {
     TestMachines.runRobot(helper, AT, List.of(Constants.ItemName.RedstoneCardTier1),
       "while true do computer.pullSignal(1) end\n", 40, (robot, result) -> {
@@ -618,7 +618,7 @@ public final class ComputerRedstoneTests {
   }
 
   /** A robot reads a side again later while its neighbour chunk is not loaded yet (a moved robot kept its old place's input). */
-  @GameTest(template = EMPTY, timeoutTicks = 300)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void robotReadsASideAgainWhenItsChunkComes(final GameTestHelper helper) {
     TestMachines.runRobot(helper, AT, List.of(Constants.ItemName.RedstoneCardTier1),
       "while true do computer.pullSignal(1) end\n", 40, (robot, result) -> {

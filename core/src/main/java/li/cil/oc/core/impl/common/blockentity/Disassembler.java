@@ -384,9 +384,20 @@ public class Disassembler extends BlockEntity implements li.cil.oc.api.network.E
 
   @Override
   public boolean canPlaceItem(int i, @NotNull ItemStack stack) {
-    return allowDisassembling(stack) &&
-      ((OCSettings.get().disassembleAllTheThings || li.cil.oc.api.Items.get(stack) != null) && ItemUtils.getIngredients(stack).length > 0 ||
-        DisassemblerTemplates.select(stack) != null);
+    if (!allowDisassembling(stack)) return false;
+    // one with a template is taken apart by it (disassemble), which must give parts: one giving none was used up for
+    // nothing (an empty server whose recipe a datapack removed); one already in the slot is given back (a client
+    // knows no recipes)
+    var template = DisassemblerTemplates.select(stack);
+    if (template != null) return isClient() || hasParts(template.disassemble(stack.copy(), ItemUtils.getIngredients(stack)));
+    return (OCSettings.get().disassembleAllTheThings || li.cil.oc.api.Items.get(stack) != null) && ItemUtils.getIngredients(stack).length > 0;
+  }
+
+  private static boolean hasParts(Object[] result) {
+    if (result[0] instanceof ItemStack[] parts) {
+      for (var part : parts) if (part != null && !part.isEmpty()) return true;
+    }
+    return false;
   }
 
   private boolean allowDisassembling(ItemStack stack) {

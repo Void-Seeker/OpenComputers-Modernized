@@ -101,6 +101,8 @@ public final class PacketSender extends li.cil.oc.core.impl.common.PacketSender 
 
   @Override
   protected void sendFileSystemActivityImpl(Node node, EnvironmentHost host, String name) {
+    // -1 turns these off, as OC (a negative expiry threw, out of file system calls that had acted)
+    if (OCSettings.get().diskActivitySoundDelay < 0) return;
     var level = host.level();
     if (level != null && level.getServer() != null && !level.getServer().isSameThread()) {
       // direct filesystem calls run on computer threads; events and the player list belong to the server thread

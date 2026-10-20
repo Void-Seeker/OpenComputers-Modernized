@@ -16,6 +16,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 
@@ -214,8 +215,6 @@ public abstract class PacketBuilderBase<T extends OutputStream> extends DataOutp
 
   public void sendToPlayersNearBlockEntity(BlockEntity t, Double range) {
     if (t.getLevel() instanceof ServerLevel serverLevel) {
-      int chunkX = t.getBlockPos().getX() >> 4;
-      int chunkZ = t.getBlockPos().getZ() >> 4;
       var server = serverLevel.getServer();
       double maxRange = range != null ? range : (server.getPlayerList().getViewDistance() + 1) * 16.0;
       double maxPacketRangeConfig = OCSettings.get().maxNetworkClientPacketDistance;
@@ -226,14 +225,11 @@ public abstract class PacketBuilderBase<T extends OutputStream> extends DataOutp
       double cx = t.getBlockPos().getX() + 0.5;
       double cy = t.getBlockPos().getY() + 0.5;
       double cz = t.getBlockPos().getZ() + 0.5;
-      for (var player : serverLevel.players()) {
-        if (player != null) {
-          final ServerPlayer sp = player;
-          if (serverLevel.getChunkSource().hasChunk(chunkX, chunkZ)) {
-            if (distanceSquaredTo(serverLevel, cx, cy, cz, sp) <= maxRangeSq) {
-              sendToPlayer(sp);
-            }
-          }
+      // the players the chunk is sent to, as OC (isPlayerWatchingChunk): with only the chunk loaded, a screen's
+      // updates (range 400 squared) went to every player in the dimension
+      for (ServerPlayer player : serverLevel.getChunkSource().chunkMap.getPlayers(new ChunkPos(t.getBlockPos()), false)) {
+        if (distanceSquaredTo(serverLevel, cx, cy, cz, player) <= maxRangeSq) {
+          sendToPlayer(player);
         }
       }
     }

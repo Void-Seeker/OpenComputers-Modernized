@@ -306,7 +306,7 @@ public final class Audit3ItemTests {
   // database as an item inventory
 
   /** A database is no item inventory: its entries are ghosts (an inventory controller threw on it). */
-  @GameTest(template = EMPTY, timeoutTicks = 200)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void databaseIsNoItemInventory(final GameTestHelper helper) {
     final ItemStack database = item(Constants.ItemName.DatabaseUpgradeTier1);
     final CompoundTag data = new CompoundTag();
@@ -439,13 +439,8 @@ public final class Audit3ItemTests {
     final ServerPlayer player = player(helper, sent);
     final BlockPos abs = helper.absolutePos(AT);
     player.setPos(abs.getX() + 0.5, abs.getY() + 1, abs.getZ() + 0.5);
-    final List<ServerPlayer> players = helper.getLevel().players();
-    players.add(player); // near it, only during the call
-    try {
-      waypoint.setLabel(context(), new ArgumentsImpl(new Object[]{"oc-label-7"}));
-    } finally {
-      players.remove(player);
-    }
+    // near it and sent its chunk, only during the call
+    Audit3PlatformTests.inLevel(helper.getLevel(), player, true, () -> waypoint.setLabel(context(), new ArgumentsImpl(new Object[]{"oc-label-7"})));
     helper.assertTrue("oc-label-7".equals(waypoint.label) && payloads(sent, li.cil.oc.core.impl.common.network.OCPayload.ID).contains("oc-label-7"),
       "the label " + waypoint.label + " was not sent to the player near (" + sent.size() + " packets)");
     helper.succeed();

@@ -71,8 +71,8 @@ public class ComponentAPI extends LuaJAPI {
     component.set("invoke", ScalaClosure.wrapVarArgClosure(args -> {
       String address = args.checkjstring(1);
       String method = args.checkjstring(2);
-      Object[] params = ScalaClosure.toSimpleJavaObjects(args, 3).toArray();
-      return owner.invoke(() -> machine.invoke(address, method, params));
+      // (converted within the call: a table nested too deeply is its error, as a bad argument, not the machine's crash)
+      return owner.invoke(() -> machine.invoke(address, method, ScalaClosure.toSimpleJavaObjects(args, 3).toArray()));
     }));
 
     component.set("doc", ScalaClosure.wrapVarArgClosure(args -> withComponent(args.checkjstring(1), comp -> {

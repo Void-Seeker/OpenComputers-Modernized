@@ -290,6 +290,24 @@ public abstract class MachineBase extends AbstractManagedEnvironment implements 
     });
   }
 
+  // The architecture a close from within its own call left open (a program removing its own block): a Lua state in
+  // use cannot close ("cannot close" threw into the world code removing the block, and the state was never let go).
+  private Architecture closeAfterCall;
+  // the thread running a slice (with the execution lock)
+  private Thread sliceThread;
+
+  // once the call is over
+  private void closeAfterCall() {
+    Architecture open = closeAfterCall;
+    if (open == null) return;
+    closeAfterCall = null;
+    try {
+      open.close();
+    } catch (Throwable t) {
+      LOGGER.warn("Could not close a computer's architecture after its call.", t);
+    }
+  }
+
   @Override
   public Map<String, String> components() {
     synchronized (_components) { // the server thread adds and removes while computer threads list
@@ -372,7 +390,8 @@ public abstract class MachineBase extends AbstractManagedEnvironment implements 
   public boolean start() {
     synchronized (state) {
       State t = state.peek();
-      if (t == State.Stopped && node.network() != null) {
+      // (not within the call of a Lua state still to be closed: the new one would be closed in its stead)
+      if (t == State.Stopped && node.network() != null && closeAfterCall == null) {
         onHostChanged();
         processAddedComponents();
         verifyComponents();
@@ -511,7 +530,7 @@ public abstract class MachineBase extends AbstractManagedEnvironment implements 
 
   // Tables in tables are copied (OC dropped them) to a depth and a number of values, else the signal is not queued: a
   // table within itself overflowed the stack, and one many times within another (no deeper) grew without bound.
-  private static final int MAX_NESTED_DEPTH = 16, MAX_NESTED_VALUES = 1 << 16;
+  public static final int MAX_NESTED_DEPTH = 16, MAX_NESTED_VALUES = 1 << 16; // (LuaJ's arguments too)
   private static final Object TOO_NESTED = new Object();
 
   private Object convertArg(Object arg, int depth, int[] nested) {
@@ -832,6 +851,7 @@ public abstract class MachineBase extends AbstractManagedEnvironment implements 
           }
         } finally {
           inSynchronizedCall = false;
+          closeAfterCall();
         }
         break;
     }
@@ -840,7 +860,8 @@ public abstract class MachineBase extends AbstractManagedEnvironment implements 
       shouldClose = state.peek() == State.Stopping;
     }
     if (shouldClose) {
-      if (!lockForServer("closing")) return;
+      // once the slice is over (each tick of a long one waited 10 ms for it)
+      if (!executionLock.tryLock()) return;
       try {
         synchronized (state) {
           if (tryClose()) platformUnscheduleClose(); // (closed: the one scheduled at the tick's end has nothing to do)
@@ -1210,10 +1231,15 @@ public abstract class MachineBase extends AbstractManagedEnvironment implements 
     if (!lockForServer("closing")) return false;
     try {
       synchronized (state) {
+        // in a call of its own: a synchronized one (the server thread's) or a direct one in its slice
+        boolean inCall = inSynchronizedCall || Thread.currentThread() == sliceThread;
         state.clear();
         state.push(State.Stopped);
         closes++;
-        if (architecture != null) architecture.close();
+        if (architecture != null) {
+          if (inCall) closeAfterCall = architecture;
+          else architecture.close();
+        }
         closeReplaced();
         signals.clear();
         uptime = 0;
@@ -1281,6 +1307,7 @@ public abstract class MachineBase extends AbstractManagedEnvironment implements 
         isSyncReturn = switchTo(State.Running) == State.SynchronizedReturn;
       }
       cpuStart = System.nanoTime();
+      sliceThread = Thread.currentThread();
       try {
         ExecutionResult result = architecture.runThreaded(isSyncReturn);
         synchronized (state) {
@@ -1331,6 +1358,8 @@ public abstract class MachineBase extends AbstractManagedEnvironment implements 
       }
       cpuTotal += System.nanoTime() - cpuStart;
     } finally {
+      sliceThread = null;
+      closeAfterCall(); // (closed by a direct call of its own)
       executionLock.unlock();
     }
     host.markChanged();

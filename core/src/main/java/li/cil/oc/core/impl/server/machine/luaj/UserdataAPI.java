@@ -22,23 +22,21 @@ public class UserdataAPI extends LuaJAPI {
 
     userdata.set("apply", ScalaClosure.wrapVarArgClosure(args -> {
       Value value = (Value) args.checkuserdata(1, Value.class);
-      Object[] params = ScalaClosure.toSimpleJavaObjects(args, 2).toArray();
-      return owner.invoke(() -> ConverterRegistry.get().convert(new Object[]{value.apply(machine, new ArgumentsImpl(params))}));
+      // (arguments converted within the call, as component.invoke's)
+      return owner.invoke(() -> ConverterRegistry.get().convert(new Object[]{value.apply(machine, new ArgumentsImpl(ScalaClosure.toSimpleJavaObjects(args, 2).toArray()))}));
     }));
 
     userdata.set("unapply", ScalaClosure.wrapVarArgClosure(args -> {
       Value value = (Value) args.checkuserdata(1, Value.class);
-      Object[] params = ScalaClosure.toSimpleJavaObjects(args, 2).toArray();
       return owner.invoke(() -> {
-        value.unapply(machine, new ArgumentsImpl(params));
+        value.unapply(machine, new ArgumentsImpl(ScalaClosure.toSimpleJavaObjects(args, 2).toArray()));
         return null;
       });
     }));
 
     userdata.set("call", ScalaClosure.wrapVarArgClosure(args -> {
       Value value = (Value) args.checkuserdata(1, Value.class);
-      Object[] params = ScalaClosure.toSimpleJavaObjects(args, 2).toArray();
-      return owner.invoke(() -> ConverterRegistry.get().convert(value.call(machine, new ArgumentsImpl(params))));
+      return owner.invoke(() -> ConverterRegistry.get().convert(value.call(machine, new ArgumentsImpl(ScalaClosure.toSimpleJavaObjects(args, 2).toArray()))));
     }));
 
     userdata.set("dispose", ScalaClosure.wrapClosure(args -> {
@@ -66,8 +64,7 @@ public class UserdataAPI extends LuaJAPI {
     userdata.set("invoke", ScalaClosure.wrapVarArgClosure(args -> {
       Value value = (Value) args.checkuserdata(1, Value.class);
       String method = args.checkjstring(2);
-      Object[] params = ScalaClosure.toSimpleJavaObjects(args, 3).toArray();
-      return owner.invoke(() -> machine.invoke(value, method, params));
+      return owner.invoke(() -> machine.invoke(value, method, ScalaClosure.toSimpleJavaObjects(args, 3).toArray()));
     }));
 
     userdata.set("doc", ScalaClosure.wrapVarArgClosure(args -> {

@@ -115,7 +115,7 @@ public final class Audit3LuaTests {
   }
 
   /** A robot's empty slot is nil, and so is an empty fluid (in a bucket, an internal tank); a slot without a container says so. */
-  @GameTest(template = EMPTY, timeoutTicks = 400)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void robotSeesEmptySlotsAndFluidsAsNil(final GameTestHelper helper) {
     TestMachines.runRobot(helper, AT, List.of(Constants.ItemName.InventoryUpgrade, Constants.ItemName.InventoryControllerUpgrade,
       Constants.ItemName.TankUpgrade, Constants.ItemName.TankControllerUpgrade), robot -> {
@@ -353,7 +353,7 @@ public final class Audit3LuaTests {
    * compare matches the block whatever its state, as OC 1.12 matched the item's block and metadata (a rotated log, a
    * connected fence and a wall torch were "different": only the default state matched), and only that block.
    */
-  @GameTest(template = EMPTY, timeoutTicks = 400)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void compareMatchesTheBlockInAnyState(final GameTestHelper helper) {
     helper.setBlock(AT.south(), net.minecraft.world.level.block.Blocks.OAK_LOG.defaultBlockState().setValue(RotatedPillarBlock.AXIS, Direction.Axis.X));
     helper.setBlock(AT.above().east(), net.minecraft.world.level.block.Blocks.OAK_FENCE);

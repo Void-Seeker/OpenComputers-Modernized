@@ -52,7 +52,7 @@ public final class PowerTests {
   }
 
   /** A robot broken with fuel in its generator gives that fuel back once (dropped and kept in the upgrade: twice). */
-  @GameTest(template = EMPTY, timeoutTicks = 300)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void generatorFuelComesBackOnce(final GameTestHelper helper) {
     TestMachines.runRobot(helper, AT, List.of(Constants.ItemName.GeneratorUpgrade, Constants.ItemName.InventoryUpgrade),
       robot -> robot.mainInventory().setItem(0, new ItemStack(Items.COAL, 8)),
@@ -97,7 +97,7 @@ public final class PowerTests {
    * dropping it while the drone's chunk unloaded - here, the End where it arrived - crashed the server: an entity was
    * added to the section being unloaded).
    */
-  @GameTest(template = EMPTY, timeoutTicks = 300)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void droneGeneratorFuelIsNotDuplicatedByPortals(final GameTestHelper helper) {
     TestMachines.runDrone(helper, AT, List.of(Constants.ItemName.GeneratorUpgrade, Constants.ItemName.InventoryUpgrade),
       drone -> drone.mainInventory().setItem(0, new ItemStack(Items.COAL, 8)),

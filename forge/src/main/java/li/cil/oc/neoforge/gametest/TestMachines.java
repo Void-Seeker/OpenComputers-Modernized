@@ -54,7 +54,8 @@ final class TestMachines {
    * Places a robot facing south (as placed by a player looking south) with a tier 1 CPU, two tier 1 RAM, the given
    * parts and the program as its EEPROM, then boots it. After delay ticks the check gets the robot and what the program
    * reported: a program reports by ending with error("done:" .. result) (the machine stops with that error); null if it
-   * had not.
+   * had not. Tests using it (or runDrone) need a timeout past its wait of 10 seconds: a robot reports after half a second
+   * to a second and a half, more while many boot, and the test server may tick 400 times a second.
    */
   static void runRobot(final GameTestHelper helper, final BlockPos pos, final List<String> parts, final String program, final int delay,
                        final java.util.function.BiConsumer<li.cil.oc.core.impl.common.blockentity.Robot, String> check) {

@@ -31,7 +31,12 @@ public class ComputerAPI extends LuaJAPI {
     computer.set("totalMemory", ScalaClosure.wrapClosure(args -> LuaValue.valueOf(owner.memory)));
 
     computer.set("pushSignal", ScalaClosure.wrapClosure(args -> {
-      Object[] signalArgs = ScalaClosure.toSimpleJavaObjects(args, 2).toArray();
+      Object[] signalArgs;
+      try {
+        signalArgs = ScalaClosure.toSimpleJavaObjects(args, 2).toArray();
+      } catch (IllegalArgumentException e) { // (nested too deeply: not queued, as by native Lua)
+        return LuaValue.FALSE;
+      }
       return LuaValue.valueOf(machine.signal(args.checkjstring(1), signalArgs));
     }));
 

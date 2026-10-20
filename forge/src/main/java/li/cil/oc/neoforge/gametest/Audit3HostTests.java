@@ -176,7 +176,7 @@ public final class Audit3HostTests {
   }
 
   /** A robot's machine marks it on every slice: saved only (it was sent whole to its clients each time). */
-  @GameTest(template = EMPTY, timeoutTicks = 300)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void runningRobotIsOnlyMarkedForSaving(final GameTestHelper helper) {
     TestMachines.runRobot(helper, AT, List.of(), BUSY, 20, (robot, result) -> {
       helper.assertTrue(robot.machine().isRunning(), "the robot stopped: " + robot.machine().lastError());

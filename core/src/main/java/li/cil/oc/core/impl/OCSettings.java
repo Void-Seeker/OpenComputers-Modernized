@@ -349,7 +349,7 @@ public class OCSettings {
   public final double maxNetworkClientEffectPacketDistance;
   public final double maxNetworkClientSoundPacketDistance;
 
-  public OCSettings(Config config, File gameDir) {
+  public OCSettings(Config config, File configDir) {
     this.config = config;
 
     // client
@@ -783,7 +783,8 @@ public class OCSettings {
       } else if ("false".equals(unwrapped) || "deny".equals(unwrapped) || Boolean.FALSE.equals(unwrapped)) {
         debugCardAccess = DebugCardAccess.Forbidden;
       } else if ("whitelist".equals(unwrapped)) {
-        File wlFile = new File(gameDir, "config" + File.separator + "opencomputers" + File.separator + "debug_card_whitelist.txt");
+        // config/opencomputers, as OC (both platforms give the config directory: it was config/config/opencomputers)
+        File wlFile = new File(configDir, "opencomputers" + File.separator + "debug_card_whitelist.txt");
         debugCardAccess = new DebugCardAccess.Whitelist(wlFile);
       } else {
         LOGGER.warn("Unknown debug card access type, falling back to `deny`. Allowed values: `allow`, `deny`, `whitelist`.");
@@ -832,7 +833,7 @@ public class OCSettings {
     return settings;
   }
 
-  public static void load(File file, File gameDir, String modVersion) {
+  public static void load(File file, File configDir, String modVersion) {
     String eol = "\n";
     Config defaults;
     try {
@@ -861,12 +862,12 @@ public class OCSettings {
       reader.close();
       String plain = sb.toString();
       config = patchConfig(ConfigFactory.parseString(plain), defaults, modVersion).withFallback(defaults);
-      settings = new OCSettings(config.getConfig("opencomputers"), gameDir);
+      settings = new OCSettings(config.getConfig("opencomputers"), configDir);
     } catch (Exception e) {
       if (file.exists()) {
         throw new RuntimeException("Error parsing configuration file. To restore defaults, delete '" + file.getName() + "' and restart the game.", e);
       }
-      settings = new OCSettings(defaults.getConfig("opencomputers"), gameDir);
+      settings = new OCSettings(defaults.getConfig("opencomputers"), configDir);
       config = defaults;
     }
     for (String key : forbiddenConfigLists) {

@@ -120,7 +120,7 @@ public final class SaveMarkTests {
   }
 
   /** A stopped robot's tank filled from outside, and its new name, are saved (nothing marked a stopped robot). */
-  @GameTest(template = EMPTY, timeoutTicks = 300)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void stoppedRobotChangesAreSaved(final GameTestHelper helper) {
     TestMachines.runRobot(helper, AT, List.of(Constants.ItemName.TankUpgrade), "error('done:stopped')", 20, (robot, result) -> {
       helper.assertTrue(!robot.machine().isRunning(), "the robot still runs");

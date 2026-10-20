@@ -429,7 +429,7 @@ public abstract class DebugCardBase extends AbstractManagedEnvironment implement
     @Callback(doc = "function():number -- Get the current world time.")
     public Object[] getTime(Context context, Arguments args) {
       checkAccess();
-      return ResultWrapper.result(world.getGameTime());
+      return ResultWrapper.result(world.getDayTime()); // what setTime sets, as OC (getWorldTime): not the total game time
     }
 
     @SuppressWarnings("SameReturnValue")

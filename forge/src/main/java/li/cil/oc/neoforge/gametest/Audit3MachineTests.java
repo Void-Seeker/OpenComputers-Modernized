@@ -466,4 +466,134 @@ public final class Audit3MachineTests {
       });
     });
   }
+
+  /**
+   * A stop asked for within a slice does not hold up the server thread: each tick until the slice was over waited 10 ms
+   * for it. The computer closes once the slice is over, once.
+   */
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
+  public static void stopWithinASliceDoesNotWaitForIt(final GameTestHelper helper) {
+    startCase(helper, AT, SLEEPER, machine -> {
+      final List<Object> stopped = new ArrayList<>();
+      final Node probe = probe("computer.stopped", stopped);
+      machine.node().connect(probe);
+      final Deque<State> stack = stack(machine);
+      final Slice slice = new Slice(machine);
+      try {
+        synchronized (stack) { // (as the slice's start)
+          stack.clear();
+          stack.push(State.Running);
+        }
+        helper.assertTrue(machine.stop(), "a stop within the slice was refused");
+        long fastest = Long.MAX_VALUE;
+        for (int i = 0; i < 5; i++) {
+          final long start = System.nanoTime();
+          machine.update();
+          fastest = Math.min(fastest, System.nanoTime() - start);
+        }
+        helper.assertTrue(fastest < 5_000_000, "each update within the slice waited " + fastest / 1_000_000 + " ms or more");
+        helper.assertTrue(stopped.isEmpty() && machine.isExecuting(), "within the slice the computer went " + machine.state() + ", stopped " + stopped.size() + " times");
+        synchronized (stack) { // (as the slice's end, once stopped)
+          stack.clear();
+          stack.push(State.Stopping);
+        }
+      } catch (RuntimeException | AssertionError e) {
+        probe.remove();
+        throw e;
+      } finally {
+        slice.end();
+      }
+      within(helper, 30, () -> machine.state().peek() == State.Stopped, () -> {
+        probe.remove();
+        helper.assertTrue(machine.state().peek() == State.Stopped, "the computer did not stop after the slice: " + machine.state());
+        helper.assertTrue(stopped.size() == 1, "the stop closed the computer " + stopped.size() + " times");
+        helper.succeed();
+      });
+    });
+  }
+
+  private static Object luaState(final li.cil.oc.api.machine.Architecture architecture) {
+    try {
+      final var lua = li.cil.oc.core.impl.server.machine.luac.NativeLuaArchitecture.class.getDeclaredField("lua");
+      lua.setAccessible(true);
+      return lua.get(architecture);
+    } catch (ReflectiveOperationException e) {
+      throw new IllegalStateException(e);
+    }
+  }
+
+  /**
+   * A program removing its own block (a debug card's setBlock, a synchronized call) is closed once the call is over: the
+   * close of its Lua state, in use by the call, threw "cannot close" into the world code removing the block, and the
+   * state was never let go.
+   */
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
+  public static void programsRemovingTheirOwnBlockAreClosed(final GameTestHelper helper) {
+    TestMachines.runMicrocontroller(helper, AT, List.of(Constants.ItemName.CPUTier1, Constants.ItemName.RAMTier2, Constants.ItemName.DebugCard), """
+      local d = component.proxy(component.list("debug")())
+      while computer.pullSignal() ~= "go" do end
+      d.getWorld().setBlock(math.floor(d.getX()), math.floor(d.getY()), math.floor(d.getZ()), "minecraft:air")
+      error("done:still running")
+      """, mc -> {
+      final var machine = (MachineBase) mc.machine();
+      final var architecture = machine.architecture();
+      helper.assertTrue(architecture instanceof li.cil.oc.core.impl.server.machine.luac.NativeLuaArchitecture && luaState(architecture) != null,
+        "not running native Lua: " + architecture);
+      machine.signal("go");
+      within(helper, 10, () -> luaState(architecture) == null, () -> {
+        helper.assertTrue(helper.getLevel().getBlockState(helper.absolutePos(AT)).isAir(), "the program did not remove its block: " + machine.lastError());
+        helper.assertTrue(machine.state().peek() == State.Stopped, "the program removing its block is " + machine.state());
+        helper.assertTrue(luaState(architecture) == null, "the Lua state of the program removing its own block was not closed (" + machine.lastError() + ")");
+        helper.succeed();
+      });
+    });
+  }
+
+  /**
+   * Under LuaJ a table within itself, as a signal or a call's argument, is an error, not a stack overflow (pushSignal
+   * is false, as with native Lua): its conversion went on into the table without end. Nested tables still arrive.
+   */
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
+  public static void luajRefusesCyclicTables(final GameTestHelper helper) {
+    final var data = new li.cil.oc.core.impl.common.item.data.MicrocontrollerData();
+    final ItemStack cpu = item(Constants.ItemName.CPUTier1);
+    ((li.cil.oc.api.driver.item.MutableProcessor) li.cil.oc.api.Driver.driverFor(cpu)).setArchitecture(cpu, li.cil.oc.core.impl.server.machine.luaj.LuaJLuaArchitecture.class);
+    data.components.add(cpu);
+    data.components.add(item(Constants.ItemName.RAMTier2));
+    data.components.add(ItemStack.EMPTY);
+    helper.setBlock(AT, Blocks.MICROCONTROLLER.get());
+    final var level = helper.getLevel();
+    final BlockPos abs = helper.absolutePos(AT);
+    Blocks.MICROCONTROLLER.get().setPlacedBy(level, abs, level.getBlockState(abs), net.minecraftforge.common.util.FakePlayerFactory.getMinecraft(level), data.createItemStack());
+    helper.runAfterDelay(5, () -> {
+      final var mc = (li.cil.oc.core.impl.common.blockentity.Microcontroller) level.getBlockEntity(abs);
+      mc.changeEEPROM(eeprom("""
+        local t = {n = 1}
+        t.self = t
+        local cyclic = computer.pushSignal("cyclic", t)
+        local deep = {}
+        for i = 1, 100 do deep = {deep} end
+        local tooDeep = computer.pushSignal("deep", deep)
+        local nested = computer.pushSignal("nested", {a = {b = 2}})
+        local ok, why = pcall(component.invoke, component.list("eeprom")(), "setLabel", t)
+        local got
+        repeat
+          local s, v = computer.pullSignal(1)
+          if s == "nested" then got = v.a.b end
+        until got or computer.uptime() > 30
+        error("done:" .. tostring(cyclic) .. "," .. tostring(tooDeep) .. "," .. tostring(nested) .. "," .. tostring(got == 2) .. "," .. tostring(ok) .. "," .. tostring(why))
+        """));
+      ((li.cil.oc.api.network.Connector) mc.snooperNode).changeBuffer(1000);
+      final var machine = mc.machine();
+      helper.assertTrue(machine.start(), "the microcontroller did not start: " + machine.lastError());
+      within(helper, 30, () -> !machine.isRunning(), () -> {
+        helper.assertTrue(machine.architecture() instanceof li.cil.oc.core.impl.server.machine.luaj.LuaJLuaArchitecture, "not LuaJ: " + machine.architecture());
+        final String error = String.valueOf(machine.lastError());
+        helper.assertTrue(error.contains("done:false,false,true,true,false,") && error.contains("table too large or nested too deeply"),
+          "under LuaJ pushing a table within itself, one 100 deep, a nested one, and a call with one within itself gave " + error
+            + " (not done:false,false,true,true,false,..table too large or nested too deeply)");
+        helper.succeed();
+      });
+    });
+  }
 }

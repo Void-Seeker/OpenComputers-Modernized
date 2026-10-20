@@ -58,7 +58,7 @@ public final class DroneTests {
   }
 
   /** Placing a block with an experience upgrade aboard places one (it duplicated the rest of the stack). */
-  @GameTest(template = EMPTY, timeoutTicks = 200)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void dronePlacesWithoutDuplicating(final GameTestHelper helper) {
     floor(helper);
     TestMachines.runDrone(helper, AT, List.of(Constants.ItemName.InventoryUpgrade, Constants.ItemName.ExperienceUpgrade),
@@ -76,7 +76,7 @@ public final class DroneTests {
   }
 
   /** Swinging with an experience upgrade aboard leaves the drone's inventory alone (it deleted and shifted it). */
-  @GameTest(template = EMPTY, timeoutTicks = 200)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void droneSwingsWithoutLosingItems(final GameTestHelper helper) {
     floor(helper);
     helper.setBlock(AT.south(), Blocks.DIRT);
@@ -91,7 +91,7 @@ public final class DroneTests {
   }
 
   /** use() on a cow with a lead in the drone: no lead is made (it leashed with a copy and dropped a new lead). */
-  @GameTest(template = EMPTY, timeoutTicks = 200)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void droneUseOnAnEntityDuplicatesNothing(final GameTestHelper helper) {
     floor(helper);
     helper.setBlock(AT.south().below(), Blocks.STONE);   // the cow stands level with the drone, in its line of sight
@@ -105,7 +105,7 @@ public final class DroneTests {
   }
 
   /** use() on a potted flower: the flower ends up in the drone (it was put in a hand the drone does not have, and lost). */
-  @GameTest(template = EMPTY, timeoutTicks = 200)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void droneTakesAFlowerFromAPot(final GameTestHelper helper) {
     helper.setBlock(AT.south().below(), Blocks.STONE);
     helper.setBlock(AT.south(), Blocks.POTTED_DANDELION);
@@ -118,7 +118,7 @@ public final class DroneTests {
   }
 
   /** A tank upgrade gives a drone a tank (it had none: Forge's IFluidTank was looked for). */
-  @GameTest(template = EMPTY, timeoutTicks = 200)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void droneHasItsTank(final GameTestHelper helper) {
     TestMachines.runDrone(helper, AT, List.of(Constants.ItemName.TankUpgrade), drone -> {
     }, DRONE + "error('done:' .. tostring(d.tankCount()))", 40, (drone, result) -> {
@@ -128,7 +128,7 @@ public final class DroneTests {
   }
 
   /** move/setAcceleration refuse NaN and infinities (NaN froze the drone for good, inf flew it out of the world). */
-  @GameTest(template = EMPTY, timeoutTicks = 200)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void droneRefusesNonsenseMoves(final GameTestHelper helper) {
     TestMachines.runDrone(helper, AT, List.of(), drone -> {
     }, DRONE + "local a = pcall(d.setAcceleration, 0/0) local b = pcall(d.move, 0/0, 0, 0) local c = pcall(d.move, math.huge, 0, 0) "
@@ -142,7 +142,7 @@ public final class DroneTests {
   }
 
   /** A drone through a portal with no way out (an unlinked nether portal) stays where it was (it was deleted). */
-  @GameTest(template = EMPTY, timeoutTicks = 200)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void droneSurvivesAPortalWithoutExit(final GameTestHelper helper) {
     TestMachines.runDrone(helper, AT, List.of(Constants.ItemName.InventoryUpgrade), drone -> drone.mainInventory().setItem(0, new ItemStack(Items.DIAMOND, 7)),
       "while true do computer.pullSignal(1) end", 20, (drone, result) -> {
@@ -159,7 +159,7 @@ public final class DroneTests {
   }
 
   /** Through a portal, a drone keeps its target where it was relative to it (it flew to near 0, 0 of the new world). */
-  @GameTest(template = EMPTY, timeoutTicks = 200)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void droneKeepsItsTargetThroughAPortal(final GameTestHelper helper) {
     TestMachines.runDrone(helper, AT, List.of(), drone -> {
     }, "while true do computer.pullSignal(1) end", 20, (drone, result) -> {
@@ -177,7 +177,7 @@ public final class DroneTests {
   }
 
   /** A drone's open GUI is gone with the drone (it went on taking items and giving them to nothing). */
-  @GameTest(template = EMPTY, timeoutTicks = 200)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void droneGuiClosesWhenTheDroneIsGone(final GameTestHelper helper) {
     TestMachines.runDrone(helper, AT, List.of(Constants.ItemName.InventoryUpgrade), drone -> {
     }, "while true do computer.pullSignal(1) end", 20, (drone, result) -> {
@@ -191,7 +191,7 @@ public final class DroneTests {
   }
 
   /** A drone unloaded with its chunk lets go of its machine (the Lua state leaked, its components stayed connected). */
-  @GameTest(template = EMPTY, timeoutTicks = 200)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void droneUnloadedLetsGoOfItsMachine(final GameTestHelper helper) {
     TestMachines.runDrone(helper, AT, List.of(), drone -> {
     }, "while true do computer.pullSignal(1) end", 20, (drone, result) -> {
@@ -204,7 +204,7 @@ public final class DroneTests {
   }
 
   /** A drone on a waterlogged slab is not "in water": it keeps running (it was switched off and fell). */
-  @GameTest(template = EMPTY, timeoutTicks = 200)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void droneOnAWaterloggedSlabKeepsRunning(final GameTestHelper helper) {
     helper.setBlock(AT.below(), Blocks.STONE);
     helper.setBlock(AT, Blocks.STONE_SLAB.defaultBlockState().setValue(BlockStateProperties.SLAB_TYPE, SlabType.BOTTOM).setValue(BlockStateProperties.WATERLOGGED, true));

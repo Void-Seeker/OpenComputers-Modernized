@@ -67,14 +67,27 @@ public final class RobotActionTests {
     return entity;
   }
 
+  // the entities in the block in front of the robot (south)
+  private static List<String> inFront(final GameTestHelper helper) {
+    return helper.getLevel().getEntities((net.minecraft.world.entity.Entity) null, new AABB(helper.absolutePos(AT.south()))).stream()
+      .map(e -> net.minecraft.world.entity.EntityType.getKey(e.getType()) + "@" + helper.relativeVec(e.position())).toList();
+  }
+
+  /**
+   * The mob, under a stone roof over the area: gravel of the terrain above the test grid (cleared 20 blocks up) falls in
+   * at times, and landing in the mob's block it was what the robot used its tool on (and the mob suffocated).
+   */
   private static <T extends Mob> T mob(final GameTestHelper helper, final EntityType<T> type, final BlockPos pos) {
+    for (int x = 0; x < 5; x++) {
+      for (int z = 0; z < 5; z++) helper.setBlock(new BlockPos(x, 4, z), Blocks.STONE);
+    }
     final T mob = helper.spawnWithNoFreeWill(type, pos);
     mob.setPersistenceRequired();
     return mob;
   }
 
   /** use() with a tool that does nothing to the block leaves the robot's inventory as it was (it shifted by a slot). */
-  @GameTest(template = EMPTY, timeoutTicks = 200)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void robotUseLeavesTheInventoryAlone(final GameTestHelper helper) {
     helper.setBlock(AT.south(), Blocks.STONE);
     TestMachines.runRobot(helper, AT, List.of(Constants.ItemName.InventoryUpgrade), robot -> {
@@ -92,7 +105,7 @@ public final class RobotActionTests {
   }
 
   /** suck() picks items up from the ground into the robot (they used to vanish). */
-  @GameTest(template = EMPTY, timeoutTicks = 200)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void robotSucksItemsFromTheGround(final GameTestHelper helper) {
     floor(helper);
     TestMachines.runRobot(helper, AT, List.of(Constants.ItemName.InventoryUpgrade), robot -> drop(helper, AT.south(), new ItemStack(Items.COBBLESTONE, 5)),
@@ -104,7 +117,7 @@ public final class RobotActionTests {
   }
 
   /** The tractor beam pulls items into the robot. */
-  @GameTest(template = EMPTY, timeoutTicks = 200)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void robotTractorBeamCollectsItems(final GameTestHelper helper) {
     floor(helper);
     TestMachines.runRobot(helper, AT, List.of(Constants.ItemName.InventoryUpgrade, Constants.ItemName.TractorBeamUpgrade),
@@ -116,7 +129,7 @@ public final class RobotActionTests {
   }
 
   /** The crafting upgrade crafts from the robot's inventory into it. */
-  @GameTest(template = EMPTY, timeoutTicks = 200)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void robotCraftsFromItsInventory(final GameTestHelper helper) {
     TestMachines.runRobot(helper, AT, List.of(Constants.ItemName.InventoryUpgrade, Constants.ItemName.CraftingUpgrade),
       robot -> robot.mainInventory().setItem(0, new ItemStack(Items.OAK_LOG, 2)),
@@ -128,7 +141,7 @@ public final class RobotActionTests {
   }
 
   /** The generator gives the empty bucket of a lava bucket back. */
-  @GameTest(template = EMPTY, timeoutTicks = 200)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void robotGeneratorGivesTheBucketBack(final GameTestHelper helper) {
     TestMachines.runRobot(helper, AT, List.of(Constants.ItemName.InventoryUpgrade, Constants.ItemName.GeneratorUpgrade),
       robot -> robot.mainInventory().setItem(0, new ItemStack(Items.LAVA_BUCKET)),
@@ -140,21 +153,23 @@ public final class RobotActionTests {
   }
 
   /** use() on a cow with buckets: the milk ends up in the robot. */
-  @GameTest(template = EMPTY, timeoutTicks = 200)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void robotMilksACow(final GameTestHelper helper) {
     floor(helper);
-    mob(helper, EntityType.COW, AT.south());
+    final var cow = mob(helper, EntityType.COW, AT.south());
     TestMachines.runRobot(helper, AT, List.of(Constants.ItemName.InventoryUpgrade), robot -> robot.equipmentInventory().setItem(0, new ItemStack(Items.BUCKET, 4)),
       ROBOT + "local ok, why = r.use(3) error('done:' .. tostring(ok) .. ',' .. tostring(why))", 60, (robot, result) -> {
         final var tool = robot.equipmentInventory().getItem(0);
         helper.assertTrue(count(robot, Items.MILK_BUCKET) == 1 && tool.is(Items.BUCKET) && tool.getCount() == 3,
-          "use returned " + result + ": " + count(robot, Items.MILK_BUCKET) + " milk buckets in the robot, tool " + tool);
+          "use returned " + result + ": " + count(robot, Items.MILK_BUCKET) + " milk buckets in the robot, tool " + tool + "; in front "
+            + helper.getBlockState(AT.south()) + ", " + inFront(helper) + ", the cow at " + helper.relativeVec(cow.position())
+            + (cow.isRemoved() ? " (removed: " + cow.getRemovalReason() + ")" : ""));
         helper.succeed();
       });
   }
 
   /** use() with shears on a sheep shears it, and the wool goes into the robot - or stays on the ground when it is full. */
-  @GameTest(template = EMPTY, timeoutTicks = 200)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void robotShearsASheep(final GameTestHelper helper) {
     floor(helper);
     final var sheep = mob(helper, EntityType.SHEEP, AT.south());
@@ -166,7 +181,7 @@ public final class RobotActionTests {
       });
   }
 
-  @GameTest(template = EMPTY, timeoutTicks = 200)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void robotFullShearsASheepAndLeavesTheWool(final GameTestHelper helper) {
     floor(helper);
     final var sheep = mob(helper, EntityType.SHEEP, AT.south());
@@ -181,7 +196,7 @@ public final class RobotActionTests {
   }
 
   /** useDown() with an empty bucket over water scoops it (the player's eyes were two blocks up). */
-  @GameTest(template = EMPTY, timeoutTicks = 200)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void robotScoopsWaterBelow(final GameTestHelper helper) {
     final BlockPos water = new BlockPos(2, 2, 2), at = water.above();
     helper.setBlock(water.below(), Blocks.STONE);
@@ -197,7 +212,7 @@ public final class RobotActionTests {
   }
 
   /** A robot facing east places a piston facing it, west (the player's head pointed south whatever the robot faced). */
-  @GameTest(template = EMPTY, timeoutTicks = 200)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void robotPlacesAPistonFacingItself(final GameTestHelper helper) {
     floor(helper);
     TestMachines.runRobot(helper, AT, List.of(Constants.ItemName.InventoryUpgrade), robot -> robot.mainInventory().setItem(0, new ItemStack(Items.PISTON)),
@@ -210,7 +225,7 @@ public final class RobotActionTests {
   }
 
   /** A sword hits with its full damage (the attack was scaled down to a fifth: the fake player never recharged). */
-  @GameTest(template = EMPTY, timeoutTicks = 200)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void robotHitsWithFullStrength(final GameTestHelper helper) {
     floor(helper);
     final var pig = mob(helper, EntityType.PIG, AT.south());
@@ -222,7 +237,7 @@ public final class RobotActionTests {
   }
 
   /** use() on a lever flips it while the robot holds a block (the block is used first, then the item, as for a player). */
-  @GameTest(template = EMPTY, timeoutTicks = 200)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void robotFlipsALeverRatherThanPlacingItsTool(final GameTestHelper helper) {
     floor(helper);
     helper.setBlock(AT.south().south(), Blocks.STONE);
@@ -279,7 +294,7 @@ public final class RobotActionTests {
   }
 
   /** Waterlogged stairs are what they are: solid. A robot does not move into them (it replaced them with itself). */
-  @GameTest(template = EMPTY, timeoutTicks = 200)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void robotTreatsWaterloggedBlocksAsSolid(final GameTestHelper helper) {
     floor(helper);
     helper.setBlock(AT.south(), Blocks.OAK_STAIRS.defaultBlockState().setValue(BlockStateProperties.WATERLOGGED, true));
@@ -292,7 +307,7 @@ public final class RobotActionTests {
   }
 
   /** A robot's geolyzer and its hopper sides go by the robot's sides, not the world's (here it faces east). */
-  @GameTest(template = EMPTY, timeoutTicks = 200)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void robotGeolyzerAndHoppersUseTheRobotsSides(final GameTestHelper helper) {
     floor(helper);
     helper.setBlock(AT.east(), Blocks.STONE);
@@ -325,7 +340,7 @@ public final class RobotActionTests {
    * The tank controller takes from a fluid item only what really comes out: a lava bucket into a tank with room for
    * half a bucket stays a lava bucket (half was lost and the bucket emptied); into an empty tank it gives a bucket back.
    */
-  @GameTest(template = EMPTY, timeoutTicks = 200)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void robotTankControllerDrainsOnlyWhatFits(final GameTestHelper helper) {
     TestMachines.runRobot(helper, AT, List.of(Constants.ItemName.InventoryUpgrade, Constants.ItemName.TankUpgrade, Constants.ItemName.TankControllerUpgrade), robot -> {
       robot.mainInventory().setItem(0, new ItemStack(Items.LAVA_BUCKET));
@@ -343,7 +358,7 @@ public final class RobotActionTests {
   }
 
   /** transferTo from an empty slot moves nothing; compareTo of two empty slots is true; a part into an empty slot moves. */
-  @GameTest(template = EMPTY, timeoutTicks = 200)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void robotTransferToAndCompareToHandleEmptySlots(final GameTestHelper helper) {
     TestMachines.runRobot(helper, AT, List.of(Constants.ItemName.InventoryUpgrade), robot -> robot.mainInventory().setItem(1, new ItemStack(Items.DIRT, 4)),
       ROBOT + "r.select(1) local a = r.transferTo(2) local b = r.compareTo(3) r.select(2) local c = r.transferTo(5, 3) "
@@ -356,7 +371,7 @@ public final class RobotActionTests {
   }
 
   /** A robot facing east: its redstone front output is east, and getOutput() reports it as its front. */
-  @GameTest(template = EMPTY, timeoutTicks = 300)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void robotRedstoneOutputsByItsOwnSides(final GameTestHelper helper) {
     TestMachines.runRobot(helper, AT, List.of(Constants.ItemName.RedstoneCardTier1),
       ROBOT + "r.turn(false) local rs = component.proxy(component.list('redstone')()) rs.setOutput(3, 15) local o = rs.getOutput() "
@@ -418,7 +433,7 @@ public final class RobotActionTests {
   }
 
   /** The piston upgrade leaves air where it pushed a waterlogged block from (water was duplicated). */
-  @GameTest(template = EMPTY, timeoutTicks = 200)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void robotPistonLeavesNoWaterBehind(final GameTestHelper helper) {
     floor(helper);
     helper.setBlock(AT.south(), Blocks.STONE_SLAB.defaultBlockState().setValue(BlockStateProperties.WATERLOGGED, true));
@@ -431,7 +446,7 @@ public final class RobotActionTests {
   }
 
   /** The sign upgrade reads the side of a sign that faces the robot, and leaves a waxed sign alone. */
-  @GameTest(template = EMPTY, timeoutTicks = 200)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void robotSignUpgradeReadsTheSideFacingIt(final GameTestHelper helper) {
     // a standing sign south of the robot with its front facing south: the robot sees its back
     helper.setBlock(AT.south(), Blocks.OAK_SIGN.defaultBlockState().setValue(net.minecraft.world.level.block.StandingSignBlock.ROTATION, 0));
@@ -447,7 +462,7 @@ public final class RobotActionTests {
       });
   }
 
-  @GameTest(template = EMPTY, timeoutTicks = 200)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void robotSignUpgradeLeavesAWaxedSignAlone(final GameTestHelper helper) {
     helper.setBlock(AT.south(), Blocks.OAK_SIGN.defaultBlockState().setValue(net.minecraft.world.level.block.StandingSignBlock.ROTATION, 8));
     final var sign = (net.minecraft.world.level.block.entity.SignBlockEntity) helper.getBlockEntity(AT.south());
@@ -465,7 +480,7 @@ public final class RobotActionTests {
    * A running robot's computer runs at the game's pace (it was updated twice a tick, from its block entity and from the
    * running robots: uptime and timers ran double and its per-tick work twice).
    */
-  @GameTest(template = EMPTY, timeoutTicks = 300)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void robotComputerRunsAtTheGamesPace(final GameTestHelper helper) {
     TestMachines.runRobot(helper, AT, List.of(), "while true do computer.pullSignal(1) end", 20, (robot, ignored) -> {
       final double uptime = robot.machine().upTime();
@@ -491,7 +506,7 @@ public final class RobotActionTests {
   }
 
   /** A robot that shuts itself down stops for good. */
-  @GameTest(template = EMPTY, timeoutTicks = 300)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void robotShuttingItselfDownStops(final GameTestHelper helper) {
     TestMachines.runRobot(helper, AT, List.of(), "computer.pullSignal(0.5) computer.shutdown()", 20, (robot, ignored) ->
       TestMachines.when(helper, () -> "Stopped".equals(machineState(robot.machine())), 100, () -> {
@@ -505,7 +520,7 @@ public final class RobotActionTests {
    * update and the robot's tick gives) stops for good: nothing else updates it (it stayed stopping, its Lua state,
    * chunk loader and ports kept).
    */
-  @GameTest(template = EMPTY, timeoutTicks = 300)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void robotStoppingOutsideTheRunningRobotsStops(final GameTestHelper helper) {
     TestMachines.runRobot(helper, AT, List.of(), "while true do computer.pullSignal(1) end", 20, (robot, ignored) -> {
       li.cil.oc.core.impl.util.EventHandlerDelegate.get().onRobotStopped(robot);

@@ -167,7 +167,7 @@ public final class Audit3RobotTests {
    * and copies nothing: the upgrade was installed and dropped with the vanished slots, and the inventory upgrade taken
    * out went over slot 16.
    */
-  @GameTest(template = EMPTY, timeoutTicks = 300)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void robotInstallUpgradeShrinkingTheInventoryKeepsEverything(final GameTestHelper helper) {
     floor(helper);
     TestMachines.runRobot(helper, AT, List.of(Constants.ItemName.UpgradeContainerTier3),
@@ -192,7 +192,7 @@ public final class Audit3RobotTests {
   }
 
   /** The same with the last inventory slots going: the inventory upgrade taken out drops (it vanished; the upgrade put in dropped too). */
-  @GameTest(template = EMPTY, timeoutTicks = 300)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void robotInstallUpgradeLeavingNoInventoryDropsTheOldUpgrade(final GameTestHelper helper) {
     floor(helper);
     // this run's upgrade (the test world is kept: one dropped here by an earlier run loaded late, past the clearing, and
@@ -243,7 +243,7 @@ public final class Audit3RobotTests {
   }
 
   /** A robot drops into a chest that only its owner may open (a claim): it asks as its owner, not as OC's player. */
-  @GameTest(template = EMPTY, timeoutTicks = 300)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void robotUsesAChestAsItsOwner(final GameTestHelper helper) {
     floor(helper);
     helper.setBlock(AT.south(), Blocks.CHEST);
@@ -263,7 +263,7 @@ public final class Audit3RobotTests {
   }
 
   /** A chest whose use is denied (not cancelled, as claims may) is not used (it was). */
-  @GameTest(template = EMPTY, timeoutTicks = 300)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void robotRespectsADeniedBlockUse(final GameTestHelper helper) {
     floor(helper);
     helper.setBlock(AT.south(), Blocks.CHEST);
@@ -280,7 +280,7 @@ public final class Audit3RobotTests {
   }
 
   /** Grass in front that only the robot's owner may break is not in the way (detect and move asked as OC's player). */
-  @GameTest(template = EMPTY, timeoutTicks = 300)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void robotChecksBreakingAsItsOwner(final GameTestHelper helper) {
     floor(helper);
     helper.setBlock(AT.south().below(), Blocks.DIRT);
@@ -378,7 +378,7 @@ public final class Audit3RobotTests {
   }
 
   /** A broken robot's chunkloader lets go of its chunks (only its machine's node went: they stayed forced). */
-  @GameTest(template = EMPTY, timeoutTicks = 400)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void brokenRobotReleasesItsChunks(final GameTestHelper helper) {
     inAFarChunk(helper, 1, (far, cleanup) -> TestMachines.runRobot(helper, relative(helper, far), List.of(Constants.ItemName.ChunkloaderUpgrade), robot -> {
       }, IDLE, 20, (robot, ignored) -> when(helper, () -> forced(helper.getLevel(), far) == 9, 100, () -> {
@@ -397,7 +397,7 @@ public final class Audit3RobotTests {
    * A running robot's chunkloader is on again after a reload, and lets go when the robot stops (it came back off, its
    * chunks still forced: a robot's machine resumes without computer.started, and robots are no Context).
    */
-  @GameTest(template = EMPTY, timeoutTicks = 500)
+  @GameTest(template = EMPTY, timeoutTicks = 10_000_000)
   public static void reloadedRobotKeepsItsChunkloaderOn(final GameTestHelper helper) {
     final ServerLevel level = helper.getLevel();
     inAFarChunk(helper, 2, (far, cleanup) -> TestMachines.runRobot(helper, relative(helper, far), List.of(Constants.ItemName.ChunkloaderUpgrade), robot -> {

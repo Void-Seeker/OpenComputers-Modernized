@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.function.Function;
 import li.cil.oc.api.machine.Value;
 import li.cil.oc.core.impl.OCSettings;
+import li.cil.oc.core.impl.server.machine.MachineBase;
 import li.cil.repack.org.luaj.vm2.LuaString;
 import li.cil.repack.org.luaj.vm2.LuaTable;
 import li.cil.repack.org.luaj.vm2.LuaValue;
@@ -41,15 +42,24 @@ public final class ScalaClosure {
     };
   }
 
+  // Tables nest as in signals (MachineBase.convertArg), else it is an error (thrown as a bad argument): a table within
+  // itself overflowed the stack, and one many times within another (no deeper) grew without bound.
+  private static final String TOO_NESTED = "table too large or nested too deeply";
+
   public static List<Object> toSimpleJavaObjects(Varargs args, int start) {
     List<Object> result = new ArrayList<>();
+    int[] nested = {MachineBase.MAX_NESTED_VALUES};
     for (int i = start; i <= args.narg(); i++) {
-      result.add(toSimpleJavaObject(args.arg(i)));
+      result.add(toSimpleJavaObject(args.arg(i), 0, nested));
     }
     return result;
   }
 
   public static Object toSimpleJavaObject(LuaValue value) {
+    return toSimpleJavaObject(value, 0, new int[]{MachineBase.MAX_NESTED_VALUES});
+  }
+
+  private static Object toSimpleJavaObject(LuaValue value, int depth, int[] nested) {
     switch (value.type()) {
       case LuaValue.TBOOLEAN:
         return value.toboolean();
@@ -63,6 +73,7 @@ public final class ScalaClosure {
         }
         return value.tojstring();
       case LuaValue.TTABLE:
+        if (depth > MachineBase.MAX_NESTED_DEPTH) throw new IllegalArgumentException(TOO_NESTED);
         LuaTable table = value.checktable();
         Map<Object, Object> map = new LinkedHashMap<>();
         LuaValue k = LuaValue.NIL;
@@ -70,7 +81,8 @@ public final class ScalaClosure {
           Varargs n = table.next(k);
           k = n.arg1();
           if (k.isnil()) break;
-          map.put(toSimpleJavaObject(k), toSimpleJavaObject(n.arg(2)));
+          if (depth > 0 && --nested[0] < 0) throw new IllegalArgumentException(TOO_NESTED);
+          map.put(toSimpleJavaObject(k, depth + 1, nested), toSimpleJavaObject(n.arg(2), depth + 1, nested));
         }
         return map;
       case LuaValue.TUSERDATA:

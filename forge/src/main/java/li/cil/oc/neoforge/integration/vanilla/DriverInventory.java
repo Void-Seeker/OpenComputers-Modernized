@@ -12,6 +12,7 @@ import li.cil.oc.core.impl.integration.ManagedBlockEntityEnvironment;
 import li.cil.oc.core.impl.util.BlockPosition;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.network.chat.contents.TranslatableContents;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.Container;
 import net.minecraft.world.Nameable;
@@ -56,7 +57,9 @@ public final class DriverInventory extends DriverSidedBlockEntity {
     public Object[] getInventoryName(final Context context, final Arguments args) {
       if (notPermitted()) return new Object[]{null, "permission denied"};
       if (getBlockEntity() instanceof Nameable nameable) {
-        return new Object[]{nameable.getDisplayName().getString()};
+        // the untranslated key, as OC 1.12 and the adapter's names (a translation varies with the language), or a custom name
+        var name = nameable.getName();
+        return new Object[]{name.getContents() instanceof TranslatableContents key ? key.getKey() : name.getString()};
       }
       return new Object[]{null};
     }
