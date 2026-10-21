@@ -478,8 +478,8 @@ public final class Audit3HostTests {
       final UUID lostId = UUID.randomUUID();
       final var lost = restored.apply(lostId, UUID.randomUUID().toString()); // (saved by the last server)
       final var older = restored.apply(UUID.randomUUID(), null); // (an older OC saved no session)
-      helper.assertTrue(java.util.Arrays.equals(lost.isCanceled(null, args), new Object[]{false, "no link"}), "a job lost in a restart is over before it was looked for: " + java.util.Arrays.toString(lost.isCanceled(null, args)));
-      helper.assertTrue(java.util.Arrays.equals(older.isCanceled(null, args), new Object[]{false, "no link"}), "a job lost in an update is over before it was looked for: " + java.util.Arrays.toString(older.isCanceled(null, args)));
+      helper.assertTrue(java.util.Arrays.equals(lost.isCanceled(null, args), new Object[]{false}), "a job looked for after a restart says " + java.util.Arrays.toString(lost.isCanceled(null, args)));
+      helper.assertTrue(java.util.Arrays.equals(older.isCanceled(null, args), new Object[]{false}), "a job looked for after an update says " + java.util.Arrays.toString(older.isCanceled(null, args)));
       final CompoundTag early = new CompoundTag();
       lost.save(early, provider);
       final var lostEarly = new li.cil.oc.neoforge.integration.appeng.NetworkControl.CraftingStatus();
@@ -519,7 +519,7 @@ public final class Audit3HostTests {
         }
       });
       TestMachines.later(helper, 60, () -> { // (still looked for)
-        helper.assertTrue(java.util.Arrays.equals(lost.isCanceled(null, args), new Object[]{false, "no link"}), "a job lost in a restart is over while it is looked for: " + java.util.Arrays.toString(lost.isCanceled(null, args)));
+        helper.assertTrue(java.util.Arrays.equals(lost.isCanceled(null, args), new Object[]{false}), "a job lost in a restart is over while it is looked for: " + java.util.Arrays.toString(lost.isCanceled(null, args)));
         TestMachines.later(helper, 60, () -> { // (looked for long enough)
           helper.assertTrue(java.util.Arrays.equals(lost.isCanceled(null, args), new Object[]{true}), "a job lost in a restart is not cancelled: " + java.util.Arrays.toString(lost.isCanceled(null, args)));
           helper.assertTrue(java.util.Arrays.equals(lost.isDone(null, args), new Object[]{false}), "a job lost in a restart is done: " + java.util.Arrays.toString(lost.isDone(null, args)));
@@ -611,6 +611,52 @@ public final class Audit3HostTests {
       throw new IllegalStateException(e);
     }
     helper.succeed();
+  }
+
+  /**
+   * A cancel while a job is looked for goes to the craftable telling AE2 of it if one does first (it was dropped with
+   * the search).
+   */
+  @GameTest(template = EMPTY, timeoutTicks = 100)
+  public static void aCancelWhileAJobIsLookedForGoesToACraftableTellingAe2(final GameTestHelper helper) {
+    try {
+      final var provider = helper.getLevel().registryAccess();
+      final var args = new ArgumentsImpl(new Object[0]);
+      final UUID id = UUID.randomUUID();
+      final boolean[] cancelled = {false};
+      final var told = (appeng.api.networking.crafting.ICraftingLink) java.lang.reflect.Proxy.newProxyInstance(
+        appeng.api.networking.crafting.ICraftingLink.class.getClassLoader(), new Class<?>[]{appeng.api.networking.crafting.ICraftingLink.class},
+        (proxy, method, arguments) -> switch (method.getName()) {
+          case "getCraftingID" -> id;
+          case "isCanceled" -> cancelled[0];
+          case "cancel" -> {
+            cancelled[0] = true;
+            yield null;
+          }
+          case "hashCode" -> System.identityHashCode(proxy);
+          case "equals" -> proxy == arguments[0];
+          default -> method.getReturnType() == boolean.class ? false : null;
+        });
+      linkCache("seek", UUID.class).invoke(null, id); // (a lost craftable's job)
+      final CompoundTag nbt = new CompoundTag();
+      nbt.putBoolean("computing", false);
+      nbt.putString("link", id.toString());
+      nbt.putString("session", linkCache("session").invoke(null).toString());
+      final var status = new li.cil.oc.neoforge.integration.appeng.NetworkControl.CraftingStatus();
+      status.load(nbt, provider);
+      helper.assertTrue(java.util.Arrays.equals(status.cancel(null, args), new Object[]{true}), "a status could not cancel a job looked for");
+      helper.assertTrue(java.util.Arrays.equals(status.isCanceled(null, args), new Object[]{true}), "a status cancelling a job looked for does not say so");
+      linkCache("load", appeng.api.networking.crafting.ICraftingLink.class).invoke(null, told);
+      linkCache("told", appeng.api.networking.crafting.ICraftingLink.class).invoke(null, told); // (a craftable told AE2 of it)
+      TestMachines.later(helper, 3, () -> {
+        helper.assertTrue(cancelled[0], "the cancel did not go to the craftable that told AE2 of the job");
+        helper.assertTrue(java.util.Arrays.equals(status.isCanceled(null, args), new Object[]{true}), "the status does not report the cancel");
+        helper.assertTrue(told != null, "(held)");
+        helper.succeed();
+      });
+    } catch (ReflectiveOperationException e) {
+      throw new IllegalStateException(e);
+    }
   }
 
   /**
@@ -736,7 +782,9 @@ public final class Audit3HostTests {
         final var over = testLink(UUID.randomUUID(), true);
         linkCache("persisted", UUID.class).invoke(null, over.getCraftingID());
         linkCache("over", appeng.api.networking.crafting.ICraftingLink.class).invoke(null, over); // a job over
-        linkCache("seek", UUID.class).invoke(null, UUID.randomUUID()); // a job looked for
+        final UUID sought = UUID.randomUUID();
+        linkCache("seek", UUID.class).invoke(null, sought); // a job looked for
+        linkCache("cancelWhenFound", UUID.class).invoke(null, sought); // and cancelled meanwhile
         linkCache("orphan", appeng.api.networking.crafting.ICraftingLink.class, appeng.me.cluster.implementations.CraftingCPUCluster.class)
           .invoke(null, testLink(UUID.randomUUID(), false), null); // a job with no requester followed
         final var lostField = cache.getDeclaredField("lost");

@@ -620,18 +620,19 @@ public interface NetworkControl<AETile extends IActionHost> extends Persistable,
     }
 
     // Its controller gone for good: AE2 cancels its jobs for want of a requester, and their statuses, tied to no grid,
-    // said neither done nor cancelled for good. They are cancelled (done looking for it); a job never told AE2 by any
-    // copy of it is not this craftable's to cancel (cancelling the link cancelled nothing: the job ran on with no
-    // requester and maybe ended done, said cancelled) - it is left to LinkCache to follow on its CPU.
+    // said neither done nor cancelled for good. They are cancelled (done looking for it). A job never told AE2 by any
+    // copy of it is not this craftable's to end (cancelling the link cancelled nothing: the job ran on with no requester
+    // and maybe ended done, said cancelled): it is left to LinkCache to follow on its CPU, a cancel made meanwhile with it.
     private boolean lost() {
+      for (var link : java.util.List.copyOf(links)) {
+        if (!LinkCache.untold(link) || link.isDone() || LinkCache.howEnded(link.getCraftingID()) != null) continue;
+        links.remove(link);
+        LinkCache.forget(link);
+        LinkCache.seek(link.getCraftingID());
+        if (link.isCanceled()) LinkCache.cancelWhenFound(link.getCraftingID());
+      }
       links.removeIf(Craftable::over);
       for (var link : java.util.List.copyOf(links)) { // (a link told AE2 tells this craftable at once: removed from links)
-        if (LinkCache.untold(link)) {
-          links.remove(link);
-          LinkCache.forget(link);
-          LinkCache.seek(link.getCraftingID());
-          continue;
-        }
         link.cancel();
         LinkCache.over(link);
       }
@@ -670,8 +671,8 @@ public interface NetworkControl<AETile extends IActionHost> extends Persistable,
 
     private void tell(IGrid grid) {
       if (grid.getCraftingService() instanceof CraftingService crafting) {
-        // a link cancelled before AE2 was told of it cancelled nothing: told now, AE2 cancels its job (AE2 may tell this
-        // craftable at once)
+        // a link cancelled before AE2 was told of it cancelled nothing: told now, AE2 cancels its job (and tells its
+        // requester, if another craftable is)
         for (var link : java.util.List.copyOf(links)) {
           if (link.isCanceled() && !link.isDone() && LinkCache.untold(link) && LinkCache.howEnded(link.getCraftingID()) == null
             && link instanceof CraftingLink craftingLink) {
@@ -844,7 +845,7 @@ public interface NetworkControl<AETile extends IActionHost> extends Persistable,
       var orphan = LinkCache.orphan(id); // (not kept: its CPU may be built again)
       if (orphan != null) return orphan;
       if (link == null && LinkCache.lost(id)) link = new Ended(id, false, true);
-      return link;
+      return link != null ? link : LinkCache.sought(id); // (a cancel while it is looked for is its once found: it said "no link")
     }
 
     // A status saved while computing came back computing for good (OC 1.12 too): the job was submitted for the old
@@ -1112,6 +1113,46 @@ public interface NetworkControl<AETile extends IActionHost> extends Persistable,
       return lost.contains(id);
     }
 
+    // Jobs looked for that their status cancelled meanwhile: cancelled when found (AE2 is told of the cancel then).
+    private static final java.util.Set<java.util.UUID> cancelling = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
+    static void cancelWhenFound(java.util.UUID id) {
+      var orphan = orphans.get(id);
+      if (orphan != null) orphan.link().cancel();
+      else if (sought.containsKey(id)) cancelling.add(id);
+    }
+
+    // a job looked for, until found or over
+    static ICraftingLink sought(java.util.UUID id) {
+      return sought.containsKey(id) ? new Sought(id) : null;
+    }
+
+    private record Sought(java.util.UUID getCraftingID) implements ICraftingLink {
+      @Override
+      public void cancel() {
+        cancelWhenFound(getCraftingID);
+      }
+
+      @Override
+      public boolean isCanceled() {
+        return cancelling.contains(getCraftingID);
+      }
+
+      @Override
+      public boolean isDone() {
+        return false;
+      }
+
+      @Override
+      public boolean isStandalone() {
+        return false;
+      }
+
+      @Override
+      public void writeToNBT(CompoundTag tag) {
+      }
+    }
+
     // (each server tick)
     static void watch() {
       if (sought.isEmpty() && orphans.isEmpty()) return;
@@ -1121,18 +1162,21 @@ public interface NetworkControl<AETile extends IActionHost> extends Persistable,
         var id = entry.getKey();
         if (ended.containsKey(id) || toldOf(id)) { // (a craftable is its requester)
           sought.remove(id);
+          var told = cancelling.remove(id) && !ended.containsKey(id) ? current(id) : null;
+          if (told != null) told.cancel();
           continue;
         }
         if (onCpus == null) onCpus = onCpus();
         var found = onCpus.get(id);
         if (found != null) {
           var held = current(id);
-          if (held != null && held.isCanceled() && untold(held)) found.link().cancel(); // (cancelled by its status before)
+          if (cancelling.remove(id) || held != null && held.isCanceled() && untold(held)) found.link().cancel(); // (cancelled by its status before)
           orphans.put(id, found);
           sought.remove(id);
         } else if (now >= entry.getValue()) {
           lost.add(id);
           sought.remove(id);
+          cancelling.remove(id);
         }
       }
       for (var entry : orphans.entrySet()) {
@@ -1213,6 +1257,7 @@ public interface NetworkControl<AETile extends IActionHost> extends Persistable,
       ended.clear();
       untold.clear();
       sought.clear();
+      cancelling.clear();
       orphans.clear();
       lost.clear();
       computing.clear();

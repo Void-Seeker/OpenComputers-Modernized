@@ -628,6 +628,53 @@ public final class Audit3StorageTests {
   }
 
   /**
+   * A cancel through a link no craftable told AE2 of yet, its craftable then lost (its controller gone), reaches the job:
+   * the craftable recorded the job cancelled, AE2 never heard of it, and the job ran on.
+   */
+  @GameTest(template = EMPTY, timeoutTicks = 600)
+  public static void aCancelBeforeItsCraftableWasLostReachesTheJob(final GameTestHelper helper) {
+    craftingGrid(helper, grid -> runningJob(helper, grid, (craftable, status) -> {
+      final ServerLevel level = helper.getLevel();
+      final var registries = level.registryAccess();
+      final UUID id = craftable.getRequestedJobs().iterator().next().getCraftingID();
+      final var lost = loadedCraftable(craftableOf(id, level, helper.absolutePos(CONTROLLER.west().above())), registries); // (nothing there)
+      final var copy = loadedStatus(statusOf(id, (UUID) linkCache("session")), registries); // (this server's: not looked for)
+      helper.assertTrue(lost.getRequestedJobs().size() == 1, "the craftable was lost at once");
+      helper.assertTrue(java.util.Arrays.equals(copy.cancel(null, NO_ARGS), new Object[]{true}), "the status could not cancel its job");
+      when(helper, () -> !cpuBusy(grid), 40, () -> {
+        helper.assertTrue(lost.getRequestedJobs().isEmpty(), "the lost craftable holds " + lost.getRequestedJobs());
+        helper.assertTrue(!cpuBusy(grid), "a cancel before the craftable was lost did not reach the job");
+        helper.assertTrue(java.util.Arrays.equals(copy.isCanceled(null, NO_ARGS), new Object[]{true}), "the status does not report the cancel");
+        helper.succeed();
+      });
+    }));
+  }
+
+  /**
+   * A restored status cancelling its job while it is looked for (before the watch's next look) cancels it once found:
+   * it said "no link", and the cancel was lost.
+   */
+  @GameTest(template = EMPTY, timeoutTicks = 600)
+  public static void aCancelWhileItsJobIsLookedForReachesItOnceFound(final GameTestHelper helper) {
+    craftingGrid(helper, grid -> runningJob(helper, grid, (craftable, status) -> {
+      final var registries = helper.getLevel().registryAccess();
+      final UUID id = craftable.getRequestedJobs().iterator().next().getCraftingID();
+      final var restoredStatus = loadedStatus(statusOf(id, UUID.randomUUID()), registries); // (saved by the last server)
+      helper.assertTrue(linkCache("orphan", id) == null, "the job was found before the watch looked");
+      helper.assertTrue(java.util.Arrays.equals(restoredStatus.isCanceled(null, NO_ARGS), new Object[]{false}), "a job looked for says "
+        + java.util.Arrays.toString(restoredStatus.isCanceled(null, NO_ARGS)));
+      helper.assertTrue(java.util.Arrays.equals(restoredStatus.cancel(null, NO_ARGS), new Object[]{true}), "a status could not cancel a job looked for: "
+        + java.util.Arrays.toString(restoredStatus.cancel(null, NO_ARGS)));
+      helper.assertTrue(java.util.Arrays.equals(restoredStatus.isCanceled(null, NO_ARGS), new Object[]{true}), "a status cancelling a job looked for does not say so");
+      when(helper, () -> !cpuBusy(grid), 40, () -> { // (its requester there: only the cancel ends it)
+        helper.assertTrue(!cpuBusy(grid), "a cancel while the job was looked for did not reach it once found");
+        helper.assertTrue(java.util.Arrays.equals(restoredStatus.isCanceled(null, NO_ARGS), new Object[]{true}), "the status does not report the cancel");
+        helper.succeed();
+      });
+    }));
+  }
+
+  /**
    * A status of this session cancelling a job its craftable had not told AE2 of yet (waiting for its controller) has the
    * job cancelled once the craftable tells AE2 (it let go of the cancelled link, and the job ran on).
    */
