@@ -897,6 +897,7 @@ public interface NetworkControl<AETile extends IActionHost> extends Persistable,
     private static final String FAILED_KEY = "failed";
     private static final String REASON_KEY = "reason";
     private static final String SESSION_KEY = "session";
+    private static final String CANCELLING_KEY = "cancelling";
 
     @Override
     public void save(CompoundTag nbt, HolderLookup.Provider provider) {
@@ -912,11 +913,14 @@ public interface NetworkControl<AETile extends IActionHost> extends Persistable,
       }
       // how a job over ended: no craftable saves it ("no link" after a reload)
       var craft = failed ? null : link();
-      if (craft != null && (craft.isDone() || craft.isCanceled())) {
+      if (craft != null && !(craft instanceof LinkCache.Sought) && (craft.isDone() || craft.isCanceled())) {
         nbt.putBoolean(DONE_KEY, craft.isDone());
         nbt.putBoolean(CANCELED_KEY, craft.isCanceled());
       } else if (id != null) {
         LinkCache.persisted(id);
+        // a cancel waiting for its job to be found (saved cancelled, the job was let be after a restart: AE2 cancelled
+        // it, or it ended done)
+        if (craft != null && craft.isCanceled()) nbt.putBoolean(CANCELLING_KEY, true);
       }
       nbt.putBoolean(FAILED_KEY, failed);
       nbt.putString(REASON_KEY, reason);
@@ -970,6 +974,7 @@ public interface NetworkControl<AETile extends IActionHost> extends Persistable,
         }
       }
       if (restored && id != null && link == null && !failed && !isComputing) LinkCache.seek(id);
+      if (nbt.getBoolean(CANCELLING_KEY) && id != null && link == null && !failed && !isComputing) LinkCache.cancelWhenFound(id);
     }
   }
 
@@ -1020,6 +1025,7 @@ public interface NetworkControl<AETile extends IActionHost> extends Persistable,
       if (link != null) return link;
       shared.put(loaded.getCraftingID(), new Shared(loaded, tick));
       untold.add(loaded);
+      if (cancelling.remove(loaded.getCraftingID())) loaded.cancel(); // (cancelled while looked for: AE2 is told with it)
       return loaded;
     }
 
@@ -1127,7 +1133,7 @@ public interface NetworkControl<AETile extends IActionHost> extends Persistable,
       return sought.containsKey(id) ? new Sought(id) : null;
     }
 
-    private record Sought(java.util.UUID getCraftingID) implements ICraftingLink {
+    record Sought(java.util.UUID getCraftingID) implements ICraftingLink {
       @Override
       public void cancel() {
         cancelWhenFound(getCraftingID);

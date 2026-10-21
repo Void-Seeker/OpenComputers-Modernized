@@ -646,7 +646,9 @@ public final class Audit3HostTests {
       status.load(nbt, provider);
       helper.assertTrue(java.util.Arrays.equals(status.cancel(null, args), new Object[]{true}), "a status could not cancel a job looked for");
       helper.assertTrue(java.util.Arrays.equals(status.isCanceled(null, args), new Object[]{true}), "a status cancelling a job looked for does not say so");
-      linkCache("load", appeng.api.networking.crafting.ICraftingLink.class).invoke(null, told);
+      linkCache("load", appeng.api.networking.crafting.ICraftingLink.class).invoke(null, told); // (a craftable loaded with it)
+      helper.assertTrue(cancelled[0], "a link loaded for a job cancelled while looked for is not cancelled");
+      helper.assertTrue(java.util.Arrays.equals(status.isCanceled(null, args), new Object[]{true}), "the status reads the link loaded as " + java.util.Arrays.toString(status.isCanceled(null, args)));
       linkCache("told", appeng.api.networking.crafting.ICraftingLink.class).invoke(null, told); // (a craftable told AE2 of it)
       TestMachines.later(helper, 3, () -> {
         helper.assertTrue(cancelled[0], "the cancel did not go to the craftable that told AE2 of the job");
@@ -657,6 +659,48 @@ public final class Audit3HostTests {
     } catch (ReflectiveOperationException e) {
       throw new IllegalStateException(e);
     }
+  }
+
+  /**
+   * A status saved with a cancel waiting for its job to be found saves the cancel, not the job cancelled: loaded after a
+   * restart it looks for the job and cancels it when found (saved cancelled, the job was let be: AE2 cancelled it after
+   * its grace ticks, or it ended done, said cancelled).
+   */
+  @GameTest(template = EMPTY)
+  public static void aCancelWaitingForItsJobIsSavedAsSuch(final GameTestHelper helper) {
+    try {
+      final var provider = helper.getLevel().registryAccess();
+      final var args = new ArgumentsImpl(new Object[0]);
+      final UUID id = UUID.randomUUID();
+      linkCache("seek", UUID.class).invoke(null, id); // (a job looked for)
+      final CompoundTag nbt = new CompoundTag();
+      nbt.putBoolean("computing", false);
+      nbt.putString("link", id.toString());
+      nbt.putString("session", linkCache("session").invoke(null).toString());
+      final var status = new li.cil.oc.neoforge.integration.appeng.NetworkControl.CraftingStatus();
+      status.load(nbt, provider);
+      helper.assertTrue(java.util.Arrays.equals(status.cancel(null, args), new Object[]{true}), "a status could not cancel a job looked for");
+      final CompoundTag saved = new CompoundTag();
+      status.save(saved, provider);
+      helper.assertTrue(saved.getBoolean("cancelling") && !saved.getBoolean("canceled") && !saved.getBoolean("done"), "a cancel waiting for its job saved as " + saved);
+      final var cache = Class.forName("li.cil.oc.neoforge.integration.appeng.NetworkControl$LinkCache");
+      final var sought = cache.getDeclaredField("sought");
+      final var cancelling = cache.getDeclaredField("cancelling");
+      sought.setAccessible(true);
+      cancelling.setAccessible(true);
+      ((Map<?, ?>) sought.get(null)).remove(id); // (the server stopped)
+      ((java.util.Set<?>) cancelling.get(null)).remove(id);
+      saved.putString("session", UUID.randomUUID().toString());
+      final var restored = new li.cil.oc.neoforge.integration.appeng.NetworkControl.CraftingStatus();
+      restored.load(saved, provider);
+      helper.assertTrue(((Map<?, ?>) sought.get(null)).containsKey(id) && ((java.util.Set<?>) cancelling.get(null)).contains(id),
+        "a status restored with a cancel waiting does not look for its job to cancel it");
+      helper.assertTrue(java.util.Arrays.equals(restored.isCanceled(null, args), new Object[]{true}), "a status restored with a cancel waiting says "
+        + java.util.Arrays.toString(restored.isCanceled(null, args)));
+    } catch (ReflectiveOperationException e) {
+      throw new IllegalStateException(e);
+    }
+    helper.succeed();
   }
 
   /**
