@@ -575,6 +575,15 @@ public final class Audit3HostTests {
       final UUID cancelledId = UUID.randomUUID(), doneId = UUID.randomUUID();
       final boolean[] cancelled = {false}, done = {false}, never = {false};
       final var orphan = linkCache("orphan", appeng.api.networking.crafting.ICraftingLink.class, appeng.me.cluster.implementations.CraftingCPUCluster.class);
+      final var orphans = Class.forName("li.cil.oc.neoforge.integration.appeng.NetworkControl$LinkCache").getDeclaredField("orphans");
+      orphans.setAccessible(true);
+      TestMachines.atEnd(helper, () -> { // (a failed test's never end)
+        try {
+          ((Map<?, ?>) orphans.get(null)).keySet().removeAll(List.of(cancelledId, doneId));
+        } catch (IllegalAccessException e) {
+          throw new IllegalStateException(e);
+        }
+      });
       orphan.invoke(null, flaggedLink(cancelledId, never, cancelled), null); // (as found on its CPU)
       orphan.invoke(null, flaggedLink(doneId, done, never), null);
       final java.util.function.Function<UUID, li.cil.oc.neoforge.integration.appeng.NetworkControl.CraftingStatus> loaded = id -> {

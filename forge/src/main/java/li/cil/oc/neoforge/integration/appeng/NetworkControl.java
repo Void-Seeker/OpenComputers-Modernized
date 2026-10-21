@@ -620,10 +620,18 @@ public interface NetworkControl<AETile extends IActionHost> extends Persistable,
     }
 
     // Its controller gone for good: AE2 cancels its jobs for want of a requester, and their statuses, tied to no grid,
-    // said neither done nor cancelled for good. They are cancelled (done looking for it).
+    // said neither done nor cancelled for good. They are cancelled (done looking for it); a job never told AE2 by any
+    // copy of it is not this craftable's to cancel (cancelling the link cancelled nothing: the job ran on with no
+    // requester and maybe ended done, said cancelled) - it is left to LinkCache to follow on its CPU.
     private boolean lost() {
       links.removeIf(Craftable::over);
       for (var link : java.util.List.copyOf(links)) { // (a link told AE2 tells this craftable at once: removed from links)
+        if (LinkCache.untold(link)) {
+          links.remove(link);
+          LinkCache.forget(link);
+          LinkCache.seek(link.getCraftingID());
+          continue;
+        }
         link.cancel();
         LinkCache.over(link);
       }
@@ -816,7 +824,10 @@ public interface NetworkControl<AETile extends IActionHost> extends Persistable,
       if (id == null || link instanceof Ended) return link;
       ICraftingLink current = LinkCache.howEnded(id);
       if (current == null) current = LinkCache.current(id);
-      if (current != null) return link = current;
+      if (current != null) {
+        if (!LinkCache.untold(current)) link = current; // (one no craftable told AE2 of yet may be let go of)
+        return current;
+      }
       var orphan = LinkCache.orphan(id); // (not kept: its CPU may be built again)
       if (orphan != null) return orphan;
       if (link == null && LinkCache.lost(id)) link = new Ended(id, false, true);
@@ -1007,6 +1018,23 @@ public interface NetworkControl<AETile extends IActionHost> extends Persistable,
       return entry != null ? entry.link.get() : null;
     }
 
+    // a link loaded that no craftable told AE2 of yet
+    static boolean untold(ICraftingLink link) {
+      var entry = shared.get(link.getCraftingID());
+      return entry != null && entry.link.get() == link && !entry.told;
+    }
+
+    static void forget(ICraftingLink link) {
+      var entry = shared.get(link.getCraftingID());
+      if (entry != null && entry.link.get() == link) shared.remove(link.getCraftingID(), entry);
+    }
+
+    // whether a craftable told AE2 of the job: its requester
+    private static boolean toldOf(java.util.UUID id) {
+      var entry = shared.get(id);
+      return entry != null && entry.told && entry.link.get() != null;
+    }
+
     // whether a later load took the job over from the link
     static boolean superseded(ICraftingLink link) {
       var entry = shared.get(link.getCraftingID());
@@ -1034,11 +1062,12 @@ public interface NetworkControl<AETile extends IActionHost> extends Persistable,
       return ended.get(id);
     }
 
-    // Jobs restored statuses wait on (saved before a restart; maybe with no requester: their craftable was not kept, or
-    // was the old machine's), by crafting ID, with the tick looked for until. AE2 runs a job with no requester on for its
-    // grace ticks and cancels it unless it ends first, and its CPU lets go of a job over: each tick, polled or not, one
-    // no craftable holds is looked for on the grids' CPUs (powered or not), one found is followed to its end and kept as
-    // it ended, and one on no CPU in time is over (cancelled, or ended before the restart unseen).
+    // Jobs restored statuses wait on (saved before a restart; maybe with no requester: their craftable was not kept, was
+    // the old machine's, or has not found its controller yet), by crafting ID, with the tick looked for until. AE2 runs a
+    // job with no requester on for its grace ticks and cancels it unless it ends first, and its CPU lets go of a job
+    // over: each tick, polled or not, one no craftable told AE2 of is looked for on the grids' CPUs (powered or not), one
+    // found is followed to its end and kept as it ended (a craftable telling AE2 of it later lets go of it), and one on
+    // no CPU in time is over (cancelled, or ended before the restart unseen).
     private record Orphan(ICraftingLink link, appeng.me.cluster.implementations.CraftingCPUCluster cluster) {
     }
 
@@ -1073,7 +1102,7 @@ public interface NetworkControl<AETile extends IActionHost> extends Persistable,
       Map<java.util.UUID, Orphan> onCpus = null;
       for (var entry : sought.entrySet()) {
         var id = entry.getKey();
-        if (ended.containsKey(id) || current(id) != null) { // (a craftable has it)
+        if (ended.containsKey(id) || toldOf(id)) { // (a craftable is its requester)
           sought.remove(id);
           continue;
         }
@@ -1095,8 +1124,8 @@ public interface NetworkControl<AETile extends IActionHost> extends Persistable,
           ended.put(id, new Ended(id, link.isDone(), link.isCanceled()));
           persisted.remove(id);
           orphans.remove(id);
-        } else if (cluster != null && (cluster.isDestroyed() || cluster.craftingLogic.getLastLink() != link)) {
-          orphans.remove(id); // (its CPU was built again: the job has another link)
+        } else if (cluster != null && (cluster.isDestroyed() || cluster.getNode() == null || cluster.craftingLogic.getLastLink() != link)) {
+          orphans.remove(id); // (its CPU unloaded or built again: the job has another link, or is frozen with it)
           sought.put(id, now + SEEK_TICKS);
         }
       }
@@ -1107,7 +1136,7 @@ public interface NetworkControl<AETile extends IActionHost> extends Persistable,
       for (var grid : appeng.hooks.ticking.TickHandler.instance().getGridList()) {
         for (var block : grid.getMachines(appeng.blockentity.crafting.CraftingBlockEntity.class)) {
           var cluster = block.getCluster();
-          var link = cluster != null ? cluster.craftingLogic.getLastLink() : null;
+          var link = cluster != null && cluster.getNode() != null ? cluster.craftingLogic.getLastLink() : null;
           if (link != null) found.putIfAbsent(link.getCraftingID(), new Orphan(link, cluster));
         }
       }

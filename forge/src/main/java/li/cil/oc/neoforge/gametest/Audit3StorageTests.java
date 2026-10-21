@@ -371,8 +371,8 @@ public final class Audit3StorageTests {
       statusTag.putString("session", UUID.randomUUID().toString()); // (saved by the last server)
       final var restored = loadedStatus(statusTag, registries);
       final var cluster = grid.getMachines(appeng.blockentity.crafting.CraftingBlockEntity.class).iterator().next().getCluster();
-      when(helper, () -> linkCache("orphan", id) == cluster.craftingLogic.getLastLink(), 20, () -> {
-        helper.assertTrue(linkCache("orphan", id) == cluster.craftingLogic.getLastLink(), "the job of a restored status was not found on its CPU: " + linkCache("orphan", id));
+      when(helper, () -> linkCache("orphan", id) != null && linkCache("orphan", id) == cluster.craftingLogic.getLastLink(), 20, () -> {
+        helper.assertTrue(linkCache("orphan", id) != null && linkCache("orphan", id) == cluster.craftingLogic.getLastLink(), "the job of a restored status was not found on its CPU: " + linkCache("orphan", id));
         final var rebuilt = (appeng.api.networking.crafting.ICraftingLink) java.lang.reflect.Proxy.newProxyInstance(
           appeng.api.networking.crafting.ICraftingLink.class.getClassLoader(), new Class<?>[]{appeng.api.networking.crafting.ICraftingLink.class},
           (proxy, method, arguments) -> switch (method.getName()) {
@@ -384,6 +384,15 @@ public final class Audit3StorageTests {
         linkCache("orphan", rebuilt, cluster); // (the link of its CPU before it was built again)
         when(helper, () -> linkCache("orphan", id) == cluster.craftingLogic.getLastLink(), 20, () -> {
           helper.assertTrue(linkCache("orphan", id) == cluster.craftingLogic.getLastLink(), "the job of a CPU built again was not followed again");
+          final Object before = linkCache("orphan", id);
+          unloadAndLoadAgain(helper, CONTROLLER.east()); // (the CPU's chunk unloaded and loaded again: its old cluster stays, its node gone)
+          final java.util.function.Supplier<Object> cpuLink = () -> {
+            final var block = (appeng.blockentity.crafting.CraftingBlockEntity) helper.getBlockEntity(CONTROLLER.east());
+            return block.getCluster() != null ? block.getCluster().craftingLogic.getLastLink() : null;
+          };
+          when(helper, () -> cpuLink.get() != null && linkCache("orphan", id) == cpuLink.get(), 40, () -> {
+          helper.assertTrue(cpuLink.get() != null && linkCache("orphan", id) == cpuLink.get() && cpuLink.get() != before,
+            "the job of a CPU loaded again was not followed again: " + linkCache("orphan", id) + " for " + cpuLink.get());
           TestMachines.later(helper, 110, () -> { // (past the time a job is looked for)
             helper.assertTrue(cpuBusy(grid), "the job stopped by itself");
             helper.assertTrue(java.util.Arrays.equals(restored.isCanceled(null, NO_ARGS), new Object[]{false}), "a restored status of a job on its CPU says "
@@ -401,7 +410,132 @@ public final class Audit3StorageTests {
               helper.succeed();
             });
           });
+          });
         });
+      });
+    }));
+  }
+
+  /**
+   * A craftable restored whose controller is gone lets go of a job it never told AE2 of: cancelling its link cancelled
+   * nothing (AE2 runs the job on with no requester, and it may end done), and its status said cancelled. The job is
+   * followed on its CPU.
+   */
+  @GameTest(template = EMPTY, timeoutTicks = 800)
+  public static void aCraftableLostBeforeItToldAe2LeavesItsJobToItsCpu(final GameTestHelper helper) {
+    craftingGrid(helper, grid -> runningJob(helper, grid, (craftable, status) -> {
+      final UUID id = craftable.getRequestedJobs().iterator().next().getCraftingID();
+      final var registries = helper.getLevel().registryAccess();
+      final CompoundTag link = new CompoundTag();
+      link.putUUID("craftId", id);
+      link.putBoolean("req", true);
+      final var links = new net.minecraft.nbt.ListTag();
+      links.add(link);
+      final CompoundTag craftableTag = new CompoundTag();
+      craftableTag.put("links", links); // (no position saved: lost at once)
+      final CompoundTag statusTag = new CompoundTag();
+      statusTag.putBoolean("computing", false);
+      statusTag.putString("link", id.toString());
+      statusTag.putString("session", UUID.randomUUID().toString()); // (saved by the last server)
+      final var restoredStatus = loadedStatus(statusTag, registries);
+      final var restored = loadedCraftable(craftableTag, registries);
+      helper.assertTrue(restored.getRequestedJobs().isEmpty(), "a craftable lost before it told AE2 holds " + restored.getRequestedJobs());
+      helper.assertTrue(linkCache("current", id) == null, "the link a lost craftable let go of is still shared: " + linkCache("current", id));
+      TestMachines.later(helper, 110, () -> { // (past the time a job is looked for)
+        helper.assertTrue(cpuBusy(grid), "the job stopped by itself");
+        helper.assertTrue(java.util.Arrays.equals(restoredStatus.isCanceled(null, NO_ARGS), new Object[]{false}), "the status of a job its craftable never told AE2 of says "
+          + java.util.Arrays.toString(restoredStatus.isCanceled(null, NO_ARGS)) + " while it runs");
+        cancelJobs(helper);
+        when(helper, () -> !cpuBusy(grid) && Boolean.TRUE.equals(restoredStatus.isCanceled(null, NO_ARGS)[0]), 40, () -> {
+          helper.assertTrue(java.util.Arrays.equals(restoredStatus.isCanceled(null, NO_ARGS), new Object[]{true}), "the status of a job cancelled on its CPU says "
+            + java.util.Arrays.toString(restoredStatus.isCanceled(null, NO_ARGS)));
+          helper.succeed();
+        });
+      });
+    }));
+  }
+
+  /**
+   * The job of a restored status whose CPU's core unloaded (a CPU across a chunk border, its other blocks still on the
+   * grid with the cluster) is frozen: it is looked for no longer than any job on no CPU, not found again each tick from
+   * the cluster left with no node.
+   */
+  @GameTest(template = EMPTY, timeoutTicks = 800)
+  public static void aJobFrozenWithItsCpuCoreIsNotLookedForForever(final GameTestHelper helper) {
+    helper.setBlock(CONTROLLER.east().above(), ae2Block("1k_crafting_storage")); // (a CPU of two blocks)
+    craftingGrid(helper, grid -> runningJob(helper, grid, (craftable, status) -> {
+      final ServerLevel level = helper.getLevel();
+      final UUID id = craftable.getRequestedJobs().iterator().next().getCraftingID();
+      final CompoundTag statusTag = new CompoundTag();
+      statusTag.putBoolean("computing", false);
+      statusTag.putString("link", id.toString());
+      statusTag.putString("session", UUID.randomUUID().toString()); // (saved by the last server)
+      final var restoredStatus = loadedStatus(statusTag, level.registryAccess());
+      when(helper, () -> linkCache("orphan", id) != null, 40, () -> {
+        helper.assertTrue(linkCache("orphan", id) != null, "the job was not found on its CPU");
+        final var cluster = ((appeng.blockentity.crafting.CraftingBlockEntity) helper.getBlockEntity(CONTROLLER.east())).getCluster();
+        appeng.blockentity.crafting.CraftingBlockEntity core = null;
+        int blocks = 0;
+        for (final var it = cluster.getBlockEntities(); it.hasNext(); blocks++) {
+          final var block = it.next();
+          if (block.isCoreBlock()) core = block;
+        }
+        helper.assertTrue(blocks == 2 && core != null, "the CPU is " + blocks + " blocks, core " + core);
+        // its chunk unloaded, the other block's not: its node goes (removing the block entity, a fresh one was made at
+        // the next look at the place, and the CPU formed again)
+        core.onChunkUnloaded();
+        helper.assertTrue(cluster.getNode() == null && !cluster.isDestroyed(), "the CPU's core still has a node, or the cluster is gone");
+        final Runnable cancel = TestMachines.atEnd(helper, cluster::cancelJob);
+        TestMachines.later(helper, 120, () -> { // (past the time a job is looked for)
+          helper.assertTrue(Boolean.TRUE.equals(linkCache("lost", id)), "a job frozen with its CPU's core is still looked for");
+          helper.assertTrue(java.util.Arrays.equals(restoredStatus.isCanceled(null, NO_ARGS), new Object[]{true}), "the status of a job frozen past the time looked for says "
+            + java.util.Arrays.toString(restoredStatus.isCanceled(null, NO_ARGS)));
+          cancel.run();
+          helper.succeed();
+        });
+      });
+    }));
+  }
+
+  /**
+   * The job of a restored status is followed on its CPU while the craftable holding it waits for its controller's chunk
+   * (not yet its requester: AE2 runs the job on for its grace ticks, and it may end done before the craftable tells AE2,
+   * which then cancelled it as no CPU's).
+   */
+  @GameTest(template = EMPTY, timeoutTicks = 600)
+  public static void aJobIsFollowedWhileItsCraftableWaitsForItsController(final GameTestHelper helper) {
+    craftingGrid(helper, grid -> runningJob(helper, grid, (craftable, status) -> {
+      final ServerLevel level = helper.getLevel();
+      final UUID id = craftable.getRequestedJobs().iterator().next().getCraftingID();
+      final var registries = level.registryAccess();
+      final ChunkPos chunk = new ChunkPos(60000 + level.random.nextInt(5000), -60000 - level.random.nextInt(5000));
+      final BlockPos far = chunk.getMiddleBlockPosition(64);
+      helper.assertTrue(level.getChunkSource().getChunkNow(chunk.x, chunk.z) == null, "the far chunk is loaded already");
+      final CompoundTag link = new CompoundTag();
+      link.putUUID("craftId", id);
+      link.putBoolean("req", true);
+      final var links = new net.minecraft.nbt.ListTag();
+      links.add(link);
+      final CompoundTag craftableTag = new CompoundTag();
+      craftableTag.put("links", links);
+      craftableTag.putString("dimension", level.dimension().location().toString());
+      craftableTag.putInt("x", far.getX());
+      craftableTag.putInt("y", far.getY());
+      craftableTag.putInt("z", far.getZ());
+      final CompoundTag statusTag = new CompoundTag();
+      statusTag.putBoolean("computing", false);
+      statusTag.putString("link", id.toString());
+      statusTag.putString("session", UUID.randomUUID().toString()); // (saved by the last server)
+      final var waiting = loadedCraftable(craftableTag, registries);
+      final var restoredStatus = loadedStatus(statusTag, registries);
+      final var cpu = grid.getMachines(appeng.blockentity.crafting.CraftingBlockEntity.class).iterator().next().getCluster();
+      when(helper, () -> linkCache("orphan", id) != null, 40, () -> {
+        helper.assertTrue(waiting.getRequestedJobs().size() == 1, "the waiting craftable let go of its job");
+        helper.assertTrue(linkCache("orphan", id) != null && linkCache("orphan", id) == cpu.craftingLogic.getLastLink(),
+          "the job of a craftable waiting for its controller was not followed on its CPU: " + linkCache("orphan", id));
+        helper.assertTrue(java.util.Arrays.equals(restoredStatus.isCanceled(null, NO_ARGS), new Object[]{false}), "the status of a running job says "
+          + java.util.Arrays.toString(restoredStatus.isCanceled(null, NO_ARGS)));
+        helper.succeed();
       });
     }));
   }
@@ -980,10 +1114,10 @@ public final class Audit3StorageTests {
 
   /**
    * A craftable restored whose controller is gone for good (nothing where it stood, another block, an unknown dimension,
-   * no position saved) cancels its jobs: AE2 cancelled them for want of a requester, and their statuses said neither
-   * done nor cancelled for good.
+   * no position saved) lets go of its jobs: AE2 cancelled them for want of a requester, and their statuses said neither
+   * done nor cancelled for good. Jobs on no CPU are over once looked for.
    */
-  @GameTest(template = EMPTY, timeoutTicks = 200)
+  @GameTest(template = EMPTY, timeoutTicks = 300)
   public static void restoredCraftablesWithTheirControllerGoneCancelTheirJobs(final GameTestHelper helper) {
     final ServerLevel level = helper.getLevel();
     final var registries = level.registryAccess();
@@ -1019,7 +1153,7 @@ public final class Audit3StorageTests {
       statuses.add(loadedStatus(statusTag, registries));
       craftables.add(loadedCraftable(craftableTag, registries));
     }
-    when(helper, () -> statuses.stream().allMatch(s -> Boolean.TRUE.equals(s.isCanceled(null, NO_ARGS)[0])), 20, () -> {
+    when(helper, () -> statuses.stream().allMatch(s -> Boolean.TRUE.equals(s.isCanceled(null, NO_ARGS)[0])), 150, () -> { // (looked for on the CPUs)
       for (int i = 0; i < places.length; i++) {
         helper.assertTrue(Boolean.TRUE.equals(statuses.get(i).isCanceled(null, NO_ARGS)[0]), "the status of a craftable whose controller is "
           + places[i][0] + " says " + java.util.Arrays.toString(statuses.get(i).isCanceled(null, NO_ARGS)) + " (" + craftables.get(i).getRequestedJobs().size() + " jobs)");
