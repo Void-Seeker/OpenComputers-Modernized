@@ -355,6 +355,72 @@ public final class Audit3StorageTests {
   }
 
   /**
+   * A status restored after a restart whose job no craftable came back with follows the job on its CPU, found unasked
+   * (AE2 runs a job with no requester on for its grace ticks and cancels it unless it ends first, and its CPU lets go of
+   * a job over): it said cancelled, and a job done meanwhile was reported cancelled. A CPU built again is followed again;
+   * a copy loaded again this session follows it too, and the status cancels it.
+   */
+  @GameTest(template = EMPTY, timeoutTicks = 800)
+  public static void aRestoredStatusFollowsItsJobOnItsCpu(final GameTestHelper helper) {
+    craftingGrid(helper, grid -> runningJob(helper, grid, (craftable, status) -> {
+      final UUID id = craftable.getRequestedJobs().iterator().next().getCraftingID();
+      final var registries = helper.getLevel().registryAccess();
+      final CompoundTag statusTag = new CompoundTag();
+      statusTag.putBoolean("computing", false);
+      statusTag.putString("link", id.toString());
+      statusTag.putString("session", UUID.randomUUID().toString()); // (saved by the last server)
+      final var restored = loadedStatus(statusTag, registries);
+      final var cluster = grid.getMachines(appeng.blockentity.crafting.CraftingBlockEntity.class).iterator().next().getCluster();
+      when(helper, () -> linkCache("orphan", id) == cluster.craftingLogic.getLastLink(), 20, () -> {
+        helper.assertTrue(linkCache("orphan", id) == cluster.craftingLogic.getLastLink(), "the job of a restored status was not found on its CPU: " + linkCache("orphan", id));
+        final var rebuilt = (appeng.api.networking.crafting.ICraftingLink) java.lang.reflect.Proxy.newProxyInstance(
+          appeng.api.networking.crafting.ICraftingLink.class.getClassLoader(), new Class<?>[]{appeng.api.networking.crafting.ICraftingLink.class},
+          (proxy, method, arguments) -> switch (method.getName()) {
+            case "getCraftingID" -> id;
+            case "hashCode" -> System.identityHashCode(proxy);
+            case "equals" -> proxy == arguments[0];
+            default -> method.getReturnType() == boolean.class ? false : null;
+          });
+        linkCache("orphan", rebuilt, cluster); // (the link of its CPU before it was built again)
+        when(helper, () -> linkCache("orphan", id) == cluster.craftingLogic.getLastLink(), 20, () -> {
+          helper.assertTrue(linkCache("orphan", id) == cluster.craftingLogic.getLastLink(), "the job of a CPU built again was not followed again");
+          TestMachines.later(helper, 110, () -> { // (past the time a job is looked for)
+            helper.assertTrue(cpuBusy(grid), "the job stopped by itself");
+            helper.assertTrue(java.util.Arrays.equals(restored.isCanceled(null, NO_ARGS), new Object[]{false}), "a restored status of a job on its CPU says "
+              + java.util.Arrays.toString(restored.isCanceled(null, NO_ARGS)));
+            final CompoundTag hereTag = statusTag.copy();
+            hereTag.putString("session", linkCache("session").toString());
+            final var here = loadedStatus(hereTag, registries); // (a copy loaded again this session)
+            helper.assertTrue(java.util.Arrays.equals(here.isCanceled(null, NO_ARGS), new Object[]{false}), "a status loaded again of a job on its CPU says "
+              + java.util.Arrays.toString(here.isCanceled(null, NO_ARGS)));
+            helper.assertTrue(java.util.Arrays.equals(restored.cancel(null, NO_ARGS), new Object[]{true}), "the restored status could not cancel its job");
+            when(helper, () -> !cpuBusy(grid), 100, () -> {
+              helper.assertTrue(!cpuBusy(grid), "the restored status did not cancel its job");
+              helper.assertTrue(java.util.Arrays.equals(restored.isCanceled(null, NO_ARGS), new Object[]{true}), "the restored status does not report the cancel");
+              helper.assertTrue(java.util.Arrays.equals(here.isCanceled(null, NO_ARGS), new Object[]{true}), "the copy loaded again does not report the cancel");
+              helper.succeed();
+            });
+          });
+        });
+      });
+    }));
+  }
+
+  // LinkCache's (package-private): session(), orphan(id), orphan(link, cluster)
+  private static Object linkCache(final String name, final Object... arguments) {
+    try {
+      for (final var method : Class.forName("li.cil.oc.neoforge.integration.appeng.NetworkControl$LinkCache").getDeclaredMethods()) {
+        if (!method.getName().equals(name) || method.getParameterCount() != arguments.length) continue;
+        method.setAccessible(true);
+        return method.invoke(null, arguments);
+      }
+      throw new IllegalStateException("no LinkCache." + name + " of " + arguments.length);
+    } catch (ReflectiveOperationException e) {
+      throw new IllegalStateException(e);
+    }
+  }
+
+  /**
    * A craftable and its status restored (the computer's chunk loaded again) follow the job still running: the status
    * cancels it (AE2 was never told of the restored link: it reported nothing, cancelled nothing, and after a reload of the
    * grid the job was cancelled for want of a requester).
@@ -949,6 +1015,7 @@ public final class Audit3StorageTests {
       final CompoundTag statusTag = new CompoundTag();
       statusTag.putBoolean("computing", false);
       statusTag.putString("link", id.toString());
+      statusTag.putString("session", linkCache("session").toString()); // (this server's: only its craftable tells it the job's end)
       statuses.add(loadedStatus(statusTag, registries));
       craftables.add(loadedCraftable(craftableTag, registries));
     }
