@@ -535,12 +535,130 @@ public final class Audit3StorageTests {
           "the job of a craftable waiting for its controller was not followed on its CPU: " + linkCache("orphan", id));
         helper.assertTrue(java.util.Arrays.equals(restoredStatus.isCanceled(null, NO_ARGS), new Object[]{false}), "the status of a running job says "
           + java.util.Arrays.toString(restoredStatus.isCanceled(null, NO_ARGS)));
+        helper.assertTrue(java.util.Arrays.equals(restoredStatus.cancel(null, NO_ARGS), new Object[]{true}), "the status could not cancel its job");
+        when(helper, () -> !cpuBusy(grid), 40, () -> { // (cancelling the craftable's link, never told AE2, cancelled nothing)
+          helper.assertTrue(!cpuBusy(grid), "the status of a job whose craftable waits for its controller did not cancel it");
+          helper.assertTrue(java.util.Arrays.equals(restoredStatus.isCanceled(null, NO_ARGS), new Object[]{true}), "the status does not report the cancel");
+          helper.succeed();
+        });
+      });
+    }));
+  }
+
+  // a restored craftable holding the job, its controller where the test says
+  private static CompoundTag craftableOf(final UUID id, final ServerLevel level, final BlockPos at) {
+    final CompoundTag link = new CompoundTag();
+    link.putUUID("craftId", id);
+    link.putBoolean("req", true);
+    final var links = new net.minecraft.nbt.ListTag();
+    links.add(link);
+    final CompoundTag tag = new CompoundTag();
+    tag.put("links", links);
+    tag.putString("dimension", level.dimension().location().toString());
+    tag.putInt("x", at.getX());
+    tag.putInt("y", at.getY());
+    tag.putInt("z", at.getZ());
+    return tag;
+  }
+
+  private static CompoundTag statusOf(final UUID id, final UUID session) {
+    final CompoundTag tag = new CompoundTag();
+    tag.putBoolean("computing", false);
+    tag.putString("link", id.toString());
+    tag.putString("session", session.toString());
+    return tag;
+  }
+
+  private static BlockPos farFrom(final GameTestHelper helper) {
+    final ServerLevel level = helper.getLevel();
+    final ChunkPos chunk = new ChunkPos(60000 + level.random.nextInt(5000), -60000 - level.random.nextInt(5000));
+    helper.assertTrue(level.getChunkSource().getChunkNow(chunk.x, chunk.z) == null, "the far chunk is loaded already");
+    return chunk.getMiddleBlockPosition(64);
+  }
+
+  /**
+   * Copies of a restored craftable loaded together (a machine saved during a call saves it twice) whose controller is
+   * gone both let go of the job neither told AE2 of: the first let go of the link's entry, the second took the link for
+   * told, cancelled it (cancelling nothing) and its status said cancelled while the job ran on.
+   */
+  @GameTest(template = EMPTY, timeoutTicks = 800)
+  public static void copiesOfALostCraftableLeaveTheirJobToItsCpu(final GameTestHelper helper) {
+    craftingGrid(helper, grid -> runningJob(helper, grid, (craftable, status) -> {
+      final ServerLevel level = helper.getLevel();
+      final var registries = level.registryAccess();
+      final UUID id = craftable.getRequestedJobs().iterator().next().getCraftingID();
+      final CompoundTag tag = craftableOf(id, level, helper.absolutePos(CONTROLLER.west().above())); // (nothing there)
+      final var first = loadedCraftable(tag, registries);
+      final var second = loadedCraftable(tag, registries);
+      final var restoredStatus = loadedStatus(statusOf(id, UUID.randomUUID()), registries); // (saved by the last server)
+      when(helper, () -> first.getRequestedJobs().isEmpty() && second.getRequestedJobs().isEmpty(), 40, () -> {
+        helper.assertTrue(first.getRequestedJobs().isEmpty() && second.getRequestedJobs().isEmpty(), "the lost copies hold "
+          + first.getRequestedJobs() + " and " + second.getRequestedJobs());
+        TestMachines.later(helper, 110, () -> { // (past the time a job is looked for)
+          helper.assertTrue(cpuBusy(grid), "the job stopped by itself");
+          helper.assertTrue(java.util.Arrays.equals(restoredStatus.isCanceled(null, NO_ARGS), new Object[]{false}), "the status of a job lost copies never told AE2 of says "
+            + java.util.Arrays.toString(restoredStatus.isCanceled(null, NO_ARGS)) + " while it runs");
+          helper.succeed();
+        });
+      });
+    }));
+  }
+
+  /**
+   * A restored status cancelled before its job was found on its CPU, its craftable waiting for its controller, cancels
+   * the job once found (cancelling the craftable's link, never told AE2, cancelled nothing).
+   */
+  @GameTest(template = EMPTY, timeoutTicks = 600)
+  public static void aStatusCancelledBeforeItsJobWasFoundCancelsIt(final GameTestHelper helper) {
+    craftingGrid(helper, grid -> runningJob(helper, grid, (craftable, status) -> {
+      final ServerLevel level = helper.getLevel();
+      final var registries = level.registryAccess();
+      final UUID id = craftable.getRequestedJobs().iterator().next().getCraftingID();
+      final var waiting = loadedCraftable(craftableOf(id, level, farFrom(helper)), registries);
+      final var restoredStatus = loadedStatus(statusOf(id, UUID.randomUUID()), registries); // (saved by the last server)
+      helper.assertTrue(linkCache("orphan", id) == null, "the job was found already");
+      helper.assertTrue(java.util.Arrays.equals(restoredStatus.cancel(null, NO_ARGS), new Object[]{true}), "the status could not cancel its job");
+      when(helper, () -> !cpuBusy(grid), 40, () -> {
+        helper.assertTrue(!cpuBusy(grid), "a status cancelled before its job was found did not cancel it");
+        helper.assertTrue(java.util.Arrays.equals(restoredStatus.isCanceled(null, NO_ARGS), new Object[]{true}), "the status does not report the cancel");
+        helper.assertTrue(waiting.getRequestedJobs().size() <= 1, "the waiting craftable holds " + waiting.getRequestedJobs());
         helper.succeed();
       });
     }));
   }
 
-  // LinkCache's (package-private): session(), orphan(id), orphan(link, cluster)
+  /**
+   * A status of this session cancelling a job its craftable had not told AE2 of yet (waiting for its controller) has the
+   * job cancelled once the craftable tells AE2 (it let go of the cancelled link, and the job ran on).
+   */
+  @GameTest(template = EMPTY, timeoutTicks = 600)
+  public static void aCancelBeforeItsCraftableToldAe2TakesEffectWhenItDoes(final GameTestHelper helper) {
+    craftingGrid(helper, grid -> runningJob(helper, grid, (craftable, status) -> {
+      final ServerLevel level = helper.getLevel();
+      final var registries = level.registryAccess();
+      final UUID id = craftable.getRequestedJobs().iterator().next().getCraftingID();
+      final var waiting = loadedCraftable(craftableOf(id, level, farFrom(helper)), registries);
+      final var copy = loadedStatus(statusOf(id, (UUID) linkCache("session")), registries); // (this server's: not looked for)
+      helper.assertTrue(java.util.Arrays.equals(copy.cancel(null, NO_ARGS), new Object[]{true}), "the status could not cancel its job");
+      TestMachines.later(helper, 10, () -> {
+        helper.assertTrue(cpuBusy(grid), "the job stopped before its craftable told AE2");
+        try {
+          final var tell = NetworkControl.Craftable.class.getDeclaredMethod("tell", IGrid.class);
+          tell.setAccessible(true);
+          tell.invoke(waiting, grid); // (its controller found)
+        } catch (ReflectiveOperationException e) {
+          throw new IllegalStateException(e);
+        }
+        when(helper, () -> !cpuBusy(grid), 40, () -> {
+          helper.assertTrue(!cpuBusy(grid), "a cancel before the craftable told AE2 did not take effect when it did");
+          helper.assertTrue(java.util.Arrays.equals(copy.isCanceled(null, NO_ARGS), new Object[]{true}), "the status does not report the cancel");
+          helper.succeed();
+        });
+      });
+    }));
+  }
+
+  // a LinkCache method (package-private), by name and arity
   private static Object linkCache(final String name, final Object... arguments) {
     try {
       for (final var method : Class.forName("li.cil.oc.neoforge.integration.appeng.NetworkControl$LinkCache").getDeclaredMethods()) {
@@ -1023,6 +1141,7 @@ public final class Audit3StorageTests {
         final var restoredStatus = loadedStatus(statusTag, registries); // (not asked before the link is gone)
         when(helper, () -> requesterOfTheJob(grid, restored), 20, () -> {
           helper.assertTrue(requesterOfTheJob(grid, restored), "the restored craftable did not tell AE2 of the job");
+          helper.assertTrue(!Boolean.TRUE.equals(linkCache("untold", restored.getRequestedJobs().iterator().next())), "a link told AE2 of is still taken for untold");
           final var link = new WeakReference<>(restored.getRequestedJobs().iterator().next());
           deliverWhenPushed(helper, grid, () -> when(helper, () -> {
             System.gc();

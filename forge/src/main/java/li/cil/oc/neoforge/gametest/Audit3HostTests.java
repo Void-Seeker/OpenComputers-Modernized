@@ -563,6 +563,57 @@ public final class Audit3HostTests {
   }
 
   /**
+   * A status cancelling a job through a link no craftable told AE2 of yet stays cancelled when the job turns up on its
+   * CPU (it followed the job found, said running, and its cancel was lost).
+   */
+  @GameTest(template = EMPTY)
+  public static void aStatusCancelledBeforeItsJobTurnedUpStaysCancelled(final GameTestHelper helper) {
+    try {
+      final var provider = helper.getLevel().registryAccess();
+      final var args = new ArgumentsImpl(new Object[0]);
+      final UUID id = UUID.randomUUID();
+      final boolean[] never = {false}, cancelled = {false};
+      final var held = (appeng.api.networking.crafting.ICraftingLink) java.lang.reflect.Proxy.newProxyInstance(
+        appeng.api.networking.crafting.ICraftingLink.class.getClassLoader(), new Class<?>[]{appeng.api.networking.crafting.ICraftingLink.class},
+        (proxy, method, arguments) -> switch (method.getName()) {
+          case "getCraftingID" -> id;
+          case "isCanceled" -> cancelled[0];
+          case "cancel" -> {
+            cancelled[0] = true;
+            yield null;
+          }
+          case "hashCode" -> System.identityHashCode(proxy);
+          case "equals" -> proxy == arguments[0];
+          default -> method.getReturnType() == boolean.class ? false : null;
+        });
+      linkCache("load", appeng.api.networking.crafting.ICraftingLink.class).invoke(null, held); // (a craftable waiting for its controller)
+      final CompoundTag nbt = new CompoundTag();
+      nbt.putBoolean("computing", false);
+      nbt.putString("link", id.toString());
+      nbt.putString("session", linkCache("session").invoke(null).toString());
+      final var status = new li.cil.oc.neoforge.integration.appeng.NetworkControl.CraftingStatus();
+      status.load(nbt, provider);
+      helper.assertTrue(java.util.Arrays.equals(status.cancel(null, args), new Object[]{true}) && cancelled[0], "the status did not cancel through the craftable's link");
+      final var orphans = Class.forName("li.cil.oc.neoforge.integration.appeng.NetworkControl$LinkCache").getDeclaredField("orphans");
+      orphans.setAccessible(true);
+      TestMachines.atEnd(helper, () -> {
+        try {
+          ((Map<?, ?>) orphans.get(null)).remove(id);
+        } catch (IllegalAccessException e) {
+          throw new IllegalStateException(e);
+        }
+      });
+      linkCache("orphan", appeng.api.networking.crafting.ICraftingLink.class, appeng.me.cluster.implementations.CraftingCPUCluster.class)
+        .invoke(null, flaggedLink(id, never, never), null); // (the job turned up running)
+      helper.assertTrue(java.util.Arrays.equals(status.isCanceled(null, args), new Object[]{true}), "a status cancelled says " + java.util.Arrays.toString(status.isCanceled(null, args)) + " once its job turned up");
+      helper.assertTrue(held == linkCache("current", UUID.class).invoke(null, id), "the link was not shared");
+    } catch (ReflectiveOperationException e) {
+      throw new IllegalStateException(e);
+    }
+    helper.succeed();
+  }
+
+  /**
    * A job with no requester a restored status follows on its CPU is kept as it ended, polled or not, and let go of (it
    * held its CPU and grid): no craftable tells of its end, and the CPU lets go of a job over.
    */

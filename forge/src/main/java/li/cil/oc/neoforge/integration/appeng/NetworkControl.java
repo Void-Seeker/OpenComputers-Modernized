@@ -669,6 +669,16 @@ public interface NetworkControl<AETile extends IActionHost> extends Persistable,
     }
 
     private void tell(IGrid grid) {
+      if (grid.getCraftingService() instanceof CraftingService crafting) {
+        // a link cancelled before AE2 was told of it cancelled nothing: told now, AE2 cancels its job (AE2 may tell this
+        // craftable at once)
+        for (var link : java.util.List.copyOf(links)) {
+          if (link.isCanceled() && !link.isDone() && LinkCache.untold(link) && LinkCache.howEnded(link.getCraftingID()) == null
+            && link instanceof CraftingLink craftingLink) {
+            crafting.addLink(craftingLink);
+          }
+        }
+      }
       links.removeIf(Craftable::over);
       if (grid.getCraftingService() instanceof CraftingService crafting) {
         for (var link : links) {
@@ -825,8 +835,11 @@ public interface NetworkControl<AETile extends IActionHost> extends Persistable,
       ICraftingLink current = LinkCache.howEnded(id);
       if (current == null) current = LinkCache.current(id);
       if (current != null) {
-        if (!LinkCache.untold(current)) link = current; // (one no craftable told AE2 of yet may be let go of)
-        return current;
+        if (!LinkCache.untold(current)) return link = current;
+        // one no craftable told AE2 of yet (it may be let go of, and cancelling it cancelled nothing): the job on its CPU
+        // if found, unless cancelled already (AE2 is told when the job is found, or the craftable tells it)
+        var orphan = current.isCanceled() ? null : LinkCache.orphan(id);
+        return orphan != null ? orphan : current;
       }
       var orphan = LinkCache.orphan(id); // (not kept: its CPU may be built again)
       if (orphan != null) return orphan;
@@ -1005,23 +1018,27 @@ public interface NetworkControl<AETile extends IActionHost> extends Persistable,
       var link = entry != null && entry.tick == tick ? entry.link.get() : null;
       if (link != null) return link;
       shared.put(loaded.getCraftingID(), new Shared(loaded, tick));
+      untold.add(loaded);
       return loaded;
     }
 
     static void told(ICraftingLink link) {
+      untold.remove(link);
       var entry = shared.get(link.getCraftingID());
       if (entry != null && entry.link.get() == link) entry.told = true;
     }
+
+    // Links loaded that no craftable told AE2 of yet, by themselves (a craftable's copies loaded together share one:
+    // the first one lost let go of its entry, and the next took it for told). Weakly held.
+    private static final java.util.Set<ICraftingLink> untold = java.util.Collections.synchronizedSet(java.util.Collections.newSetFromMap(new java.util.WeakHashMap<>()));
 
     static ICraftingLink current(java.util.UUID id) {
       var entry = shared.get(id);
       return entry != null ? entry.link.get() : null;
     }
 
-    // a link loaded that no craftable told AE2 of yet
     static boolean untold(ICraftingLink link) {
-      var entry = shared.get(link.getCraftingID());
-      return entry != null && entry.link.get() == link && !entry.told;
+      return untold.contains(link);
     }
 
     static void forget(ICraftingLink link) {
@@ -1109,6 +1126,8 @@ public interface NetworkControl<AETile extends IActionHost> extends Persistable,
         if (onCpus == null) onCpus = onCpus();
         var found = onCpus.get(id);
         if (found != null) {
+          var held = current(id);
+          if (held != null && held.isCanceled() && untold(held)) found.link().cancel(); // (cancelled by its status before)
           orphans.put(id, found);
           sought.remove(id);
         } else if (now >= entry.getValue()) {
@@ -1192,6 +1211,7 @@ public interface NetworkControl<AETile extends IActionHost> extends Persistable,
       shared.clear();
       persisted.clear();
       ended.clear();
+      untold.clear();
       sought.clear();
       orphans.clear();
       lost.clear();

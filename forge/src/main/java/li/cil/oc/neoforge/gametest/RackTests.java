@@ -192,27 +192,32 @@ public final class RackTests {
         throw new RuntimeException(e);
       }
       final var held = new java.util.concurrent.CountDownLatch(1);
+      final var release = new java.util.concurrent.CountDownLatch(1); // (held 1 s, the test server's 60 ticks ran out first)
       final Thread holder = new Thread(() -> {
         lock.lock();
         try {
           held.countDown();
-          Thread.sleep(1000);
+          release.await(10, java.util.concurrent.TimeUnit.SECONDS);
         } catch (InterruptedException ignored) {
         } finally {
           lock.unlock();
         }
       }, "busy server");
       holder.start();
+      TestMachines.atEnd(helper, release::countDown);
       try {
         held.await();
       } catch (InterruptedException e) {
         throw new RuntimeException(e);
       }
       rack.removeItem(0, 1);
-      TestMachines.later(helper, 60, () -> {
-        helper.assertTrue(!lock.isLocked(), "the test still holds the lock");
-        helper.assertTrue("Stopped".equals(String.valueOf(machine.state().peek())), "the server taken out while busy never closed: " + machine.state());
-        helper.succeed();
+      TestMachines.later(helper, 20, () -> { // (taken out while busy)
+        release.countDown();
+        TestMachines.when(helper, () -> !lock.isLocked() && "Stopped".equals(String.valueOf(machine.state().peek())), 200, () -> {
+          helper.assertTrue(!lock.isLocked(), "the test still holds the lock");
+          helper.assertTrue("Stopped".equals(String.valueOf(machine.state().peek())), "the server taken out while busy never closed: " + machine.state());
+          helper.succeed();
+        });
       });
     });
   }
